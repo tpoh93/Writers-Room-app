@@ -1,5 +1,17 @@
 import os, sys
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlmodel import Session
+
+from app.api.router import api_router
+from app.core import settings
+from app.core.startup import shutdown, startup
+from app.db.session import engine
+
 
 def _load_env_from_nearby():
     candidates = []
@@ -16,15 +28,8 @@ def _load_env_from_nearby():
         except Exception:
             pass
 
+
 _load_env_from_nearby()
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-
-from app.api.router import api_router
-from app.core import settings
-from app.core.startup import startup, shutdown
 
 
 # 使用 lifespan 事件处理器
@@ -32,21 +37,20 @@ from app.core.startup import startup, shutdown
 async def lifespan(app):
     # 启动时执行
     startup()
-    
+
     # [Optimize] 启动时清理过期的工作流运行记录
     try:
-        from app.db.session import engine
-        from sqlmodel import Session
         from app.services.workflow.cleanup import cleanup_expired_runs
-        
+
         with Session(engine) as session:
             cleanup_expired_runs(session)
     except Exception as e:
         print(f"Startup cleanup failed: {e}")
-        
+
     yield
     # 关闭时执行
     shutdown()
+
 
 # 创建 FastAPI 应用实例，注册 lifespan
 app = FastAPI(
@@ -55,11 +59,12 @@ app = FastAPI(
     openapi_url="/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # 注册工作流 Header 中间件 (在 CORS 之前注册，确保响应头被 CORS 处理)
 from app.core.middleware.workflow import WorkflowHeaderMiddleware
+
 app.add_middleware(WorkflowHeaderMiddleware)
 
 # 设置CORS中间件
@@ -80,11 +85,25 @@ app.include_router(api_router, prefix=settings.app.api_prefix)
 def read_root():
     return {
         "message": f"Welcome to {settings.app.app_name} API",
-        "version": settings.app.app_version
+        "version": settings.app.app_version,
     }
+
+
+@app.get("/healthz/live")
+def health_live():
+    return {"status": "ok"}
+
+
+@app.get("/healthz/ready")
+def health_ready():
+    with Session(engine) as session:
+        session.exec(text("SELECT 1"))
+    return {"status": "ready", "database": "ok"}
+
 
 if __name__ == "__main__":
     import uvicorn
+
     # 添加reload=True，这样当代码修改时会自动重新加载
     # 配置更短的优雅关闭时间，便于 Ctrl+C 快速退出
     uvicorn.run(
@@ -94,4 +113,3 @@ if __name__ == "__main__":
         reload=True,
         timeout_graceful_shutdown=1,
     )
-
