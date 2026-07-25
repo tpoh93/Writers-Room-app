@@ -2,7 +2,7 @@
 
 ## Verdict
 
-CAUTION pending manual tailnet access verification.
+CAUTION pending manual tailnet access verification. The implementation and static network contract are approved.
 
 ## Scope reviewed
 
@@ -10,6 +10,7 @@ CAUTION pending manual tailnet access verification.
 - `docs/operations/tailscale-local.md`
 - `compose.yaml`
 - `.env.example`
+- `.github/workflows/sprint-0-network.yml`
 - Task 5 requirements from `docs/superpowers/plans/2026-07-25-sprint-0-foundation-spike.md`
 
 ## Review findings and resolutions
@@ -30,6 +31,15 @@ CAUTION pending manual tailnet access verification.
 - A missing `.env` produces an explicit setup failure instead of an ambiguous Compose error.
 - Tailscale Serve is documented as the only approved remote-access layer.
 - Tailscale Funnel, router forwarding, public tunnels, backend publication, and broad Docker binds are explicitly prohibited.
+- The exposure-check script is executable in Git.
+
+## Hard evidence
+
+GitHub Actions run `30178613413` completed successfully.
+
+- canonical `127.0.0.1` frontend binding accepted: PASS
+- broad `0.0.0.0` frontend binding rejected: PASS
+- published backend port rejected: PASS
 
 ## Pending manual evidence
 
@@ -40,4 +50,4 @@ Gate C cannot be approved by CI alone. The project owner must verify:
 3. no router forwarding exists;
 4. the test record contains no sensitive network or writing data.
 
-The verdict becomes `LOOKS GOOD` after the static exposure check passes in CI and both manual observations are recorded.
+This manual acceptance is external to the code path and does not block the next implementation task. Gate C remains `NOT RUN` until both observations are recorded.
