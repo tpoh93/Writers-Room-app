@@ -16,8 +16,8 @@ Evidence must not contain API keys or private writing. Store sensitive evidence 
 | B3 | Frontend healthy | PASS | Same-origin health and Vue application shell passed in run `30178048386` | `docs/acceptance/task-3-review.md` | Product review |
 | B4 | Data persists | PASS | Real SQLite marker survived restore and container recreation in run `30178352257` | `docs/acceptance/task-4-review.md` | Technical review |
 | B5 | Secrets absent from Git | NOT RUN | Secret scan plus review of tracked environment files | Scan output | Security review |
-| C1 | Trusted Tailscale device reaches app | NOT RUN | Access through approved tailnet device | Redacted device/access evidence | Project owner |
-| C2 | No public route | NOT RUN | Negative test from non-tailnet connection; no router forwarding | Network evidence | Security review |
+| C1 | Trusted Tailscale device reaches app | NOT RUN | Manual approved-tailnet device test pending | `docs/operations/tailscale-local.md` | Project owner |
+| C2 | No public route | NOT RUN | Static unsafe-bind tests passed in run `30178613413`; outside-tailnet and router checks pending | `docs/acceptance/task-5-review.md` | Security review |
 | D1 | Three model configs execute in order | NOT RUN | Pipeline event log shows Kimi, Grok, Aion sequence | Redacted run record | AI workflow review |
 | D2 | Intended handoff verified | NOT RUN | Inspect prompts/inputs preserved for each completed step | Redacted node-state evidence | AI workflow review |
 | D3 | Final diff visible | NOT RUN | UI displays before/after result before mutation | Screenshot with synthetic text | Product review |
