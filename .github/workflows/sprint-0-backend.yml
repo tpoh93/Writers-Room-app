@@ -7,6 +7,7 @@ on:
     paths:
       - "backend/**"
       - "frontend/**"
+      - "scripts/**"
       - "compose.yaml"
       - ".env.example"
       - ".github/workflows/sprint-0-backend.yml"
@@ -16,8 +17,8 @@ permissions:
   contents: read
 
 jobs:
-  health-tests:
-    name: Backend health tests
+  backend-tests:
+    name: Backend tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -37,12 +38,16 @@ jobs:
         working-directory: backend
         run: python -m pip install -r requirements-dev.txt
 
-      - name: Run health endpoint tests
+      - name: Run focused backend tests
         working-directory: backend
         env:
           NOVELFORGE_DB_PATH: ${{ runner.temp }}/writers-room-health.db
           BOOTSTRAP_OVERWRITE: "false"
-        run: python -m pytest tests/test_health.py -v
+        run: |
+          python -m pytest \
+            tests/test_health.py \
+            tests/services/test_backup_service.py \
+            -v
 
   backend-image:
     name: Backend image smoke test
@@ -135,9 +140,9 @@ jobs:
         run: test -f frontend/dist-web/index.html
 
   compose-smoke:
-    name: Canonical Compose smoke test
+    name: Canonical Compose and persistence smoke test
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -209,6 +214,97 @@ jobs:
             echo "FAIL: backend port 54321 is reachable from the host" >&2
             exit 1
           fi
+
+      - name: Create persistence marker and backup
+        run: |
+          docker compose exec -T backend python - <<'PY'
+          import sqlite3
+
+          with sqlite3.connect('/data/novelforge.db') as conn:
+              conn.execute('CREATE TABLE IF NOT EXISTS sprint0_persistence(value TEXT NOT NULL)')
+              conn.execute('DELETE FROM sprint0_persistence')
+              conn.execute('INSERT INTO sprint0_persistence(value) VALUES (?)', ('before',))
+              conn.commit()
+          PY
+
+          backup_path="$(./scripts/backup.sh --label ci-restore | tail -n 1 | tr -d '\r')"
+          test -n "$backup_path"
+          docker compose exec -T backend test -f "$backup_path"
+          echo "BACKUP_PATH=$backup_path" >> "$GITHUB_ENV"
+
+      - name: Mutate database after backup
+        run: |
+          docker compose exec -T backend python - <<'PY'
+          import sqlite3
+
+          with sqlite3.connect('/data/novelforge.db') as conn:
+              conn.execute('UPDATE sprint0_persistence SET value = ?', ('after',))
+              conn.commit()
+          PY
+
+      - name: Restore backup through host script
+        run: |
+          restore_output="$(./scripts/restore.sh "$BACKUP_PATH" --force)"
+          printf '%s\n' "$restore_output"
+          safety_path="$(printf '%s\n' "$restore_output" | grep '^/data/pre-restore/.*\.db$' | tail -n 1)"
+          test -n "$safety_path"
+          docker compose exec -T backend test -f "$safety_path"
+
+      - name: Wait for restored stack
+        run: |
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/healthz/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker compose ps
+            docker compose logs --tail=300 backend frontend
+            exit 1
+          fi
+
+      - name: Verify restored value
+        run: |
+          value="$(docker compose exec -T backend python - <<'PY'
+          import sqlite3
+
+          with sqlite3.connect('/data/novelforge.db') as conn:
+              row = conn.execute('SELECT value FROM sprint0_persistence').fetchone()
+          print(row[0] if row else '')
+          PY
+          )"
+          test "$value" = "before"
+
+      - name: Recreate containers without deleting volumes
+        run: |
+          docker compose down
+          docker compose up -d
+
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/healthz/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" -eq 1
+
+      - name: Verify database and backup volume persisted
+        run: |
+          value="$(docker compose exec -T backend python - <<'PY'
+          import sqlite3
+
+          with sqlite3.connect('/data/novelforge.db') as conn:
+              row = conn.execute('SELECT value FROM sprint0_persistence').fetchone()
+          print(row[0] if row else '')
+          PY
+          )"
+          test "$value" = "before"
+          docker compose exec -T backend test -f "$BACKUP_PATH"
 
       - name: Clean up
         if: always()
