@@ -1,0 +1,69 @@
+name: Task 8 CodeMirror Patch
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/task8_patch_codemirror.py"
+      - ".github/workflows/task-8-codemirror-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-codemirror-patch:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    name: Apply guarded selected-text editor integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out pull request branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply guarded CodeMirror patch
+        run: python scripts/task8_patch_codemirror.py
+
+      - name: Verify exact mutation scope
+        run: |
+          changed="$(git diff --name-only)"
+          test "$changed" = "frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue"
+          test "$(grep -c 'Thinking p\*rn' frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue)" -ge 2
+          git diff --check
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install committed frontend dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck patched editor
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Run selected-text tests
+        working-directory: frontend
+        run: |
+          npm test -- \
+            selectionPatch.test.ts \
+            selectionPipelineEditor.test.ts \
+            selectionPipelines.test.ts \
+            SelectionPipelineDialog.test.ts
+
+      - name: Commit patched editor
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue
+          git commit -m "feat: connect Thinking p*rn to selected text"
+          git push origin "HEAD:${HEAD_BRANCH}"
