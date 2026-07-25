@@ -43,6 +43,25 @@ export async function captureSelection(
   }
 }
 
+export async function validateSnapshot(
+  snapshot: SelectionSnapshot,
+  currentDocument: string
+): Promise<PatchValidation> {
+  if (!hasValidRange(currentDocument, snapshot.from, snapshot.to)) {
+    return { status: 'conflict', reason: 'Selection snapshot range is invalid' }
+  }
+
+  if (await sha256(currentDocument) !== snapshot.documentHash) {
+    return { status: 'conflict', reason: 'Document changed after pipeline launch' }
+  }
+
+  if (currentDocument.slice(snapshot.from, snapshot.to) !== snapshot.text) {
+    return { status: 'conflict', reason: 'Selected text no longer matches' }
+  }
+
+  return { status: 'ok' }
+}
+
 export async function validatePatch(
   snapshot: SelectionSnapshot,
   currentDocument: string,
@@ -57,17 +76,5 @@ export async function validatePatch(
     return { status: 'conflict', reason: 'Replacement is empty' }
   }
 
-  if (!hasValidRange(currentDocument, snapshot.from, snapshot.to)) {
-    return { status: 'conflict', reason: 'Selection snapshot range is invalid' }
-  }
-
-  if (await sha256(currentDocument) !== snapshot.documentHash) {
-    return { status: 'conflict', reason: 'Document changed after pipeline launch' }
-  }
-
-  if (currentDocument.slice(snapshot.from, snapshot.to) !== snapshot.text) {
-    return { status: 'conflict', reason: 'Selected text no longer matches' }
-  }
-
-  return { status: 'ok' }
+  return validateSnapshot(snapshot, currentDocument)
 }
