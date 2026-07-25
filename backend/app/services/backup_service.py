@@ -9,8 +9,11 @@ from pathlib import Path
 
 def _integrity_check(path: Path) -> None:
     uri = f"file:{path.as_posix()}?mode=ro"
-    with sqlite3.connect(uri, uri=True) as conn:
-        result = conn.execute("PRAGMA integrity_check").fetchone()
+    try:
+        with sqlite3.connect(uri, uri=True) as conn:
+            result = conn.execute("PRAGMA integrity_check").fetchone()
+    except sqlite3.DatabaseError as exc:
+        raise ValueError(f"SQLite integrity check failed for {path}: {exc}") from exc
     if not result or result[0] != "ok":
         raise ValueError(f"SQLite integrity check failed for {path}: {result}")
 
