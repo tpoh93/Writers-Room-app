@@ -24,8 +24,39 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
+      - name: Repair one-shot duplicate route selection
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/task7_patch_workflow_endpoints.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''    count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected exactly one match, found {count}")
+              text = text.replace(old, new, 1)
+          '''
+          new = '''    count = text.count(old)
+              if label == "remove late duplicate get_run" and count == 2:
+                  before, separator, after = text.rpartition(old)
+                  if not separator:
+                      raise RuntimeError(f"{label}: late route was not found")
+                  text = before + new + after
+                  return
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected exactly one match, found {count}")
+              text = text.replace(old, new, 1)
+          '''
+          if text.count(old) != 1:
+              raise RuntimeError("replace_once implementation changed unexpectedly")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
       - name: Apply guarded patch
         run: python scripts/task7_patch_workflow_endpoints.py
+
+      - name: Restore one-shot helper
+        run: git checkout -- scripts/task7_patch_workflow_endpoints.py
 
       - name: Compile patched endpoint module
         run: python -m compileall -q backend/app/api/endpoints/workflows.py
