@@ -2,7 +2,7 @@
 
 ## Verdict
 
-CAUTION until the executable bit on `scripts/verify-upstream.sh` is verified in a real checkout.
+LOOKS GOOD.
 
 ## Scope reviewed
 
@@ -14,9 +14,7 @@ CAUTION until the executable bit on `scripts/verify-upstream.sh` is verified in 
 
 ## Findings
 
-### P2
-
-- The GitHub Contents API does not expose or set Unix executable mode. The script content is correct and passed `bash -n` in an isolated shell check, but `./scripts/verify-upstream.sh` must be verified after a real checkout and marked executable with `chmod +x` if needed.
+No blocking or non-blocking findings remain.
 
 ## Spec compliance
 
@@ -26,21 +24,16 @@ CAUTION until the executable bit on `scripts/verify-upstream.sh` is verified in 
 - Acceptance matrix contains all required Gate A through Gate E rows and evidence columns.
 - Runtime data, secrets, private evidence, SQLite files, and Superdesign temporary files are ignored.
 - The upstream blanket ignores for `docs/`, Markdown, and shell scripts were removed because they conflicted with the approved project workflow.
+- `scripts/verify-upstream.sh` is committed with executable mode `100755`.
 
 ## Validation
 
 - `bash -n scripts/verify-upstream.sh`: PASS against the exact committed content in an isolated shell.
+- Direct executable invocation against an isolated AGPL/baseline fixture: PASS.
 - Functional fixture check with AGPL marker and pinned baseline: PASS.
-- GitHub branch diff: four intended files only.
+- Git mode-only comparison confirms the executable-bit commit changed no script content.
+- Branch diff contains the intended Task 1 files plus this review record.
 
-## Required next verification
+## Review conclusion
 
-In the first real repository checkout:
-
-```bash
-chmod +x scripts/verify-upstream.sh
-./scripts/verify-upstream.sh
-git diff --check
-```
-
-The review becomes `Looks good` when these commands pass and the executable mode is committed.
+Task 1 satisfies the frozen baseline and verification contract. Later tasks may rely on the acceptance matrix and upstream-sync procedure.
