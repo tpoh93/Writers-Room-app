@@ -7,12 +7,13 @@ if [[ ! -f .env ]]; then
 fi
 
 resolved="$(docker compose config --format json)"
+export WRITERS_ROOM_COMPOSE_JSON="$resolved"
 
-printf '%s' "$resolved" | python3 - <<'PY'
+python3 - <<'PY'
 import json
-import sys
+import os
 
-config = json.load(sys.stdin)
+config = json.loads(os.environ["WRITERS_ROOM_COMPOSE_JSON"])
 services = config.get("services", {})
 frontend = services.get("frontend")
 backend = services.get("backend")
@@ -45,6 +46,8 @@ if backend_ports:
 
 print("PASS: Compose defaults to a local-only frontend binding and no backend host port")
 PY
+
+unset WRITERS_ROOM_COMPOSE_JSON
 
 if command -v lsof >/dev/null 2>&1; then
   app_port="${APP_PORT:-8080}"
