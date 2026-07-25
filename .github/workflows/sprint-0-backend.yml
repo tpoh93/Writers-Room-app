@@ -168,6 +168,11 @@ jobs:
             exit 1
           fi
 
+      - name: Verify browser application shell
+        run: |
+          curl -fsS http://127.0.0.1:8080/ > /tmp/writers-room-index.html
+          grep -q '<div id="app"></div>' /tmp/writers-room-index.html
+
       - name: Wait for Compose service health
         run: |
           backend_id="$(docker compose ps -q backend)"
