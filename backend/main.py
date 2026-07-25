@@ -2,15 +2,6 @@ import os, sys
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-from sqlmodel import Session
-
-from app.api.router import api_router
-from app.core import settings
-from app.core.startup import shutdown, startup
-from app.db.session import engine
 
 
 def _load_env_from_nearby():
@@ -30,6 +21,16 @@ def _load_env_from_nearby():
 
 
 _load_env_from_nearby()
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlmodel import Session
+
+from app.api.router import api_router
+from app.core import settings
+from app.core.startup import shutdown, startup
+from app.db.session import engine
 
 
 # 使用 lifespan 事件处理器
