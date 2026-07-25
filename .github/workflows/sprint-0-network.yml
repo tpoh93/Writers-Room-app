@@ -1,0 +1,51 @@
+name: Sprint 0 Network Contract
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "compose.yaml"
+      - ".env.example"
+      - "scripts/check-local-exposure.sh"
+      - ".github/workflows/sprint-0-network.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-only-exposure:
+    name: Local-only exposure contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create CI environment
+        run: cp .env.example .env
+
+      - name: Accept canonical localhost configuration
+        run: ./scripts/check-local-exposure.sh
+
+      - name: Reject broad frontend binding
+        run: |
+          if APP_BIND_ADDRESS=0.0.0.0 ./scripts/check-local-exposure.sh; then
+            echo "FAIL: unsafe 0.0.0.0 binding was accepted" >&2
+            exit 1
+          fi
+
+      - name: Reject published backend port
+        run: |
+          cat > /tmp/unsafe-backend.yaml <<'YAML'
+          services:
+            backend:
+              ports:
+                - "127.0.0.1:54321:54321"
+          YAML
+
+          if COMPOSE_FILE="compose.yaml:/tmp/unsafe-backend.yaml" ./scripts/check-local-exposure.sh; then
+            echo "FAIL: published backend port was accepted" >&2
+            exit 1
+          fi
