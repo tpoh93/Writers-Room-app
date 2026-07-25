@@ -11,6 +11,7 @@ from .structured import StructuredGenerateNode
 from .debate import DebateNode
 from .batch_structured import BatchStructuredNode
 from .sequential_structured import SequentialStructuredNode
+from .text_generate import TextGenerateNode
 
 __all__ = [
     "ContextAssembleNode",
@@ -21,4 +22,5 @@ __all__ = [
     "DebateNode",
     "BatchStructuredNode",
     "SequentialStructuredNode",
+    "TextGenerateNode",
 ]
