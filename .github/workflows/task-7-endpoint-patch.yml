@@ -1,0 +1,47 @@
+name: Task 7 Endpoint Patch
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/task7_patch_workflow_endpoints.py"
+      - ".github/workflows/task-7-endpoint-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-endpoint-patch:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    name: Apply guarded workflow endpoint patch
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out pull request branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply guarded patch
+        run: python scripts/task7_patch_workflow_endpoints.py
+
+      - name: Compile patched endpoint module
+        run: python -m compileall -q backend/app/api/endpoints/workflows.py
+
+      - name: Verify exact mutation scope
+        run: |
+          changed="$(git diff --name-only)"
+          test "$changed" = "backend/app/api/endpoints/workflows.py"
+          git diff --check
+
+      - name: Commit patched endpoint module
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/api/endpoints/workflows.py
+          git commit -m "feat: add parameterized workflow run endpoints"
+          git push origin "HEAD:${HEAD_BRANCH}"
