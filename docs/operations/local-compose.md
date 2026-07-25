@@ -81,6 +81,44 @@ The stack uses named volumes:
 
 `docker compose down` preserves both volumes. Do not use `docker compose down -v` unless intentionally destroying all local application data and backups.
 
+## Create a backup
+
+The backend stays online while SQLite creates a transactionally consistent backup through its backup API:
+
+```bash
+./scripts/backup.sh
+./scripts/backup.sh --label before-upgrade
+```
+
+The command prints only the created path inside the persistent backup volume, for example:
+
+```text
+/backups/novelforge-20260725T223000000000Z-before-upgrade.db
+```
+
+Record this exact path before a risky migration or upstream import.
+
+## Restore a backup
+
+Restore is intentionally guarded. The backend is stopped before the database file is replaced.
+
+```bash
+./scripts/restore.sh /backups/novelforge-YYYYMMDDTHHMMSSffffffZ-before-upgrade.db --force
+```
+
+With `--force`, the restore command first creates a safety backup of the database being replaced under `/data/pre-restore/`. The CLI prints that safety-backup path when it is created.
+
+Without `--force`, restore refuses to overwrite an existing database.
+
+After a successful restore, the script starts backend and frontend again. Verify:
+
+```bash
+curl -fsS http://127.0.0.1:8080/healthz/ready
+docker compose ps
+```
+
+Never run a manual file copy over the live SQLite database. Never restore while the backend is writing. Do not delete the safety backup until the restored application has been inspected.
+
 ## Safe network defaults
 
 `.env.example` binds the frontend to `127.0.0.1:8080`. Do not change `APP_BIND_ADDRESS` to `0.0.0.0` for normal Version 1 use. Remote access will be provided through Tailscale, not router port forwarding, public tunnels, or a directly exposed backend port.
@@ -119,3 +157,5 @@ A clean checkout passes this operation slice when:
 5. backend readiness returns JSON through the same origin.
 6. the editor shell loads in a browser.
 7. stopping and starting containers preserves application data.
+8. backup and forced restore reproduce the backed-up SQLite state.
+9. a safety backup is created before replacing an existing database.
