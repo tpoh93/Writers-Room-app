@@ -7,7 +7,7 @@ from datetime import datetime
 from loguru import logger
 
 from app.db.session import get_session
-from app.db.models import Workflow, WorkflowRun
+from app.db.models import Workflow, WorkflowRun, NodeExecutionState
 from app.schemas.workflow import (
     WorkflowCreate,
     WorkflowUpdate,
@@ -17,6 +17,8 @@ from app.schemas.workflow import (
     CancelResponse,
     RunStatus,
     NodeTypesResponse,
+    WorkflowRunCreated,
+    NodeExecutionStateRead,
 )
 from app.schemas.workflow_agent import WorkflowPatchRequest, WorkflowPatchResponse
 from app.services.workflow.patcher import (
@@ -188,6 +190,59 @@ def create_workflow(payload: WorkflowCreate, session: Session = Depends(get_sess
     return wf
 
 
+@router.post("/workflows/{workflow_id}/runs", response_model=WorkflowRunCreated)
+def create_parameterized_workflow_run(
+    workflow_id: int,
+    payload: RunRequest,
+    session: Session = Depends(get_session),
+):
+    workflow = session.get(Workflow, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    if not workflow.is_active:
+        raise HTTPException(status_code=400, detail="Workflow is not active")
+
+    run = RunManager(session).create_run(
+        workflow_id=workflow_id,
+        trigger_data=payload.scope_json,
+        params=payload.params_json,
+        idempotency_key=payload.idempotency_key,
+    )
+    return WorkflowRunCreated(
+        run_id=run.id,
+        workflow_id=run.workflow_id,
+        status=run.status,
+    )
+
+
+@router.get("/workflows/runs/{run_id}", response_model=WorkflowRunRead)
+def get_run(run_id: int, session: Session = Depends(get_session)):
+    run = session.get(WorkflowRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return run
+
+
+@router.get(
+    "/workflows/runs/{run_id}/node-states",
+    response_model=List[NodeExecutionStateRead],
+)
+def get_run_node_states(
+    run_id: int,
+    session: Session = Depends(get_session),
+):
+    run = session.get(WorkflowRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    statement = (
+        select(NodeExecutionState)
+        .where(NodeExecutionState.run_id == run_id)
+        .order_by(NodeExecutionState.id)
+    )
+    return session.exec(statement).all()
+
+
 @router.get("/workflows/project-templates")
 def get_project_templates(session: Session = Depends(get_session)):
     """获取项目创建模板列表
@@ -264,14 +319,6 @@ def delete_workflow(workflow_id: int, session: Session = Depends(get_session)):
     session.delete(wf)
     session.commit()
     return {"ok": True}
-
-
-@router.get("/workflows/runs/{run_id}", response_model=WorkflowRunRead)
-def get_run(run_id: int, session: Session = Depends(get_session)):
-    run = session.get(WorkflowRun, run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
-    return run
 
 
 @router.get("/workflows/{workflow_id}/runs", response_model=List[WorkflowRunRead])
@@ -479,7 +526,20 @@ async def execute_code_workflow_stream(
 
     # 处理 run 记录
     run_manager = RunManager(session)
-    
+    precreated_run = None
+
+    if run_id is not None and not resume:
+        precreated_run = session.get(WorkflowRun, run_id)
+        if not precreated_run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if precreated_run.workflow_id != workflow_id:
+            raise HTTPException(status_code=400, detail="Run does not belong to workflow")
+        if precreated_run.status != "queued":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pre-created run must be queued, got {precreated_run.status}",
+            )
+
     if resume:
         # 恢复执行：必须提供 run_id
         if not run_id:
@@ -494,6 +554,12 @@ async def execute_code_workflow_stream(
         
         workflow_runtime.request_resume(run_id)
         logger.info(f"[CodeWorkflow] 准备恢复运行: run_id={run_id}, workflow_id={workflow_id}")
+    elif precreated_run is not None:
+        run = precreated_run
+        run_id = run.id
+        logger.info(
+            f"[CodeWorkflow] 使用预创建运行: run_id={run_id}, workflow_id={workflow_id}"
+        )
     else:
         # 新建执行：使用 RunManager 创建（带幂等性保护）
         # 生成幂等键：基于工作流ID和时间窗口（5秒）
@@ -559,8 +625,15 @@ async def execute_code_workflow_stream(
             # 推送 run_id（让前端知道当前运行的 ID）
             yield f"data: {json.dumps({'type': 'run_started', 'run_id': run_id}, ensure_ascii=False)}\n\n"
 
+            # 将预创建运行参数注入初始上下文。scope 先加载，显式 params 后覆盖。
+            initial_context = {}
+            if run.scope_json:
+                initial_context.update(run.scope_json)
+            if run.params_json:
+                initial_context.update(run.params_json)
+
             # 流式执行
-            async for event in executor.execute_stream(plan, initial_context={}):
+            async for event in executor.execute_stream(plan, initial_context=initial_context):
                 # 检查是否已暂停（优先检查）
                 if executor.is_paused or workflow_runtime.is_pause_requested(run_id):
                     logger.info(f"[CodeWorkflow] 检测到暂停状态，停止执行: run_id={run_id}")
