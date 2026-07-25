@@ -80,9 +80,23 @@ jobs:
             exit 1
           fi
 
-      - name: Inspect container health
+      - name: Wait for Docker health
         run: |
-          test "$(docker inspect --format='{{.State.Health.Status}}' writers-room-backend-spike)" = "healthy"
+          status=""
+          for attempt in $(seq 1 40); do
+            status="$(docker inspect --format='{{.State.Health.Status}}' writers-room-backend-spike)"
+            if [ "$status" = "healthy" ]; then
+              exit 0
+            fi
+            if [ "$status" = "unhealthy" ]; then
+              docker logs writers-room-backend-spike
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "FAIL: backend health remained $status" >&2
+          docker logs writers-room-backend-spike
+          exit 1
 
       - name: Clean up
         if: always()
@@ -154,11 +168,35 @@ jobs:
             exit 1
           fi
 
-      - name: Verify services are healthy
+      - name: Wait for Compose service health
         run: |
+          backend_id="$(docker compose ps -q backend)"
+          frontend_id="$(docker compose ps -q frontend)"
+          test -n "$backend_id"
+          test -n "$frontend_id"
+
+          for attempt in $(seq 1 60); do
+            backend_status="$(docker inspect --format='{{.State.Health.Status}}' "$backend_id")"
+            frontend_status="$(docker inspect --format='{{.State.Health.Status}}' "$frontend_id")"
+
+            if [ "$backend_status" = "healthy" ] && [ "$frontend_status" = "healthy" ]; then
+              docker compose ps
+              exit 0
+            fi
+
+            if [ "$backend_status" = "unhealthy" ] || [ "$frontend_status" = "unhealthy" ]; then
+              docker compose ps
+              docker compose logs --tail=300 backend frontend
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          echo "FAIL: backend=$backend_status frontend=$frontend_status" >&2
           docker compose ps
-          test "$(docker inspect --format='{{.State.Health.Status}}' writers-room-backend-1)" = "healthy"
-          test "$(docker inspect --format='{{.State.Health.Status}}' writers-room-frontend-1)" = "healthy"
+          docker compose logs --tail=300 backend frontend
+          exit 1
 
       - name: Verify backend is not published to the host
         run: |
