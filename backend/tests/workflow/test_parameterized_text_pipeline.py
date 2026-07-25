@@ -1,0 +1,299 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from sqlalchemy.pool import StaticPool
+from sqlmodel import SQLModel, Session, create_engine, select
+
+from app.api.endpoints.workflows import (
+    create_parameterized_workflow_run,
+    get_run_node_states,
+    router,
+)
+from app.bootstrap.workflows import _parse_code_workflow
+from app.db.models import NodeExecutionState, Workflow, WorkflowRun
+from app.schemas.workflow import RunRequest
+from app.services.workflow.engine.async_executor import AsyncExecutor
+from app.services.workflow.engine.state_manager import StateManager
+from app.services.workflow.parser.marker_parser import WorkflowParser
+
+
+WORKFLOW_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "app"
+    / "bootstrap"
+    / "workflows"
+    / "thinking_porn_spike.wf"
+)
+
+
+@pytest.fixture()
+def session() -> Session:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as database_session:
+        yield database_session
+
+
+def create_workflow(session: Session) -> Workflow:
+    workflow = Workflow(
+        name="Thinking p*rn",
+        description="test pipeline",
+        definition_code=WORKFLOW_PATH.read_text(encoding="utf-8"),
+        is_active=True,
+        is_built_in=True,
+        keep_run_history=True,
+    )
+    session.add(workflow)
+    session.commit()
+    session.refresh(workflow)
+    assert workflow.id is not None
+    return workflow
+
+
+def pipeline_params() -> dict[str, object]:
+    return {
+        "source_text": "Pierwotny fragment.",
+        "brief": "Wzmocnij scenę bez zmiany faktów.",
+        "kimi_llm_config_id": 11,
+        "grok_llm_config_id": 12,
+        "aion_llm_config_id": 13,
+    }
+
+
+def test_create_parameterized_run_persists_params_and_is_idempotent(
+    session: Session,
+) -> None:
+    workflow = create_workflow(session)
+    payload = RunRequest(
+        scope_json={"project_id": 7},
+        params_json=pipeline_params(),
+        idempotency_key="selection:card-7:hash-abc",
+    )
+
+    first = create_parameterized_workflow_run(workflow.id, payload, session)
+    second = create_parameterized_workflow_run(workflow.id, payload, session)
+
+    assert first.run_id == second.run_id
+    run = session.get(WorkflowRun, first.run_id)
+    assert run is not None
+    assert run.status == "queued"
+    assert run.scope_json == {"project_id": 7}
+    assert run.params_json == pipeline_params()
+
+
+def test_node_state_endpoint_returns_persisted_outputs(session: Session) -> None:
+    workflow = create_workflow(session)
+    created = create_parameterized_workflow_run(
+        workflow.id,
+        RunRequest(params_json=pipeline_params()),
+        session,
+    )
+    session.add(
+        NodeExecutionState(
+            run_id=created.run_id,
+            node_id="kimi",
+            node_type="AI.TextGenerate",
+            status="success",
+            progress=100,
+            outputs_json={"text": "Wersja Kimi"},
+        )
+    )
+    session.commit()
+
+    states = get_run_node_states(created.run_id, session)
+
+    assert len(states) == 1
+    assert states[0].node_id == "kimi"
+    assert states[0].outputs_json == {"text": "Wersja Kimi"}
+
+
+def test_static_run_routes_are_registered_before_dynamic_workflow_route() -> None:
+    paths = [route.path for route in router.routes]
+
+    assert paths.index("/workflows/runs/{run_id}") < paths.index(
+        "/workflows/{workflow_id}"
+    )
+    assert paths.index("/workflows/runs/{run_id}/node-states") < paths.index(
+        "/workflows/{workflow_id}"
+    )
+
+
+def test_builtin_workflow_has_exact_display_name_and_valid_dependencies() -> None:
+    parsed_file = _parse_code_workflow(str(WORKFLOW_PATH))
+    plan = WorkflowParser().parse(parsed_file["code"])
+
+    assert parsed_file["name"] == "Thinking p*rn"
+    assert [statement.variable for statement in plan.statements] == [
+        "source",
+        "brief_input",
+        "kimi_config",
+        "grok_config",
+        "aion_config",
+        "kimi",
+        "grok",
+        "aion",
+    ]
+    assert plan.statements[5].node_type == "AI.TextGenerate"
+    assert "kimi" in plan.statements[6].depends_on
+    assert {"kimi", "grok"}.issubset(plan.statements[7].depends_on)
+
+
+@pytest.mark.asyncio
+async def test_three_models_execute_in_order_with_intended_handoffs(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.services.workflow.nodes.ai.text_generate as text_generate_module
+
+    workflow = create_workflow(session)
+    created = create_parameterized_workflow_run(
+        workflow.id,
+        RunRequest(params_json=pipeline_params()),
+        session,
+    )
+    calls: list[tuple[int, str]] = []
+
+    async def fake_generate_review(**kwargs) -> str:
+        config_id = kwargs["llm_config_id"]
+        prompt = kwargs["user_prompt"]
+        calls.append((config_id, prompt))
+        return {
+            11: "Wersja Kimi",
+            12: "Wersja Groka",
+            13: "Wersja Aiona",
+        }[config_id]
+
+    monkeypatch.setattr(
+        text_generate_module,
+        "generate_review",
+        fake_generate_review,
+    )
+
+    plan = WorkflowParser().parse(workflow.definition_code)
+    executor = AsyncExecutor(
+        session=session,
+        state_manager=StateManager(session),
+        run_id=created.run_id,
+    )
+    events = []
+    async for event in executor.execute_stream(plan, initial_context=pipeline_params()):
+        events.append(event)
+
+    assert [config_id for config_id, _ in calls] == [11, 12, 13]
+    assert "Pierwotny fragment." in calls[0][1]
+    assert "Wersja Kimi" in calls[1][1]
+    assert "Wersja Kimi" in calls[2][1]
+    assert "Wersja Groka" in calls[2][1]
+    assert any(event.type == "workflow_complete" for event in events)
+
+    states = session.exec(
+        select(NodeExecutionState)
+        .where(NodeExecutionState.run_id == created.run_id)
+        .order_by(NodeExecutionState.id)
+    ).all()
+    ai_states = [state for state in states if state.node_type == "AI.TextGenerate"]
+    assert [state.node_id for state in ai_states] == ["kimi", "grok", "aion"]
+    assert [state.outputs_json for state in ai_states] == [
+        {"text": "Wersja Kimi"},
+        {"text": "Wersja Groka"},
+        {"text": "Wersja Aiona"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_failure_preserves_completed_output_and_resume_skips_kimi(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.services.workflow.nodes.ai.text_generate as text_generate_module
+
+    workflow = create_workflow(session)
+    created = create_parameterized_workflow_run(
+        workflow.id,
+        RunRequest(params_json=pipeline_params()),
+        session,
+    )
+    first_calls: list[int] = []
+
+    async def fail_on_grok(**kwargs) -> str:
+        config_id = kwargs["llm_config_id"]
+        first_calls.append(config_id)
+        if config_id == 12:
+            raise RuntimeError("synthetic Grok failure")
+        return "Wersja Kimi"
+
+    monkeypatch.setattr(text_generate_module, "generate_review", fail_on_grok)
+    plan = WorkflowParser().parse(workflow.definition_code)
+    first_executor = AsyncExecutor(
+        session=session,
+        state_manager=StateManager(session),
+        run_id=created.run_id,
+    )
+
+    with pytest.raises(RuntimeError, match="synthetic Grok failure"):
+        async for _ in first_executor.execute_stream(
+            plan,
+            initial_context=pipeline_params(),
+        ):
+            pass
+
+    kimi_state = session.exec(
+        select(NodeExecutionState).where(
+            NodeExecutionState.run_id == created.run_id,
+            NodeExecutionState.node_id == "kimi",
+        )
+    ).first()
+    grok_state = session.exec(
+        select(NodeExecutionState).where(
+            NodeExecutionState.run_id == created.run_id,
+            NodeExecutionState.node_id == "grok",
+        )
+    ).first()
+    assert first_calls == [11, 12]
+    assert kimi_state is not None
+    assert kimi_state.status == "success"
+    assert kimi_state.outputs_json == {"text": "Wersja Kimi"}
+    assert grok_state is not None
+    assert grok_state.status == "error"
+
+    resumed_calls: list[int] = []
+
+    async def complete_remaining(**kwargs) -> str:
+        config_id = kwargs["llm_config_id"]
+        resumed_calls.append(config_id)
+        return {12: "Wersja Groka", 13: "Wersja Aiona"}[config_id]
+
+    monkeypatch.setattr(
+        text_generate_module,
+        "generate_review",
+        complete_remaining,
+    )
+    resumed_executor = AsyncExecutor(
+        session=session,
+        state_manager=StateManager(session),
+        run_id=created.run_id,
+    )
+    async for _ in resumed_executor.execute_stream(
+        plan,
+        initial_context=pipeline_params(),
+    ):
+        pass
+
+    assert resumed_calls == [12, 13]
+    final_states = session.exec(
+        select(NodeExecutionState).where(
+            NodeExecutionState.run_id == created.run_id,
+            NodeExecutionState.node_id.in_(["kimi", "grok", "aion"]),
+        )
+    ).all()
+    assert {state.node_id: state.status for state in final_states} == {
+        "kimi": "success",
+        "grok": "success",
+        "aion": "success",
+    }
