@@ -14,7 +14,7 @@ Evidence must not contain API keys or private writing. Store sensitive evidence 
 | B1 | Compose builds | PASS | GitHub Actions run `30178048386`, `Canonical Compose smoke test` | `docs/acceptance/task-3-review.md` | Technical review |
 | B2 | Backend healthy | PASS | Same-origin `/healthz/ready` and Docker health passed in run `30178048386` | `docs/acceptance/task-3-review.md` | Technical review |
 | B3 | Frontend healthy | PASS | Same-origin health and Vue application shell passed in run `30178048386` | `docs/acceptance/task-3-review.md` | Product review |
-| B4 | Data persists | NOT RUN | Create test project, recreate containers, reopen project | Redacted persistence record | Technical review |
+| B4 | Data persists | PASS | Real SQLite marker survived restore and container recreation in run `30178352257` | `docs/acceptance/task-4-review.md` | Technical review |
 | B5 | Secrets absent from Git | NOT RUN | Secret scan plus review of tracked environment files | Scan output | Security review |
 | C1 | Trusted Tailscale device reaches app | NOT RUN | Access through approved tailnet device | Redacted device/access evidence | Project owner |
 | C2 | No public route | NOT RUN | Negative test from non-tailnet connection; no router forwarding | Network evidence | Security review |
@@ -25,7 +25,7 @@ Evidence must not contain API keys or private writing. Store sensitive evidence 
 | D5 | Reject changes nothing | NOT RUN | Automated editor test and manual synthetic-text check | Test output | Editor safety review |
 | D6 | Changed document blocks apply | NOT RUN | Mutate document after launch; application reports conflict | Test output | Editor safety review |
 | E1 | Clean Linux start | PASS | Ubuntu runner built and started the canonical Compose stack in run `30178048386` | `docs/acceptance/task-3-review.md` | Deployment review |
-| E2 | Restored data usable | NOT RUN | Restore backup and open project, prompts, configs, history | Restore evidence | Data review |
+| E2 | Restored data usable | PASS | Backup restored the earlier database value and survived restart in run `30178352257` | `docs/acceptance/task-4-review.md` | Data review |
 | E3 | No code change required | NOT RUN | Compare deployed commit before and after portability drill | Commit identifiers | Deployment review |
 
 ## Gate rules
