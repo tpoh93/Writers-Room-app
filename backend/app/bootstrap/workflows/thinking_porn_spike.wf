@@ -1,11 +1,31 @@
 # workflow-name: Thinking p*rn
 # workflow-description: Three-stage selected-text pipeline: Kimi, Grok, Aion
 
+#@node(description="Read selected source text")
+source = Logic.RuntimeInput(key="source_text")
+#</node>
+
+#@node(description="Read task brief")
+brief_input = Logic.RuntimeInput(key="brief")
+#</node>
+
+#@node(description="Read Kimi model configuration")
+kimi_config = Logic.RuntimeInput(key="kimi_llm_config_id")
+#</node>
+
+#@node(description="Read Grok model configuration")
+grok_config = Logic.RuntimeInput(key="grok_llm_config_id")
+#</node>
+
+#@node(description="Read Aion model configuration")
+aion_config = Logic.RuntimeInput(key="aion_llm_config_id")
+#</node>
+
 #@node(description="Kimi: architecture, psychology and staging")
 kimi = AI.TextGenerate(
-    llm_config_id=kimi_llm_config_id,
+    llm_config_id=kimi_config.value,
     system_prompt="You are Kimi, the scene architect. Preserve intent, facts, names, language and point of view. Return only the revised selection.",
-    user_prompt=f"TASK BRIEF:\n{brief}\n\nSOURCE SELECTION:\n{source_text}",
+    user_prompt=f"TASK BRIEF:\n{brief_input.value}\n\nSOURCE SELECTION:\n{source.value}",
     temperature=0.7,
     max_tokens=4096,
     timeout=180
@@ -14,9 +34,9 @@ kimi = AI.TextGenerate(
 
 #@node(description="Grok: choreography and continuity")
 grok = AI.TextGenerate(
-    llm_config_id=grok_llm_config_id,
+    llm_config_id=grok_config.value,
     system_prompt="You are Grok, the continuity and physical choreography editor. Preserve intent, facts, names, language and point of view. Return only the revised selection.",
-    user_prompt=f"TASK BRIEF:\n{brief}\n\nORIGINAL:\n{source_text}\n\nKIMI VERSION:\n{kimi.text}",
+    user_prompt=f"TASK BRIEF:\n{brief_input.value}\n\nORIGINAL:\n{source.value}\n\nKIMI VERSION:\n{kimi.text}",
     temperature=0.7,
     max_tokens=4096,
     timeout=180
@@ -25,9 +45,9 @@ grok = AI.TextGenerate(
 
 #@node(description="Aion: unified literary polish")
 aion = AI.TextGenerate(
-    llm_config_id=aion_llm_config_id,
+    llm_config_id=aion_config.value,
     system_prompt="You are Aion, the final literary editor. Preserve the requested meaning, facts, names, language and point of view. Return only the final replacement text.",
-    user_prompt=f"TASK BRIEF:\n{brief}\n\nORIGINAL:\n{source_text}\n\nKIMI VERSION:\n{kimi.text}\n\nGROK VERSION:\n{grok.text}",
+    user_prompt=f"TASK BRIEF:\n{brief_input.value}\n\nORIGINAL:\n{source.value}\n\nKIMI VERSION:\n{kimi.text}\n\nGROK VERSION:\n{grok.text}",
     temperature=0.6,
     max_tokens=4096,
     timeout=180
