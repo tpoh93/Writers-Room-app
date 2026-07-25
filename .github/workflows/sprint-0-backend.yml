@@ -1,4 +1,4 @@
-name: Sprint 0 Backend
+name: Sprint 0 Foundation
 
 on:
   pull_request:
@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - "backend/**"
+      - "frontend/**"
+      - "compose.yaml"
+      - ".env.example"
       - ".github/workflows/sprint-0-backend.yml"
   workflow_dispatch:
 
@@ -86,3 +89,84 @@ jobs:
         run: |
           docker rm -f writers-room-backend-spike 2>/dev/null || true
           docker volume rm writers-room-backend-ci-data 2>/dev/null || true
+
+  frontend-build:
+    name: Frontend typecheck and web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies without Electron postinstall
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build canonical web bundle
+        working-directory: frontend
+        run: npm run build:web:container
+
+      - name: Verify web artifact
+        run: test -f frontend/dist-web/index.html
+
+  compose-smoke:
+    name: Canonical Compose smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create CI environment
+        run: cp .env.example .env
+
+      - name: Validate Compose configuration
+        run: docker compose config
+
+      - name: Build and start canonical stack
+        run: docker compose up --build -d
+
+      - name: Wait for same-origin health
+        run: |
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/healthz/frontend >/dev/null \
+              && curl -fsS http://127.0.0.1:8080/healthz/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker compose ps
+            docker compose logs --tail=300 backend frontend
+            exit 1
+          fi
+
+      - name: Verify services are healthy
+        run: |
+          docker compose ps
+          test "$(docker inspect --format='{{.State.Health.Status}}' writers-room-backend-1)" = "healthy"
+          test "$(docker inspect --format='{{.State.Health.Status}}' writers-room-frontend-1)" = "healthy"
+
+      - name: Verify backend is not published to the host
+        run: |
+          if curl -fsS --max-time 2 http://127.0.0.1:54321/healthz/ready; then
+            echo "FAIL: backend port 54321 is reachable from the host" >&2
+            exit 1
+          fi
+
+      - name: Clean up
+        if: always()
+        run: docker compose down -v --remove-orphans
