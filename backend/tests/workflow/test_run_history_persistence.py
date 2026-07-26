@@ -6,7 +6,7 @@ import pytest
 from sqlmodel import SQLModel, Session, create_engine
 
 from app.api.endpoints.workflows import get_run, get_run_node_states
-from app.db.models import Workflow
+from app.db.models import LLMConfig, Workflow
 from app.services.workflow.engine.async_executor import AsyncExecutor
 from app.services.workflow.engine.run_manager import RunManager
 from app.services.workflow.engine.state_manager import StateManager
@@ -32,7 +32,21 @@ def pipeline_params() -> dict[str, object]:
     }
 
 
+def create_test_llm_configs(session: Session) -> None:
+    for config_id in (11, 12, 13):
+        session.add(
+            LLMConfig(
+                id=config_id,
+                provider="test",
+                model_name=f"test-model-{config_id}",
+                api_key="test-key",
+            )
+        )
+    session.commit()
+
+
 def create_test_workflow(session: Session) -> Workflow:
+    create_test_llm_configs(session)
     workflow = Workflow(
         name="Thinking p*rn",
         description="restart persistence test",
@@ -266,12 +280,19 @@ async def test_failed_grok_resume_after_fresh_session_skips_kimi(
             "aion": "success",
         }
 
-        assert ai_states["kimi"].outputs_json == {
-            "text": "Wersja Kimi",
-        }
-        assert ai_states["grok"].outputs_json == {
-            "text": "Wersja Groka",
-        }
-        assert ai_states["aion"].outputs_json == {
-            "text": "Wersja Aiona",
-        }
+        assert (
+            ai_states["kimi"].outputs_json["text"]
+            == "Wersja Kimi"
+        )
+        assert (
+            ai_states["grok"].outputs_json["text"]
+            == "Wersja Groka"
+        )
+        assert (
+            ai_states["aion"].outputs_json["text"]
+            == "Wersja Aiona"
+        )
+        assert all(
+            state.outputs_json.get("usage")
+            for state in ai_states.values()
+        )

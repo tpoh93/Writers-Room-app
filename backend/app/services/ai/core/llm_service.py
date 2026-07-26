@@ -135,7 +135,13 @@ async def generate_review(
             messages.append(SystemMessage(content=system_prompt))
         messages.append(HumanMessage(content=user_prompt))
 
-        logger.info(f"开始审核，提示词: {system_prompt} \n\n {user_prompt}")
+        logger.info(
+            "Starting review generation: llm_config_id={}, "
+            "has_system_prompt={}, input_tokens={}",
+            llm_config_id,
+            bool(system_prompt),
+            calc_input_tokens(system_prompt, user_prompt),
+        )
         response = await model.ainvoke(messages)
         content = getattr(response, "content", response)
         if isinstance(content, list):
