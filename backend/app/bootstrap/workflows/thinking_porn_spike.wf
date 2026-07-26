@@ -1,5 +1,6 @@
 # workflow-name: Thinking p*rn
 # workflow-description: Three-stage selected-text pipeline: Kimi, Grok, Aion
+# workflow-keep-run-history: true
 
 #@node(description="Read selected source text")
 source = Logic.RuntimeInput(key="source_text")

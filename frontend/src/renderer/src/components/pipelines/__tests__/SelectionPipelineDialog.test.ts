@@ -204,6 +204,51 @@ describe('SelectionPipelineDialog', () => {
     expect((wrapper.get('[data-test="accept"]').element as HTMLButtonElement).disabled).toBe(true)
   })
 
+  it('blocks accept without a successful Aion state even when output exists', async () => {
+    const wrapper = mountDialog()
+    await wrapper.get('[data-test="start"]').trigger('click')
+    await flushPromises()
+
+    activeHandlers?.onFinished?.({
+      runId: 91,
+      states: [{
+        node_id: 'aion', node_type: 'AI.TextGenerate', status: 'error', progress: 100,
+        outputs_json: { text: 'Nieudany wynik Aiona.' },
+      }],
+      outputs: { aion: 'Nieudany wynik Aiona.' },
+      finalReplacement: 'Nieudany wynik Aiona.',
+    })
+    activeHandlers?.onEnd?.()
+    await nextTick()
+
+    expect((wrapper.get('[data-test="accept"]').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('blocks accept for whitespace-only Aion output', async () => {
+    const wrapper = mountDialog()
+    await wrapper.get('[data-test="start"]').trigger('click')
+    await flushPromises()
+
+    activeHandlers?.onStepComplete?.('aion', '   ')
+    activeHandlers?.onEnd?.()
+    await nextTick()
+
+    expect((wrapper.get('[data-test="accept"]').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('keeps accept disabled when a run error follows an Aion output', async () => {
+    const wrapper = mountDialog()
+    await wrapper.get('[data-test="start"]').trigger('click')
+    await flushPromises()
+
+    activeHandlers?.onStepComplete?.('aion', 'Finalny tekst Aiona.')
+    activeHandlers?.onError?.('synthetic run failure')
+    activeHandlers?.onEnd?.()
+    await nextTick()
+
+    expect((wrapper.get('[data-test="accept"]').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('reject emits without a replacement', async () => {
     const wrapper = mountDialog()
 

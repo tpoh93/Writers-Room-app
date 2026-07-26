@@ -38,6 +38,9 @@ jobs:
         working-directory: backend
         run: python -m pip install -r requirements-dev.txt
 
+      - name: Test restore failure recovery
+        run: bash scripts/tests/test-restore-recovery.sh
+
       - name: Run focused backend tests
         working-directory: backend
         env:

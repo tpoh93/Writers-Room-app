@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 class DatabaseSettings(BaseSettings):
@@ -20,11 +20,12 @@ class DatabaseSettings(BaseSettings):
     # 是否打印SQL日志
     echo: bool = Field(default=False, alias="DB_ECHO")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"  # 忽略额外字段
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
     
     def get_database_url(self) -> str:
         """获取数据库URL
@@ -58,11 +59,12 @@ class KnowledgeGraphSettings(BaseSettings):
     # 知识图谱Provider
     provider: str = Field(default="sqlmodel", alias="KNOWLEDGE_GRAPH_PROVIDER")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"  # 忽略额外字段
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
 class Neo4jSettings(BaseSettings):
@@ -77,11 +79,12 @@ class Neo4jSettings(BaseSettings):
     graph_db_user: Optional[str] = Field(default=None, alias="GRAPH_DB_USER")
     graph_db_password: Optional[str] = Field(default=None, alias="GRAPH_DB_PASSWORD")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"  # 忽略额外字段
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
     
     def get_uri(self) -> str:
         """获取URI（兼容旧环境变量）"""
@@ -104,11 +107,12 @@ class BootstrapSettings(BaseSettings):
     # 是否覆盖内置卡片类型的 schema
     overwrite_card_schemas: bool = Field(default=False, alias="BOOTSTRAP_OVERWRITE_CARD_SCHEMAS")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"  # 忽略额外字段
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
     
     @property
     def should_overwrite(self) -> bool:
@@ -137,11 +141,12 @@ class AISettings(BaseSettings):
     # 模型调用失败时最大重试次数
     max_tool_call_retries: int = Field(default=3, alias="MAX_TOOL_CALL_RETRIES")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"  # 忽略额外字段
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
 class AppSettings(BaseSettings):
@@ -162,11 +167,12 @@ class AppSettings(BaseSettings):
     # CORS允许的源
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"  # 忽略额外字段
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
     
     def get_cors_origins_list(self) -> list:
         """获取CORS源列表
@@ -185,11 +191,12 @@ class WorkflowSettings(BaseSettings):
     # 持久化记录保留时间（天）
     retention_persistent_days: int = Field(default=30, alias="WORKFLOW_RETENTION_PERSISTENT_DAYS")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
 class Settings:

@@ -5,7 +5,7 @@
 """
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ToolResultStatus(str, Enum):
@@ -39,8 +39,7 @@ class ToolResult(BaseModel):
         description="错误信息（失败时提供详细错误）"
     )
     
-    class Config:
-        use_enum_values = True  # 序列化时使用枚举值
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class ConfirmationRequest(ToolResult):
@@ -61,8 +60,7 @@ class ConfirmationRequest(ToolResult):
         description="警告信息（如'此操作不可撤销'）"
     )
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class CardOperationResult(ToolResult):
@@ -99,8 +97,7 @@ class CardOperationResult(ToolResult):
         description="失败的指令数"
     )
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class CardSearchResult(ToolResult):
@@ -111,8 +108,7 @@ class CardSearchResult(ToolResult):
         description="卡片列表"
     )
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 # 辅助函数：将 ToolResult 转换为 Dict

@@ -131,8 +131,14 @@ class ExecutionState:
                 if db_state.outputs_json:
                     state.context[db_state.node_id] = db_state.outputs_json
                     logger.info(
-                        f"[ExecutionState] ✅ 恢复节点输出到上下文: {db_state.node_id} "
-                        f"(status={db_state.status}, outputs={db_state.outputs_json})"
+                        "[ExecutionState] 恢复节点输出到上下文: "
+                        "node_id={}, status={}, has_outputs={}, "
+                        "output_keys={}, output_key_count={}",
+                        db_state.node_id,
+                        db_state.status,
+                        True,
+                        list(db_state.outputs_json.keys()),
+                        len(db_state.outputs_json),
                     )
                 else:
                     logger.warning(

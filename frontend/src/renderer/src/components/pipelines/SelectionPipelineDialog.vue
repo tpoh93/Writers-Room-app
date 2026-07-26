@@ -273,7 +273,11 @@ const canRetry = computed(() =>
   && orderedSteps.some(step => steps[step.key].status === 'error')
 )
 const acceptDisabled = computed(() =>
-  running.value || !finalText.value.trim() || Boolean(props.conflict)
+  running.value
+  || steps.aion.status !== 'success'
+  || !finalText.value.trim()
+  || Boolean(runError.value)
+  || Boolean(props.conflict)
 )
 
 function tokenize(value: string): string[] {

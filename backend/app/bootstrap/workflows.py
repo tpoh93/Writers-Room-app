@@ -22,6 +22,27 @@ _WORKFLOW_DESCRIPTION_PATTERN = re.compile(
     r"^\s*#\s*workflow-description:\s*(.+?)\s*$",
     re.MULTILINE,
 )
+_WORKFLOW_KEEP_HISTORY_PATTERN = re.compile(
+    r"^\s*#\s*workflow-keep-run-history:\s*(.+?)\s*$",
+    re.MULTILINE,
+)
+
+
+def _parse_keep_run_history(code: str, file_path: str) -> bool:
+    match = _WORKFLOW_KEEP_HISTORY_PATTERN.search(code)
+    if not match:
+        return False
+
+    value = match.group(1).strip().lower()
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+
+    raise ValueError(
+        "workflow-keep-run-history must be true or false: "
+        f"{file_path}"
+    )
 
 
 def _parse_code_workflow(file_path: str) -> dict:
@@ -49,7 +70,7 @@ def _parse_code_workflow(file_path: str) -> dict:
         "name": name,
         "description": description,
         "code": code,
-        "keep_run_history": False,  # 代码式工作流默认不保留历史
+        "keep_run_history": _parse_keep_run_history(code, file_path),
     }
 
 
