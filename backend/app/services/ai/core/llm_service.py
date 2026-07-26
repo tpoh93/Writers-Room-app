@@ -11,6 +11,7 @@ import asyncio
 import json
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from openai import APITimeoutError
 from app.services.ai.generation.continuation_budget_runtime import (
     build_budget_hint_text,
     build_round_plan,
@@ -165,6 +166,20 @@ async def generate_review(
             )
 
         return text.strip()
+    except APITimeoutError as exc:
+        logger.warning(
+            "Provider timeout: llm_config_id={}, timeout_type={}",
+            llm_config_id,
+            type(exc).__name__,
+        )
+        if track_stats:
+            in_tokens = calc_input_tokens(system_prompt, user_prompt)
+            record_usage(
+                session, llm_config_id,
+                in_tokens, 0,
+                calls=1, aborted=True
+            )
+        raise asyncio.TimeoutError("Provider timeout") from exc
     except asyncio.CancelledError:
         logger.info("[LangChain-Text] LLM调用被取消（CancelledError），立即中止。")
         if track_stats:
