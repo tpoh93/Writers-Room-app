@@ -1,0 +1,60 @@
+name: Task 9 OpenRouter Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/smoke-openrouter.sh"
+      - "docs/acceptance/openrouter-smoke.md"
+      - ".github/workflows/task-9-openrouter-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secret-and-input-guard:
+    name: OpenRouter secret and input guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify executable script and shell syntax
+        run: |
+          test -x scripts/smoke-openrouter.sh
+          bash -n scripts/smoke-openrouter.sh
+
+      - name: Reject missing runtime variables before network access
+        run: |
+          set +e
+          output="$(env -u OPENROUTER_API_KEY -u KIMI_MODEL_ID -u GROK_MODEL_ID -u AION_MODEL_ID ./scripts/smoke-openrouter.sh 2>&1)"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          grep -q 'OPENROUTER_API_KEY is not set' <<<"$output"
+
+      - name: Reject duplicate model IDs before network access
+        run: |
+          set +e
+          output="$(OPENROUTER_API_KEY='ci-placeholder-not-a-real-key' \
+            KIMI_MODEL_ID='vendor/model' \
+            GROK_MODEL_ID='vendor/model' \
+            AION_MODEL_ID='vendor/other' \
+            ./scripts/smoke-openrouter.sh 2>&1)"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          grep -q 'three distinct model IDs' <<<"$output"
+
+      - name: Scan tracked content for credential patterns
+        run: |
+          if git grep -nE 'sk-or-v1-[A-Za-z0-9_-]{20,}|OPENROUTER_API_KEY=[^[:space:]]+' -- . ':!.env.example'; then
+            echo 'FAIL: tracked OpenRouter credential pattern found' >&2
+            exit 1
+          fi
+
+      - name: Verify evidence remains explicitly pending local credentials
+        run: grep -q 'PENDING LOCAL CREDENTIALS' docs/acceptance/openrouter-smoke.md
