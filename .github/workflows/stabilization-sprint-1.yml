@@ -15,6 +15,7 @@ on:
       - "docs/architecture/upstream-sync.md"
       - "compose.yaml"
       - ".env.example"
+      - ".github/workflows/sprint-0-backend.yml"
       - "docs/acceptance/**"
       - ".github/workflows/stabilization-sprint-1.yml"
   workflow_dispatch:
