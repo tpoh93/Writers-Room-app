@@ -11,6 +11,11 @@ from typing import TYPE_CHECKING
 from loguru import logger
 from sqlmodel import Session
 
+from app.services.ai.core.provider_errors import (
+    is_provider_domain_error,
+    safe_provider_error,
+)
+
 if TYPE_CHECKING:
     from .execution_state import ExecutionState
     from ..engine.execution_plan import Statement
@@ -59,14 +64,25 @@ class ErrorHandler:
         """
         from .async_executor import ProgressEvent
         
-        logger.error(f"[ErrorHandler] 节点执行失败: {stmt.variable}, 错误: {error}")
+        if is_provider_domain_error(error):
+            safe_error = safe_provider_error(error)
+            error_message = safe_error["message"]
+            error_code = safe_error["code"]
+            logger.error(
+                "[ErrorHandler] Provider node failed: node_id={}",
+                stmt.variable,
+            )
+        else:
+            error_message = str(error)
+            error_code = None
+            logger.error(f"[ErrorHandler] 节点执行失败: {stmt.variable}, 错误: {error}")
         
         # 更新节点状态
         execution_state.update_node_state(
             node_id=stmt.variable,
             node_type=stmt.node_type or "unknown",
             status="error",
-            error=str(error)
+            error=error_message,
         )
         
         # 保存状态
@@ -76,7 +92,9 @@ class ErrorHandler:
         return ProgressEvent(
             statement=stmt,
             type='error',
-            error=str(error)
+            error=error_message,
+            message=error_message,
+            code=error_code,
         )
     
     @staticmethod

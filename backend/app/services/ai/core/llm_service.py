@@ -25,6 +25,7 @@ from app.services.ai.generation.structured_runtime import (
 )
 from app.schemas.ai import ContinuationRequest
 from .chat_model_factory import build_chat_model
+from .provider_errors import ProviderRequestError, ProviderTimeoutError
 from .token_utils import calc_input_tokens, estimate_tokens
 from .quota_manager import precheck_quota, record_usage
 
@@ -122,6 +123,19 @@ async def generate_review(
         if not ok:
             raise ValueError(f"LLM配额不足: {reason}")
 
+    messages = []
+    if system_prompt:
+        messages.append(SystemMessage(content=system_prompt))
+    messages.append(HumanMessage(content=user_prompt))
+
+    logger.info(
+        "Starting review generation: llm_config_id={}, "
+        "has_system_prompt={}, input_tokens={}",
+        llm_config_id,
+        bool(system_prompt),
+        calc_input_tokens(system_prompt, user_prompt),
+    )
+
     try:
         model = build_chat_model(
             session=session,
@@ -130,42 +144,7 @@ async def generate_review(
             max_tokens=16384 if max_tokens is None else max_tokens,
             timeout=timeout or 150,
         )
-
-        messages = []
-        if system_prompt:
-            messages.append(SystemMessage(content=system_prompt))
-        messages.append(HumanMessage(content=user_prompt))
-
-        logger.info(
-            "Starting review generation: llm_config_id={}, "
-            "has_system_prompt={}, input_tokens={}",
-            llm_config_id,
-            bool(system_prompt),
-            calc_input_tokens(system_prompt, user_prompt),
-        )
         response = await model.ainvoke(messages)
-        content = getattr(response, "content", response)
-        if isinstance(content, list):
-            text = "".join(
-                part.get("text", "") if isinstance(part, dict) else str(part)
-                for part in content
-            )
-        else:
-            text = "" if content is None else str(content)
-
-        if not text.strip():
-            raise ValueError("LLM返回了空响应")
-
-        if track_stats:
-            in_tokens = calc_input_tokens(system_prompt, user_prompt)
-            out_tokens = estimate_tokens(text)
-            record_usage(
-                session, llm_config_id,
-                in_tokens, out_tokens,
-                calls=1, aborted=False
-            )
-
-        return text.strip()
     except APITimeoutError as exc:
         logger.warning(
             "Provider timeout: llm_config_id={}, timeout_type={}",
@@ -179,7 +158,21 @@ async def generate_review(
                 in_tokens, 0,
                 calls=1, aborted=True
             )
-        raise asyncio.TimeoutError("Provider timeout") from exc
+        raise ProviderTimeoutError() from None
+    except asyncio.TimeoutError as exc:
+        logger.warning(
+            "Provider timeout: llm_config_id={}, timeout_type={}",
+            llm_config_id,
+            type(exc).__name__,
+        )
+        if track_stats:
+            in_tokens = calc_input_tokens(system_prompt, user_prompt)
+            record_usage(
+                session, llm_config_id,
+                in_tokens, 0,
+                calls=1, aborted=True
+            )
+        raise ProviderTimeoutError() from None
     except asyncio.CancelledError:
         logger.info("[LangChain-Text] LLM调用被取消（CancelledError），立即中止。")
         if track_stats:
@@ -190,6 +183,43 @@ async def generate_review(
                 calls=1, aborted=True
             )
         raise
+    except Exception as exc:
+        logger.error(
+            "Provider request failed: llm_config_id={}, error_type={}",
+            llm_config_id,
+            type(exc).__name__,
+        )
+        if track_stats:
+            in_tokens = calc_input_tokens(system_prompt, user_prompt)
+            record_usage(
+                session, llm_config_id,
+                in_tokens, 0,
+                calls=1, aborted=True
+            )
+        raise ProviderRequestError() from None
+
+    content = getattr(response, "content", response)
+    if isinstance(content, list):
+        text = "".join(
+            part.get("text", "") if isinstance(part, dict) else str(part)
+            for part in content
+        )
+    else:
+        text = "" if content is None else str(content)
+
+    if not text.strip():
+        raise ValueError("LLM返回了空响应")
+
+    if track_stats:
+        in_tokens = calc_input_tokens(system_prompt, user_prompt)
+        out_tokens = estimate_tokens(text)
+        record_usage(
+            session, llm_config_id,
+            in_tokens, out_tokens,
+            calls=1, aborted=False
+        )
+
+    return text.strip()
 
 
 async def _generate_structured_native(

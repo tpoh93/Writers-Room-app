@@ -6,6 +6,11 @@ from sqlmodel import Session, select
 from loguru import logger
 
 from app.db.models import Workflow, WorkflowRun
+from app.services.ai.core.provider_errors import (
+    ProviderRequestError,
+    ProviderTimeoutError,
+    safe_provider_error,
+)
 from .state_manager import StateManager
 from .runtime import workflow_runtime
 
@@ -227,6 +232,24 @@ class RunManager:
             logger.info(f"[RunManager] 运行被取消: run_id={run_id}")
             self.state_manager.update_run_status(run_id, "cancelled")
             raise
+        except ProviderTimeoutError as exc:
+            safe_error = safe_provider_error(exc)
+            logger.error(f"[RunManager] Provider timeout: run_id={run_id}")
+            self.state_manager.update_run_status(run_id, "timeout")
+            self.state_manager.save_error(
+                run_id,
+                safe_error["message"],
+                {"code": safe_error["code"]},
+            )
+        except ProviderRequestError as exc:
+            safe_error = safe_provider_error(exc)
+            logger.error(f"[RunManager] Provider request failed: run_id={run_id}")
+            self.state_manager.update_run_status(run_id, "failed")
+            self.state_manager.save_error(
+                run_id,
+                safe_error["message"],
+                {"code": safe_error["code"]},
+            )
         except Exception as e:
             error_msg = str(e)
             logger.exception(f"[RunManager] 运行失败: run_id={run_id}")
