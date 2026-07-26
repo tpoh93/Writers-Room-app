@@ -5,6 +5,7 @@
 """
 
 import os
+import re
 from sqlmodel import Session, select
 from loguru import logger
 
@@ -13,15 +14,37 @@ from app.core.config import settings
 from .registry import initializer
 
 
+_WORKFLOW_NAME_PATTERN = re.compile(
+    r"^\s*#\s*workflow-name:\s*(.+?)\s*$",
+    re.MULTILINE,
+)
+_WORKFLOW_DESCRIPTION_PATTERN = re.compile(
+    r"^\s*#\s*workflow-description:\s*(.+?)\s*$",
+    re.MULTILINE,
+)
+
+
 def _parse_code_workflow(file_path: str) -> dict:
     """解析代码式工作流文件（.wf格式）"""
     with open(file_path, 'r', encoding='utf-8') as f:
         code = f.read()
 
-    # 工作流名称统一以文件名为准，避免文件头注释导致初始化名称漂移
-    name = os.path.splitext(os.path.basename(file_path))[0]
-    description = f"内置工作流: {name}"
-    
+    # 文件名仍是默认名称。可选 metadata 注释允许跨平台安全文件名映射到
+    # 产品名称（例如名称包含 Windows 文件名不允许的字符）。
+    filename_name = os.path.splitext(os.path.basename(file_path))[0]
+    name_match = _WORKFLOW_NAME_PATTERN.search(code)
+    description_match = _WORKFLOW_DESCRIPTION_PATTERN.search(code)
+
+    name = name_match.group(1).strip() if name_match else filename_name
+    if not name:
+        raise ValueError(f"Workflow name is empty: {file_path}")
+
+    description = (
+        description_match.group(1).strip()
+        if description_match
+        else f"内置工作流: {name}"
+    )
+
     return {
         "name": name,
         "description": description,
@@ -30,19 +53,19 @@ def _parse_code_workflow(file_path: str) -> dict:
     }
 
 
-def _create_or_update_workflow(session: Session, name: str, description: str, 
-                               code: str, keep_run_history: bool, 
+def _create_or_update_workflow(session: Session, name: str, description: str,
+                               code: str, keep_run_history: bool,
                                overwrite: bool) -> tuple[int, int, int]:
     """创建或更新单个工作流（使用 triggers_cache）"""
     created_count = updated_count = skipped_count = 0
-    
+
     wf = session.exec(select(Workflow).where(Workflow.name == name)).first()
     if not wf:
         wf = Workflow(
-            name=name, 
-            description=description, 
-            is_built_in=True, 
-            is_active=True, 
+            name=name,
+            description=description,
+            is_built_in=True,
+            is_active=True,
             dsl_version=2,  # 代码式工作流使用版本2
             definition_code=code,
             keep_run_history=keep_run_history
@@ -66,20 +89,20 @@ def _create_or_update_workflow(session: Session, name: str, description: str,
             logger.info(f"已更新内置工作流: {name} (id={wf.id})")
         else:
             skipped_count += 1
-    
+
     # 同步触发器缓存
     from app.services.workflow.trigger_extractor import sync_triggers_cache
     sync_triggers_cache(wf, session)
     session.commit()
-    
+
     return created_count, updated_count, skipped_count
 
 
 def get_all_workflow_files() -> dict:
     """从文件系统加载所有工作流
-    
+
     扫描 .wf 格式的代码式工作流文件
-    
+
     Returns:
         工作流字典，key为工作流名称
     """
@@ -102,29 +125,30 @@ def get_all_workflow_files() -> dict:
                 import traceback
                 traceback.print_exc()
                 continue
-    
+
     return workflow_files
+
 
 @initializer(name="工作流", order=50)
 def init_workflows(session: Session) -> None:
     """初始化内置工作流
-    
+
     从 bootstrap/workflows/ 目录加载所有 .wf 工作流文件。
     行为受配置项 BOOTSTRAP_OVERWRITE 控制。
-    
+
     Args:
         session: 数据库会话
     """
     overwrite = settings.bootstrap.should_overwrite
     total_created = total_updated = total_skipped = 0
-    
+
     # 加载所有工作流文件
     all_workflows = get_all_workflow_files()
-    
+
     if not all_workflows:
         logger.warning("未找到任何工作流定义文件")
         return
-    
+
     # 逐个处理工作流
     for name, workflow_data in all_workflows.items():
         try:
@@ -144,7 +168,7 @@ def init_workflows(session: Session) -> None:
             import traceback
             traceback.print_exc()
             continue
-            
+
     if total_created > 0 or total_updated > 0:
         logger.info(f"工作流初始化完成: +{total_created}, ~{total_updated}, -{total_skipped}")
     else:

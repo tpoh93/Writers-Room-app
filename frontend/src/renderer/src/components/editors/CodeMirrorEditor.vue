@@ -205,6 +205,13 @@
 					</el-button>
 					<el-button
 						size="small"
+						type="warning"
+						@click="handleContextMenuThinkingPorn"
+					>
+						Thinking p*rn
+					</el-button>
+					<el-button
+						size="small"
 						type="success"
 						@click="handleContextMenuReference"
 					>
@@ -247,6 +254,17 @@
 				</div>
 			</div>
 		</Teleport>
+
+		<SelectionPipelineDialog
+			v-model:visible="selectionPipeline.visible"
+			:source-text="selectionPipeline.snapshot?.text || ''"
+			:model-options="selectionPipelineModelOptions"
+			:conflict="selectionPipeline.conflict"
+			:idempotency-key="selectionPipelineIdempotencyKey"
+			@accept="acceptSelectionPipeline"
+			@reject="rejectSelectionPipeline"
+			@close="closeSelectionPipeline"
+		/>
 
 		<el-dialog v-model="reviewDialogVisible" title="章节审核结果" width="72%">
 			<div v-if="reviewText" class="review-dialog-body">
@@ -1177,9 +1195,12 @@ import {
 import { ArrowDown, Document, MagicStick, CircleClose, Connection, List, Timer, Select, Loading } from '@element-plus/icons-vue'
 import AIPerCardParams from '../common/AIPerCardParams.vue'
 import ContinuationBudgetDialog, { type ContinuationWordControlMode } from './dialogs/ContinuationBudgetDialog.vue'
+import SelectionPipelineDialog from '../pipelines/SelectionPipelineDialog.vue'
 import { resolveTemplate } from '@renderer/services/contextResolver'
 import { getCardContextTemplates, getContextTemplateByKind, normalizeContextTemplateKind, type ContextTemplateKind, type ContextTemplates } from '@renderer/services/contextSlots'
 import { notifyTaskDone } from '@renderer/utils/taskDoneNotifier'
+import { captureSelection, validateSnapshot, type SelectionSnapshot } from '@renderer/utils/selectionPatch'
+import { applySelectionPipelineReplacement } from '@renderer/utils/selectionPipelineEditor'
 
 import { EditorState, StateEffect, StateField } from '@codemirror/state'
 import { EditorView, keymap, Decoration, DecorationSet, lineNumbers } from '@codemirror/view'
@@ -1468,6 +1489,40 @@ const contextMenu = reactive({
 		numberedText: string
 		snapshotHash: string
 	} | null
+})
+
+const selectionPipeline = reactive<{
+	visible: boolean
+	snapshot: SelectionSnapshot | null
+	conflict: string
+	applied: boolean
+}>({
+	visible: false,
+	snapshot: null,
+	conflict: '',
+	applied: false,
+})
+
+const selectionPipelineModelOptions = computed(() => {
+	const options = aiOptions.value?.llm_configs || []
+	return options
+		.filter((option: any) => Number.isInteger(option?.id) && option.id > 0)
+		.map((option: any) => ({
+			id: Number(option.id),
+			display_name: String(option.display_name || option.name || `LLM ${option.id}`),
+		}))
+})
+
+const selectionPipelineIdempotencyKey = computed(() => {
+	const snapshot = selectionPipeline.snapshot
+	if (!snapshot) return undefined
+	return [
+		'thinking-porn',
+		props.card.id,
+		snapshot.documentHash,
+		snapshot.from,
+		snapshot.to,
+	].join(':')
 })
 
 const pendingAiEdit = ref<{
@@ -2143,6 +2198,19 @@ function initEditor() {
 				EditorView.updateListener.of((update) => {
 					if (!update.docChanged) return
 					const txt = update.state.doc.toString()
+					const activeSnapshot = selectionPipeline.snapshot
+					if (selectionPipeline.visible && activeSnapshot && !selectionPipeline.applied) {
+						void validateSnapshot(activeSnapshot, txt).then(result => {
+							if (
+								!selectionPipeline.visible
+								|| selectionPipeline.snapshot !== activeSnapshot
+								|| selectionPipeline.applied
+							) return
+							selectionPipeline.conflict = result.status === 'conflict'
+								? (result.reason || 'Document changed after pipeline launch')
+								: ''
+						})
+					}
 					wordCount.value = computeWordCount(txt)
 
 					// 检测dirty状态
@@ -2737,6 +2805,80 @@ function closeContextMenu() {
 		window.removeEventListener('click', handleClickOutside, { capture: true })
 		contextMenuClickListenerAdded = false
 	}
+}
+
+async function handleContextMenuThinkingPorn() {
+	if (!ensureNoPendingAiEdit()) return
+	const selectedText = contextMenu.selectedText
+	if (!selectedText || !selectedText.text.trim()) {
+		closeContextMenu()
+		ElMessage.warning('Zaznacz fragment do przetworzenia przez Thinking p*rn')
+		return
+	}
+
+	try {
+		const snapshot = await captureSelection(
+			getText(),
+			selectedText.from,
+			selectedText.to,
+		)
+		closeContextMenu()
+		selectionPipeline.snapshot = snapshot
+		selectionPipeline.conflict = ''
+		selectionPipeline.applied = false
+		selectionPipeline.visible = true
+	} catch (error) {
+		closeContextMenu()
+		ElMessage.error(
+			error instanceof Error
+				? error.message
+				: 'Nie udało się przechwycić zaznaczenia',
+		)
+	}
+}
+
+async function acceptSelectionPipeline(replacement: string) {
+	const snapshot = selectionPipeline.snapshot
+	if (!view || !snapshot) return
+
+	const result = await applySelectionPipelineReplacement(
+		view,
+		snapshot,
+		replacement,
+		selectionPipeline.applied,
+	)
+
+	if (result.status === 'conflict') {
+		selectionPipeline.conflict = result.reason || 'Document changed after pipeline launch'
+		ElMessage.error('Zastosowanie zablokowane: dokument się zmienił')
+		return
+	}
+	if (result.status === 'already_applied') {
+		ElMessage.warning('Ten wynik został już zastosowany')
+		return
+	}
+
+	selectionPipeline.applied = true
+	selectionPipeline.conflict = ''
+	selectionPipeline.visible = false
+	clearHighlight()
+	ElMessage.success('Zastosowano wynik Thinking p*rn')
+}
+
+function resetSelectionPipelineState() {
+	selectionPipeline.visible = false
+	selectionPipeline.snapshot = null
+	selectionPipeline.conflict = ''
+	selectionPipeline.applied = false
+	clearHighlight()
+}
+
+function rejectSelectionPipeline() {
+	resetSelectionPipelineState()
+}
+
+function closeSelectionPipeline() {
+	resetSelectionPipelineState()
 }
 
 async function handleContextMenuPolish() {

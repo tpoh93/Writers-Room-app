@@ -1,0 +1,49 @@
+name: writers-room
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NOVELFORGE_DB_PATH: /data/novelforge.db
+      WRITERS_ROOM_BACKUP_DIR: /backups
+    volumes:
+      - writers_room_data:/data
+      - writers_room_backups:/backups
+    expose:
+      - "54321"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:54321/healthz/ready', timeout=2)
+      interval: 10s
+      timeout: 3s
+      start_period: 20s
+      retries: 6
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz/frontend"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 6
+
+volumes:
+  writers_room_data:
+  writers_room_backups:

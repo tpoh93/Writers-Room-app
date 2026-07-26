@@ -1,0 +1,68 @@
+name: Task 8 Selected Text UI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "frontend/vitest.config.ts"
+      - "frontend/src/renderer/src/api/selectionPipelines.ts"
+      - "frontend/src/renderer/src/api/__tests__/selectionPipelines.test.ts"
+      - "frontend/src/renderer/src/components/pipelines/SelectionPipelineDialog.vue"
+      - "frontend/src/renderer/src/components/pipelines/__tests__/SelectionPipelineDialog.test.ts"
+      - "frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue"
+      - "frontend/src/renderer/src/utils/selectionPatch.ts"
+      - "frontend/src/renderer/src/utils/selectionPipelineEditor.ts"
+      - "frontend/src/renderer/src/utils/__tests__/selectionPatch.test.ts"
+      - "frontend/src/renderer/src/utils/__tests__/selectionPipelineEditor.test.ts"
+      - ".github/workflows/task-8-selection-ui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selected-text-ui:
+    name: Thinking p*rn selected-text integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install committed frontend dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Run selected-text safety and UI tests
+        working-directory: frontend
+        run: |
+          npm test -- \
+            selectionPatch.test.ts \
+            selectionPipelineEditor.test.ts \
+            selectionPipelines.test.ts \
+            SelectionPipelineDialog.test.ts
+
+      - name: Typecheck complete frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build canonical web bundle
+        working-directory: frontend
+        run: npm run build:web:container
+
+      - name: Verify product command and dialog survived build inputs
+        run: |
+          test "$(grep -c 'Thinking p\*rn' frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue)" -ge 2
+          grep -q 'applySelectionPipelineReplacement' frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue
+          grep -q 'validateSnapshot' frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue
+          test -f frontend/dist-web/index.html

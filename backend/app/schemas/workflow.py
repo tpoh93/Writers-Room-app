@@ -64,6 +64,24 @@ class RunRequest(BaseModel):
     idempotency_key: Optional[str] = None
 
 
+class WorkflowRunCreated(BaseModel):
+    run_id: int
+    workflow_id: int
+    status: str
+
+
+class NodeExecutionStateRead(BaseModel):
+    node_id: str
+    node_type: str
+    status: str
+    progress: int
+    outputs_json: Optional[dict] = None
+    error_message: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class CancelResponse(BaseModel):
     ok: bool
     message: Optional[str] = None
@@ -103,6 +121,4 @@ class NodeTypeInfo(BaseModel):
 
 
 class NodeTypesResponse(BaseModel):
-    """节点类型列表响应"""
     node_types: List[NodeTypeInfo]
-

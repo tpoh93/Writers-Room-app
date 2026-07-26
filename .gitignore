@@ -1,69 +1,72 @@
-# 数据库相关
+# Database and runtime data
 backend/*.db
 backend/**/*.db
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+runtime/
+backups/
+evidence/private/
 
-# Python缓存
+# Python cache
 **/__pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
 
-# Python虚拟环境
+# Python virtual environments
 venv/
 env/
 .venv/
 .env/
 
-# Alembic相关
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Alembic-related upstream exclusions
 backend/alembic/versions/*.py
 !backend/alembic/versions/__init__.py
 
-# 忽略所有md文档，除了README
-*.md
-!README.md
-!README.MD
-!CLA.md
-!贡献指南.md
-!后续规划.md
-!rules/**/*.md
-!rules/**/*.mdc
-
-
+# Generated or local-only project data
 primitive_models/
-docs/
-.pytest_cache/
 
+# Agent and editor tooling
 .windsurf/
 .windsurfrules
 .agent/
 .kiro/
-
-# IDE配置
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.superdesign/tmp/
 
-# 系统文件
+# System files
 .DS_Store
 Thumbs.db
 desktop.ini
-.env
 
-# 日志文件
+# Logs
 *.log
 *.log.*
 
-# 临时文件
+# Temporary files
 *.tmp
-*.temp 
+*.temp
 
+# Build outputs
 backend/migrate_db.py
-backend/dist
-backend/build
+backend/dist/
+backend/build/
 *.spec
-*.sh
 *.mako
 
 # Node modules
 node_modules/
+
+# Project documentation and shell scripts are intentionally tracked.

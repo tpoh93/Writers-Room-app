@@ -1,0 +1,311 @@
+name: Sprint 0 Foundation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "scripts/**"
+      - "compose.yaml"
+      - ".env.example"
+      - ".github/workflows/sprint-0-backend.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run focused backend tests
+        working-directory: backend
+        env:
+          NOVELFORGE_DB_PATH: ${{ runner.temp }}/writers-room-health.db
+          BOOTSTRAP_OVERWRITE: "false"
+        run: |
+          python -m pytest \
+            tests/test_health.py \
+            tests/services/test_backup_service.py \
+            -v
+
+  backend-image:
+    name: Backend image smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t writers-room-backend:spike backend
+
+      - name: Start backend container
+        run: |
+          docker run --rm -d \
+            --name writers-room-backend-spike \
+            -p 127.0.0.1:54321:54321 \
+            -e NOVELFORGE_DB_PATH=/data/novelforge.db \
+            -e BOOTSTRAP_OVERWRITE=false \
+            -v writers-room-backend-ci-data:/data \
+            writers-room-backend:spike
+
+      - name: Wait for readiness
+        run: |
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:54321/healthz/ready; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs writers-room-backend-spike
+            exit 1
+          fi
+
+      - name: Wait for Docker health
+        run: |
+          status=""
+          for attempt in $(seq 1 40); do
+            status="$(docker inspect --format='{{.State.Health.Status}}' writers-room-backend-spike)"
+            if [ "$status" = "healthy" ]; then
+              exit 0
+            fi
+            if [ "$status" = "unhealthy" ]; then
+              docker logs writers-room-backend-spike
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "FAIL: backend health remained $status" >&2
+          docker logs writers-room-backend-spike
+          exit 1
+
+      - name: Clean up
+        if: always()
+        run: |
+          docker rm -f writers-room-backend-spike 2>/dev/null || true
+          docker volume rm writers-room-backend-ci-data 2>/dev/null || true
+
+  frontend-build:
+    name: Frontend typecheck and web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies without Electron postinstall
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build canonical web bundle
+        working-directory: frontend
+        run: npm run build:web:container
+
+      - name: Verify web artifact
+        run: test -f frontend/dist-web/index.html
+
+  compose-smoke:
+    name: Canonical Compose and persistence smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create CI environment
+        run: cp .env.example .env
+
+      - name: Validate Compose configuration
+        run: docker compose config
+
+      - name: Build and start canonical stack
+        run: docker compose up --build -d
+
+      - name: Wait for same-origin health
+        run: |
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/healthz/frontend >/dev/null \
+              && curl -fsS http://127.0.0.1:8080/healthz/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker compose ps
+            docker compose logs --tail=300 backend frontend
+            exit 1
+          fi
+
+      - name: Verify browser application shell
+        run: |
+          curl -fsS http://127.0.0.1:8080/ > /tmp/writers-room-index.html
+          grep -q '<div id="app"></div>' /tmp/writers-room-index.html
+
+      - name: Wait for Compose service health
+        run: |
+          backend_id="$(docker compose ps -q backend)"
+          frontend_id="$(docker compose ps -q frontend)"
+          test -n "$backend_id"
+          test -n "$frontend_id"
+
+          for attempt in $(seq 1 60); do
+            backend_status="$(docker inspect --format='{{.State.Health.Status}}' "$backend_id")"
+            frontend_status="$(docker inspect --format='{{.State.Health.Status}}' "$frontend_id")"
+
+            if [ "$backend_status" = "healthy" ] && [ "$frontend_status" = "healthy" ]; then
+              docker compose ps
+              exit 0
+            fi
+
+            if [ "$backend_status" = "unhealthy" ] || [ "$frontend_status" = "unhealthy" ]; then
+              docker compose ps
+              docker compose logs --tail=300 backend frontend
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          echo "FAIL: backend=$backend_status frontend=$frontend_status" >&2
+          docker compose ps
+          docker compose logs --tail=300 backend frontend
+          exit 1
+
+      - name: Verify backend is not published to the host
+        run: |
+          if curl -fsS --max-time 2 http://127.0.0.1:54321/healthz/ready; then
+            echo "FAIL: backend port 54321 is reachable from the host" >&2
+            exit 1
+          fi
+
+      - name: Create persistence marker and backup
+        run: |
+          docker compose exec -T backend python - <<'PY'
+          import sqlite3
+
+          with sqlite3.connect('/data/novelforge.db') as conn:
+              conn.execute('CREATE TABLE IF NOT EXISTS sprint0_persistence(value TEXT NOT NULL)')
+              conn.execute('DELETE FROM sprint0_persistence')
+              conn.execute('INSERT INTO sprint0_persistence(value) VALUES (?)', ('before',))
+              conn.commit()
+          PY
+
+          backup_path="$(./scripts/backup.sh --label ci-restore | tail -n 1 | tr -d '\r')"
+          test -n "$backup_path"
+          docker compose exec -T backend test -f "$backup_path"
+          echo "BACKUP_PATH=$backup_path" >> "$GITHUB_ENV"
+
+      - name: Mutate database after backup
+        run: |
+          docker compose exec -T backend python - <<'PY'
+          import sqlite3
+
+          with sqlite3.connect('/data/novelforge.db') as conn:
+              conn.execute('UPDATE sprint0_persistence SET value = ?', ('after',))
+              conn.commit()
+          PY
+
+      - name: Restore backup through host script
+        run: |
+          restore_output="$(./scripts/restore.sh "$BACKUP_PATH" --force)"
+          printf '%s\n' "$restore_output"
+          safety_path="$(printf '%s\n' "$restore_output" | grep '^/data/pre-restore/.*\.db$' | tail -n 1)"
+          test -n "$safety_path"
+          docker compose exec -T backend test -f "$safety_path"
+
+      - name: Wait for restored stack
+        run: |
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/healthz/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker compose ps
+            docker compose logs --tail=300 backend frontend
+            exit 1
+          fi
+
+      - name: Verify restored value
+        run: |
+          value="$(docker compose exec -T backend python - <<'PY'
+          import sqlite3
+
+          with sqlite3.connect('/data/novelforge.db') as conn:
+              row = conn.execute('SELECT value FROM sprint0_persistence').fetchone()
+          print(row[0] if row else '')
+          PY
+          )"
+          test "$value" = "before"
+
+      - name: Recreate containers without deleting volumes
+        run: |
+          docker compose down
+          docker compose up -d
+
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/healthz/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" -eq 1
+
+      - name: Verify database and backup volume persisted
+        run: |
+          value="$(docker compose exec -T backend python - <<'PY'
+          import sqlite3
+
+          with sqlite3.connect('/data/novelforge.db') as conn:
+              row = conn.execute('SELECT value FROM sprint0_persistence').fetchone()
+          print(row[0] if row else '')
+          PY
+          )"
+          test "$value" = "before"
+          docker compose exec -T backend test -f "$BACKUP_PATH"
+
+      - name: Clean up
+        if: always()
+        run: docker compose down -v --remove-orphans
