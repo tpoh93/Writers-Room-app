@@ -11,6 +11,8 @@ on:
       - "scripts/tests/test-restore-recovery.sh"
       - "scripts/verify-upstream.sh"
       - "scripts/check-local-exposure.sh"
+      - "LICENSE"
+      - "docs/architecture/upstream-sync.md"
       - "compose.yaml"
       - ".env.example"
       - "docs/acceptance/**"
