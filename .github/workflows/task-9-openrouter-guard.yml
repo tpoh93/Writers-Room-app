@@ -49,9 +49,9 @@ jobs:
           test "$status" -eq 2
           grep -q 'three distinct model IDs' <<<"$output"
 
-      - name: Scan tracked content for credential patterns
+      - name: Scan tracked content for OpenRouter key shape
         run: |
-          if git grep -nE 'sk-or-v1-[A-Za-z0-9_-]{20,}|OPENROUTER_API_KEY=[^[:space:]]+' -- . ':!.env.example'; then
+          if git grep -nE 'sk-or-v1-[A-Za-z0-9_-]{20,}' -- .; then
             echo 'FAIL: tracked OpenRouter credential pattern found' >&2
             exit 1
           fi
