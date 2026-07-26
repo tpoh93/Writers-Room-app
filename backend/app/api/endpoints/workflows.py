@@ -693,9 +693,24 @@ async def execute_code_workflow_stream(
             except:
                 pass
             raise  # 重新抛出以正确关闭连接
-            
+
+        except asyncio.TimeoutError as exc:
+            logger.error(
+                f"[CodeWorkflow] Provider timeout: run_id={run_id}"
+            )
+
+            state_manager.update_run_status(run_id, "timeout")
+
+            error_data = {
+                "type": "error",
+                "error": str(exc),
+                "code": "provider_timeout",
+                "message": "Provider timeout",
+            }
+            yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
+
         except Exception as e:
-            logger.exception(f"[CodeWorkflow] 流式执行失败: run_id={run_id}")
+            logger.error(f"[CodeWorkflow] 流式执行失败: run_id={run_id}")
             
             # 更新 run 状态为失败
             try:
