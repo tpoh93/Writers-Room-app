@@ -224,7 +224,7 @@ export function streamSelectionPipeline(
   }
 
   source.onerror = () => {
-    if (closed || source.readyState === EventSource.CLOSED) return
+    if (closed || finalized || source.readyState === EventSource.CLOSED) return
     handlers.onError?.('SSE connection error')
     handlers.onEnd?.()
     close()

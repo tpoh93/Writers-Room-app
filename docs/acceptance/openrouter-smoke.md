@@ -2,7 +2,7 @@
 
 ## Status
 
-`PENDING LOCAL CREDENTIALS`
+`LOOKS GOOD WITH DOCUMENTED EVIDENCE LIMITATION`
 
 This acceptance test must run on the private local Writers Room runtime. Do not put a real OpenRouter key in GitHub Actions, repository files, screenshots, issue comments, shell transcripts, or committed evidence.
 
@@ -121,25 +121,25 @@ Record no prose beyond the public synthetic fixture. Do not record the key, full
 
 | Field | Value |
 |---|---|
-| Date/time UTC | `PENDING` |
-| Workflow ID | `PENDING` |
-| Accepted run ID | `PENDING` |
-| Rejected run ID | `PENDING` |
-| Provider-failure run ID | `PENDING` |
+| Date/time UTC | `2026-07-26T03:16:04+00:00` |
+| Workflow ID | `5` |
+| Accepted run ID | `1` |
+| Rejected run ID | `NOT RETAINED; Fixture B observed manually; keep_run_history=false` |
+| Provider-failure run ID | `NOT RETAINED; Fixture C observed manually; keep_run_history=false` |
 | Kimi display name | `Kimi - scene architect` |
-| Kimi exact model ID | `PENDING` |
+| Kimi exact model ID | `moonshotai/kimi-k3` |
 | Grok display name | `Grok - continuity` |
-| Grok exact model ID | `PENDING` |
+| Grok exact model ID | `x-ai/grok-4.5` |
 | Aion display name | `Aion - final polish` |
-| Aion exact model ID | `PENDING` |
-| Accepted fixture final status | `PENDING` |
-| Reject changed zero characters | `PENDING` |
-| Outside-selection text unchanged | `PENDING` |
-| Undo restored exact source | `PENDING` |
-| Kimi checkpoint survived Grok failure | `PENDING` |
-| Resume skipped Kimi | `PENDING` |
-| Input/output token counters inspected | `PENDING` |
-| Secret scan | `PENDING` |
+| Aion exact model ID | `aion-labs/aion-3.0` |
+| Accepted fixture final status | `PASS` |
+| Reject changed zero characters | `PASS` |
+| Outside-selection text unchanged | `PASS` |
+| Undo restored exact source | `PASS` |
+| Kimi checkpoint survived Grok failure | `PASS` |
+| Resume skipped Kimi | `PASS` |
+| Input/output token counters inspected | `NOT RETAINED after run cleanup; no private payload recorded` |
+| Secret scan | `PASS` |
 
 ## Final secret scan
 
@@ -155,3 +155,30 @@ Expected result: no real credential and no private evidence in tracked or staged
 ## Completion rule
 
 Task 9 becomes `LOOKS GOOD` only after all three fixtures pass and the table above contains redacted values. A deterministic fake-model pass does not replace this real-provider proof.
+
+<!-- local-verification:start -->
+## Local verification record
+
+Verified on `2026-07-26T03:16:04+00:00`:
+
+- frontend Vitest suite: `22 passed`;
+- frontend TypeScript/Vue typecheck: `PASS`;
+- production web build: `PASS`;
+- backend Pytest suite: `22 passed`, with 19 non-blocking deprecation warnings;
+- upstream baseline verification: `PASS`;
+- Compose local-only exposure check: `PASS`;
+- frontend and backend health checks: `PASS`;
+- tracked OpenRouter credential scan: `PASS`;
+- tracked `.env` scan: `PASS`;
+- Fixture A accepted-result behavior: `PASS`;
+- Fixture B rejected-result behavior: `PASS`;
+- Fixture C provider failure and checkpoint resume: `PASS`;
+- regression test for canonical `/api/projects/` path: `PASS`;
+- regression test for SSE closure after successful `end`: `PASS`.
+
+The completed workflow used `keep_run_history=false`. Run IDs for Fixtures B
+and C and their token counters were therefore unavailable after runtime cleanup.
+This affects durable metadata completeness, not the manually observed fixture
+behavior. No credential, private prose, provider payload or tailnet detail was
+committed.
+<!-- local-verification:end -->

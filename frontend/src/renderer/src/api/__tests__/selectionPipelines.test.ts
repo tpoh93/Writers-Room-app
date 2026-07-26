@@ -137,6 +137,38 @@ describe('selection pipeline API', () => {
     expect(onEnd).toHaveBeenCalledOnce()
   })
 
+  it('ignores transport closure after end while persisted outputs are loading', async () => {
+    let resolveStates!: (states: unknown[]) => void
+    mocks.get.mockImplementation(() => new Promise(resolve => {
+      resolveStates = resolve
+    }))
+
+    const onError = vi.fn()
+    const onFinished = vi.fn()
+    const onEnd = vi.fn()
+
+    streamSelectionPipeline(7, 91, { onError, onFinished, onEnd })
+    const source = FakeEventSource.instances[0]
+
+    source.emit({ type: 'end' })
+    source.onerror?.({} as Event)
+
+    expect(onError).not.toHaveBeenCalled()
+
+    resolveStates([
+      {
+        node_id: 'aion',
+        node_type: 'AI.TextGenerate',
+        status: 'success',
+        progress: 100,
+        outputs_json: { text: 'Finalny tekst' },
+      },
+    ])
+
+    await vi.waitFor(() => expect(onFinished).toHaveBeenCalledOnce())
+    expect(onEnd).toHaveBeenCalledOnce()
+  })
+
   it('closes EventSource and suppresses final callbacks after manual closure', async () => {
     mocks.get.mockResolvedValue([])
     const onFinished = vi.fn()
