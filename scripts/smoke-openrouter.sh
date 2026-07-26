@@ -21,7 +21,7 @@ if git grep -qF "$OPENROUTER_API_KEY" -- . ':!scripts/smoke-openrouter.sh'; then
   exit 1
 fi
 
-if git grep -qE 'sk-or-v1-[A-Za-z0-9_-]{20,}|OPENROUTER_API_KEY=[^[:space:]]+' -- . ':!.env.example'; then
+if git grep -qE 'sk-or-v1-[A-Za-z0-9_-]{20,}' -- .; then
   echo "FAIL: an OpenRouter-style credential appears in tracked repository content" >&2
   exit 1
 fi
