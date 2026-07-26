@@ -56,5 +56,24 @@ jobs:
             exit 1
           fi
 
-      - name: Verify evidence remains explicitly pending local credentials
-        run: grep -q 'PENDING LOCAL CREDENTIALS' docs/acceptance/openrouter-smoke.md
+      - name: Verify OpenRouter evidence state is internally consistent
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          evidence='docs/acceptance/openrouter-smoke.md'
+
+          if grep -qx '`PENDING LOCAL CREDENTIALS`' "$evidence"; then
+            exit 0
+          fi
+
+          grep -qx             '`LOOKS GOOD WITH DOCUMENTED EVIDENCE LIMITATION`'             "$evidence"
+
+          if grep -Eq '^\| [^|]+ \| `PENDING` \|$' "$evidence"; then
+            echo 'FAIL: completed OpenRouter evidence still contains PENDING fields' >&2
+            exit 1
+          fi
+
+          grep -q '^| Secret scan | `PASS` |$' "$evidence"
+          grep -q '^| Resume skipped Kimi | `PASS` |$' "$evidence"
+          grep -q '^| Reject changed zero characters | `PASS` |$' "$evidence"
