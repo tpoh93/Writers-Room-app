@@ -16,6 +16,7 @@ from app.api.endpoints.workflows import execute_code_workflow_stream
 from app.db.models import LLMConfig, NodeExecutionState, Workflow, WorkflowRun
 from app.schemas.workflow import RunRequest
 from app.services.ai.core.llm_service import generate_review
+from app.services.ai.core.provider_errors import ProviderRequestError
 from app.services.workflow.engine.async_executor import AsyncExecutor
 from app.services.workflow.engine.run_manager import RunManager
 from app.services.workflow.engine.state_manager import StateManager
@@ -105,7 +106,7 @@ async def collect_sse_events(response) -> list[dict[str, object]]:
 
 
 @pytest.mark.asyncio
-async def test_generate_review_normalizes_openai_timeout_with_original_cause(
+async def test_generate_review_normalizes_openai_timeout_without_original_cause(
     session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -134,7 +135,7 @@ async def test_generate_review_normalizes_openai_timeout_with_original_cause(
             track_stats=False,
         )
 
-    assert raised.value.__cause__ is provider_timeout
+    assert raised.value.__cause__ is None
 
 
 @pytest.mark.asyncio
@@ -219,6 +220,154 @@ async def test_openai_timeout_through_workflow_stream_preserves_completed_state(
 
 
 @pytest.mark.asyncio
+async def test_generic_provider_failure_is_sanitized_across_workflow_boundaries(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches raw provider failures leaking through persistence, logs, or SSE."""
+    import app.services.ai.core.llm_service as llm_service_module
+
+    private_marker = "PRIVATE_PROSE_MARKER_7f3c91"
+    workflow = create_workflow(session)
+    params = pipeline_params("Generic provider failure source")
+    created = RunManager(session).create_run(
+        workflow_id=workflow.id,
+        params=params,
+    )
+    assert created.id is not None
+    built_config_ids: list[int] = []
+
+    class ModelForConfig:
+        def __init__(self, config_id: int):
+            self.config_id = config_id
+
+        async def ainvoke(self, messages):
+            if self.config_id == 11:
+                return SimpleNamespace(content="Kimi result retained")
+            if self.config_id == 12:
+                raise RuntimeError(private_marker)
+            pytest.fail("Aion must not run after a provider failure")
+
+    def build_fake_chat_model(*, llm_config_id: int, **_kwargs):
+        built_config_ids.append(llm_config_id)
+        return ModelForConfig(llm_config_id)
+
+    monkeypatch.setattr(
+        llm_service_module,
+        "build_chat_model",
+        build_fake_chat_model,
+    )
+
+    messages: list[str] = []
+    sink_id = logger.add(
+        lambda message: messages.append(str(message)),
+        format="{message}",
+    )
+    try:
+        response = await execute_code_workflow_stream(
+            workflow.id,
+            run_id=created.id,
+            session=session,
+        )
+        events = await collect_sse_events(response)
+    finally:
+        logger.remove(sink_id)
+
+    session.expire_all()
+    run = session.get(WorkflowRun, created.id)
+    states = {
+        state.node_id: state
+        for state in session.exec(
+            select(NodeExecutionState).where(
+                NodeExecutionState.run_id == created.id,
+            )
+        ).all()
+    }
+    serialized_events = json.dumps(events, ensure_ascii=False, default=str)
+    serialized_run_error = json.dumps(
+        run.error_json if run is not None else None,
+        ensure_ascii=False,
+        default=str,
+    )
+    serialized_node_errors = json.dumps(
+        {
+            node_id: state.error_message
+            for node_id, state in states.items()
+        },
+        ensure_ascii=False,
+        default=str,
+    )
+    captured_logs = "".join(messages)
+
+    assert private_marker not in captured_logs
+    assert private_marker not in serialized_run_error
+    assert private_marker not in serialized_node_errors
+    assert private_marker not in serialized_events
+    assert built_config_ids == [11, 12]
+    assert run is not None
+    assert run.status == "failed"
+    assert run.error_json is not None
+    assert run.error_json["message"] == "Provider request failed"
+    assert run.error_json["details"] == {"code": "provider_error"}
+    assert states["kimi"].status == "success"
+    assert states["kimi"].outputs_json["text"] == "Kimi result retained"
+    assert states["grok"].status == "error"
+    assert states["grok"].error_message == "Provider request failed"
+    assert "aion" not in states
+    assert any(
+        event.get("code") == "provider_error"
+        and event.get("message") == "Provider request failed"
+        and event.get("error") == "Provider request failed"
+        for event in events
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_manager_persists_domain_provider_failure_without_traceback(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches RunManager treating a safe provider error as a generic exception."""
+    workflow = create_workflow(session)
+    created = RunManager(session).create_run(
+        workflow_id=workflow.id,
+        params=pipeline_params("Background run source"),
+    )
+
+    async def fail_with_provider_error(self, plan, initial_context):
+        if False:
+            yield None
+        raise ProviderRequestError()
+
+    monkeypatch.setattr(
+        AsyncExecutor,
+        "execute_stream",
+        fail_with_provider_error,
+    )
+
+    messages: list[str] = []
+    sink_id = logger.add(
+        lambda message: messages.append(str(message)),
+        format="{message}",
+    )
+    try:
+        await RunManager(session)._execute_run(created, workflow)
+    finally:
+        logger.remove(sink_id)
+
+    session.expire_all()
+    run = session.get(WorkflowRun, created.id)
+    captured_logs = "".join(messages)
+
+    assert run is not None
+    assert run.status == "failed"
+    assert run.error_json is not None
+    assert run.error_json["message"] == "Provider request failed"
+    assert run.error_json["details"] == {"code": "provider_error"}
+    assert "Traceback (most recent call last)" not in captured_logs
+
+
+@pytest.mark.asyncio
 async def test_workflow_logs_never_contain_private_persisted_or_provider_markers(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -295,7 +444,10 @@ async def test_workflow_logs_never_contain_private_persisted_or_provider_markers
             assert first_run.id is not None
             first_run_id = first_run.id
 
-            with pytest.raises(RuntimeError, match="synthetic Grok failure"):
+            with pytest.raises(
+                ProviderRequestError,
+                match="^Provider request failed$",
+            ):
                 await consume_executor(
                     first_session,
                     first_run_id,

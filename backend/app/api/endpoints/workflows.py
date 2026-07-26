@@ -67,6 +67,11 @@ from app.services.workflow import (
     RunManager
 )
 from app.services.workflow.engine.runtime import workflow_runtime
+from app.services.ai.core.provider_errors import (
+    ProviderRequestError,
+    ProviderTimeoutError,
+    safe_provider_error,
+)
 
 
 router = APIRouter()
@@ -665,6 +670,9 @@ async def execute_code_workflow_stream(
                         event_data["resumed"] = True
                 elif event.type == "error":
                     event_data["error"] = event.error
+                    if event.code:
+                        event_data["code"] = event.code
+                        event_data["message"] = event.message
 
                 # 推送事件
                 try:
@@ -693,6 +701,48 @@ async def execute_code_workflow_stream(
             except:
                 pass
             raise  # 重新抛出以正确关闭连接
+
+        except ProviderTimeoutError as exc:
+            safe_error = safe_provider_error(exc)
+            logger.error(
+                f"[CodeWorkflow] Provider timeout: run_id={run_id}"
+            )
+
+            state_manager.update_run_status(run_id, "timeout")
+            state_manager.save_error(
+                run_id,
+                safe_error["message"],
+                {"code": safe_error["code"]},
+            )
+
+            error_data = {
+                "type": "error",
+                "error": safe_error["message"],
+                "code": safe_error["code"],
+                "message": safe_error["message"],
+            }
+            yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
+
+        except ProviderRequestError as exc:
+            safe_error = safe_provider_error(exc)
+            logger.error(
+                f"[CodeWorkflow] Provider request failed: run_id={run_id}"
+            )
+
+            state_manager.update_run_status(run_id, "failed")
+            state_manager.save_error(
+                run_id,
+                safe_error["message"],
+                {"code": safe_error["code"]},
+            )
+
+            error_data = {
+                "type": "error",
+                "error": safe_error["message"],
+                "code": safe_error["code"],
+                "message": safe_error["message"],
+            }
+            yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
 
         except asyncio.TimeoutError as exc:
             logger.error(

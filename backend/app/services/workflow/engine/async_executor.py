@@ -11,6 +11,8 @@ from datetime import datetime
 from loguru import logger
 from sqlmodel import Session
 
+from app.services.ai.core.provider_errors import is_provider_domain_error
+
 from .execution_plan import ExecutionPlan, Statement
 from .execution_state import ExecutionState, CheckpointData
 from .error_handler import ErrorHandler
@@ -65,6 +67,7 @@ class ProgressEvent:
     type: Optional[str] = None  # 'start', 'progress', 'complete', 'error', 'workflow_complete'
     result: Optional[Any] = None
     error: Optional[str] = None
+    code: Optional[str] = None
 
 
 class AsyncExecutor:
@@ -183,7 +186,10 @@ class AsyncExecutor:
             try:
                 await consumer_task
             except Exception as e:
-                logger.error(f"[AsyncExecutor] 语句处理失败: {e}")
+                if is_provider_domain_error(e):
+                    logger.error("[AsyncExecutor] Provider statement processing failed")
+                else:
+                    logger.error(f"[AsyncExecutor] 语句处理失败: {e}")
                 raise
     
     async def _process_statements(self, plan: ExecutionPlan):
@@ -319,7 +325,13 @@ class AsyncExecutor:
                     self.execution_state.completed_nodes.add(stmt.variable)
                             
                 except Exception as e:
-                    logger.error(f"[AsyncExecutor] 语句执行失败: {stmt.variable}, 错误: {e}")
+                    if is_provider_domain_error(e):
+                        logger.error(
+                            "[AsyncExecutor] Provider statement failed: node_id={}",
+                            stmt.variable,
+                        )
+                    else:
+                        logger.error(f"[AsyncExecutor] 语句执行失败: {stmt.variable}, 错误: {e}")
                     # 使用错误处理器
                     error_event = await ErrorHandler.handle_node_error(
                         e, stmt, self.execution_state, self.session
@@ -361,7 +373,13 @@ class AsyncExecutor:
             raise  # 重新抛出，让上层处理
         except Exception as e:
             # 节点执行错误
-            logger.error(f"[AsyncNode] 异步节点执行失败: {stmt.variable}, 错误: {e}")
+            if is_provider_domain_error(e):
+                logger.error(
+                    "[AsyncNode] Provider node failed: node_id={}",
+                    stmt.variable,
+                )
+            else:
+                logger.error(f"[AsyncNode] 异步节点执行失败: {stmt.variable}, 错误: {e}")
             error_event = await ErrorHandler.handle_node_error(
                 e, stmt, self.execution_state, self.session
             )
