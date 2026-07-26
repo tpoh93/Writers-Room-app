@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Dict, Any, List, Literal
 
 
@@ -77,5 +77,4 @@ class GeneralAIRequest(BaseModel):
     # 是否过滤 AI 字段（基于 x-ai-exclude 标记）
     exclude_ai_fields: Optional[bool] = Field(default=True, description="是否过滤标记为 x-ai-exclude 的字段")
 
-    class Config:
-        extra = 'ignore'
+    model_config = ConfigDict(extra="ignore")
