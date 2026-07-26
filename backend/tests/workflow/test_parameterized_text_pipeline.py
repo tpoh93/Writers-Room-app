@@ -124,6 +124,26 @@ def test_static_run_routes_are_registered_before_dynamic_workflow_route() -> Non
     )
 
 
+def test_builtin_workflow_explicitly_keeps_run_history() -> None:
+    parsed = _parse_code_workflow(str(WORKFLOW_PATH))
+
+    assert parsed["keep_run_history"] is True
+
+
+def test_workflow_retention_metadata_rejects_invalid_value(
+    tmp_path: Path,
+) -> None:
+    workflow_path = tmp_path / "invalid.wf"
+    workflow_path.write_text(
+        "# workflow-name: Invalid\n"
+        "# workflow-keep-run-history: perhaps\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="workflow-keep-run-history"):
+        _parse_code_workflow(str(workflow_path))
+
+
 def test_builtin_workflow_has_exact_display_name_and_valid_dependencies() -> None:
     parsed_file = _parse_code_workflow(str(WORKFLOW_PATH))
     plan = WorkflowParser().parse(parsed_file["code"])
