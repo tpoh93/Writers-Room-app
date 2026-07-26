@@ -147,7 +147,7 @@ Run from the repository root:
 
 ```bash
 git status --short
-git grep -nE 'sk-or-v1-|OPENROUTER_API_KEY=.+' -- . ':!.env.example' || true
+git grep -nE 'sk-or-v1-[A-Za-z0-9_-]{20,}' -- . || true
 ```
 
 Expected result: no real credential and no private evidence in tracked or staged content.
