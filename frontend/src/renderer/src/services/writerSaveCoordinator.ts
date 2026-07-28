@@ -42,6 +42,7 @@ export class WriterSaveCoordinator {
   private state: WriterSaveState = 'saved'
   private inFlight = false
   private failedAttempt: WriterSaveAttempt | null = null
+  private disposed = false
 
   constructor(private readonly options: WriterSaveCoordinatorOptions) {
     this.current = options.initial
@@ -51,6 +52,7 @@ export class WriterSaveCoordinator {
   }
 
   update(snapshot: WriterSnapshot): void {
+    if (this.disposed) return
     this.current = snapshot
     if (snapshotsEqual(snapshot, this.confirmed)) {
       this.clearRecoveryTimers()
@@ -70,6 +72,7 @@ export class WriterSaveCoordinator {
   }
 
   persistRecoveryDraft(reason: RecoveryDraftReason): void {
+    if (this.disposed) return
     if (snapshotsEqual(this.current, this.confirmed)) {
       this.clearRecoveryTimers()
       return
@@ -100,19 +103,20 @@ export class WriterSaveCoordinator {
   }
 
   async retry(): Promise<WriterSaveResult> {
-    if (this.inFlight || this.failedAttempt === null) {
+    if (this.disposed || this.inFlight || this.failedAttempt === null) {
       return { ok: false, error: new Error('No retryable save') }
     }
     return this.saveLatest(this.failedAttempt)
   }
 
   dispose(): void {
+    this.disposed = true
     this.clearRecoveryTimers()
     this.clearAutosaveTimer()
   }
 
   private async saveLatest(attempt: WriterSaveAttempt): Promise<WriterSaveResult> {
-    if (this.inFlight) return { ok: false, error: new Error('Writer save already in flight') }
+    if (this.disposed || this.inFlight) return { ok: false, error: new Error('Writer save already in flight') }
     const save = this.options.save
     if (!save) return { ok: false, error: new Error('Writer save is not configured') }
 
@@ -121,6 +125,7 @@ export class WriterSaveCoordinator {
     this.setState('saving', null)
     try {
       const confirmed = await save(requestSnapshot)
+      if (this.disposed) return { ok: false, error: new Error('Writer session is disposed') }
       this.confirmed = confirmed
       this.failedAttempt = null
       if (attempt.historyReason !== 'autosave' && attempt.historyReason !== 'technical-flush') {
@@ -138,6 +143,7 @@ export class WriterSaveCoordinator {
       }
       return { ok: true, snapshot: confirmed }
     } catch (error) {
+      if (this.disposed) return { ok: false, error: new Error('Writer session is disposed') }
       const saveError = asError(error)
       this.failedAttempt = attempt
       this.persistRecoveryDraft('failed-save')

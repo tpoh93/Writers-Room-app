@@ -167,3 +167,23 @@ describe('WriterSaveCoordinator backend autosave', () => {
     expect(save).toHaveBeenLastCalledWith(C)
   })
 })
+
+describe('WriterSaveCoordinator disposal', () => {
+  it('ignores a delayed save completion after dispose', async () => {
+    localStorage.clear()
+    let resolveSave: ((snapshot: WriterSnapshot) => void) | undefined
+    const save = vi.fn(() => new Promise<WriterSnapshot>((resolve) => { resolveSave = resolve }))
+    const { coordinator, drafts, history, states } = createCoordinator(save)
+    const snapshot = changed()
+    coordinator.update(snapshot)
+    const pending = coordinator.manualSave()
+
+    coordinator.dispose()
+    resolveSave?.(snapshot)
+    await pending
+
+    expect(states).toEqual(['dirty', 'saving'])
+    expect(history).toEqual([])
+    expect(drafts.read(1, 2)).toBeNull()
+  })
+})

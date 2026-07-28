@@ -199,6 +199,10 @@ export const useEditorStore = defineStore('editor', () => {
     activeWriterFlushRef.value = fn
   }
 
+  function clearActiveWriterFlush(fn: ((reason: WriterFlushReason) => Promise<WriterSaveResult>) | null) {
+    if (activeWriterFlushRef.value === fn) activeWriterFlushRef.value = null
+  }
+
   async function flushActiveWriter(reason: WriterFlushReason): Promise<WriterSaveResult> {
     return activeWriterFlushRef.value ? activeWriterFlushRef.value(reason) : { ok: true }
   }
@@ -330,6 +334,7 @@ export const useEditorStore = defineStore('editor', () => {
     setPersistActiveChapterDraft,
     persistActiveChapterDraft,
     setActiveWriterFlush,
+    clearActiveWriterFlush,
     flushActiveWriter,
     setTriggerExtractDynamicInfo,
     triggerExtractDynamicInfo,

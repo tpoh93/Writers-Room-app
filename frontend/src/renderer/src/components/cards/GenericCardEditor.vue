@@ -112,6 +112,15 @@
     </ContextDrawer>
 
     <CardReferenceSelectorDialog v-model="isSelectorVisible" :cards="cards" :currentCardId="props.card.id" @confirm="handleReferenceConfirm" />
+    <WriterRecoveryDialog
+      v-if="writerRecoveryComparison"
+      v-model="writerRecoveryVisible"
+      :comparison="writerRecoveryComparison"
+      :canonical="writerRecoveryCanonical"
+      @recover="recoverWriterDraft"
+      @discard="discardWriterDraft"
+      @cancel="cancelWriterRecovery"
+    />
     <CardVersionsDialog
       v-if="projectStore.currentProject?.id"
       v-model="showVersions"
@@ -202,6 +211,7 @@ import ModelDrivenForm from '../dynamic-form/ModelDrivenForm.vue'
 import SectionedForm from '../dynamic-form/SectionedForm.vue'
 import { mergeSections, autoGroup, type SectionConfig } from '@renderer/services/uiLayoutService'
 import CardReferenceSelectorDialog from './CardReferenceSelectorDialog.vue'
+import WriterRecoveryDialog from './WriterRecoveryDialog.vue'
 import EditorHeader from '../common/EditorHeader.vue'
 import ContextDrawer from '../common/ContextDrawer.vue'
 import CardVersionsDialog from '../common/CardVersionsDialog.vue'
@@ -213,6 +223,7 @@ import { addVersion } from '@renderer/services/versionService'
 import { isWriterReadyCard } from '@renderer/services/isWriterReadyCard'
 import { useWriterCardSession, type WriterEditorAdapter } from '@renderer/composables/useWriterCardSession'
 import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
+import type { RecoveryComparison } from '@renderer/services/writerRecovery'
 import { List, Select, Loading } from '@element-plus/icons-vue'
 import { useAppStore } from '@renderer/stores/useAppStore'
 import { useAIStore as useAIStoreForOptions } from '@renderer/stores/useAIStore'
@@ -333,6 +344,40 @@ const writerAdapter = computed<WriterEditorAdapter | null>(() => {
   }
 })
 const writerSession = useWriterCardSession(toRef(props, 'card'), writerAdapter)
+const writerRecoveryComparison = ref<RecoveryComparison | null>(null)
+const writerRecoveryCanonical = ref<WriterSnapshot | null>(null)
+const writerRecoveryVisible = ref(false)
+
+function evaluateWriterRecovery(): void {
+  if (!writerCard.value || !writerAdapter.value) return
+  const canonical = writerAdapter.value.getSnapshot()
+  const comparison = writerSession.checkRecovery(canonical)
+  writerRecoveryCanonical.value = canonical
+  writerRecoveryComparison.value = comparison
+  writerRecoveryVisible.value = comparison !== null
+}
+
+function recoverWriterDraft(): void {
+  writerSession.recoverDraft()
+  contentEditorDirty.value = true
+  writerRecoveryVisible.value = false
+  writerRecoveryComparison.value = null
+}
+
+function discardWriterDraft(): void {
+  writerSession.discardDraft()
+  writerRecoveryVisible.value = false
+  writerRecoveryComparison.value = null
+}
+
+function cancelWriterRecovery(): void {
+  writerSession.cancelRecovery()
+  writerRecoveryVisible.value = false
+}
+
+watch([writerAdapter, () => props.card.id], () => {
+  nextTick(evaluateWriterRecovery)
+}, { flush: 'post' })
 
 function handleSwitchTab(tab: string) {
   const evt = new CustomEvent('nf:switch-right-tab', { detail: { tab } })

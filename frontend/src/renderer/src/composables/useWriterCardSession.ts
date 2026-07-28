@@ -39,6 +39,9 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
   const error = ref<Error | null>(null)
   let coordinator: WriterSaveCoordinator | null = null
   let disposed = false
+  let generation = 0
+  let activeToken = 0
+  let registeredFlush: ((reason: WriterFlushReason) => Promise<WriterSaveResult>) | null = null
   let recovery: RecoveryComparison | null = null
   const editorStore = useEditorStore()
   const handleBeforeUnload = () => persistRecoveryDraft('force-close')
@@ -47,6 +50,8 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
     if (!adapter.value) return null
     coordinator?.dispose()
     disposed = false
+    const token = ++generation
+    activeToken = token
     coordinator = new WriterSaveCoordinator({
       initial: adapter.value.getSnapshot(),
       drafts: new RecoveryDraftStore(localStorage, () => new Date()),
@@ -62,10 +67,12 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
         return { ...snapshot, title: saved.title, content: (saved.content ?? snapshot.content) as WriterSnapshot['content'] }
       },
       onStateChange: (nextState, nextError) => {
+        if (disposed || activeToken !== token) return
         state.value = nextState
         error.value = nextError
       },
       onHistoryEligible: (snapshot, reason) => {
+        if (disposed || activeToken !== token) return
         recordVersionIfEligible(snapshot.projectId, {
           cardId: snapshot.cardId,
           projectId: snapshot.projectId,
@@ -76,7 +83,11 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
         }, reason)
       },
     })
-    editorStore.setActiveWriterFlush(flush)
+    registeredFlush = async (reason) => {
+      if (disposed || activeToken !== token) return { ok: false, error: new Error('Writer session is disposed') }
+      return flush(reason)
+    }
+    editorStore.setActiveWriterFlush(registeredFlush)
     window.addEventListener('beforeunload', handleBeforeUnload)
     return coordinator
   }
@@ -93,24 +104,27 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
   }
 
   async function manualSave(): Promise<WriterSaveResult> {
+    const token = activeToken
     onEditorChange()
     const active = requireCoordinator()
     const result = active ? await active.manualSave() : { ok: false, error: new Error('Writer session is unavailable') }
-    if (result.ok && result.snapshot && adapter.value) adapter.value.setSavedBaseline(result.snapshot)
+    if (!disposed && activeToken === token && result.ok && result.snapshot && adapter.value) adapter.value.setSavedBaseline(result.snapshot)
     return result
   }
 
   async function retry(): Promise<WriterSaveResult> {
+    const token = activeToken
     onEditorChange()
     const result = await (requireCoordinator()?.retry() ?? Promise.resolve({ ok: false, error: new Error('Writer session is unavailable') }))
-    if (result.ok && result.snapshot && adapter.value) adapter.value.setSavedBaseline(result.snapshot)
+    if (!disposed && activeToken === token && result.ok && result.snapshot && adapter.value) adapter.value.setSavedBaseline(result.snapshot)
     return result
   }
 
   async function flush(reason: WriterFlushReason): Promise<WriterSaveResult> {
+    const token = activeToken
     onEditorChange()
     const result = await (requireCoordinator()?.flush(reason) ?? Promise.resolve({ ok: false, error: new Error('Writer session is unavailable') }))
-    if (result.ok && result.snapshot && adapter.value) adapter.value.setSavedBaseline(result.snapshot)
+    if (!disposed && activeToken === token && result.ok && result.snapshot && adapter.value) adapter.value.setSavedBaseline(result.snapshot)
     return result
   }
 
@@ -147,10 +161,12 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
 
   function dispose(): void {
     disposed = true
+    activeToken = ++generation
     coordinator?.dispose()
     coordinator = null
     window.removeEventListener('beforeunload', handleBeforeUnload)
-    editorStore.setActiveWriterFlush(null)
+    editorStore.clearActiveWriterFlush(registeredFlush)
+    registeredFlush = null
   }
 
   if (getCurrentInstance()) onBeforeUnmount(dispose)
