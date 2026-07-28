@@ -23,7 +23,7 @@ WRITER-READY-01 covers:
 - creating and opening a project;
 - creating, selecting, and editing a writing card that acts as a scene or
   chapter;
-- explicit save, backend autosave, local emergency draft, and save-state UI;
+- manual save command, backend autosave, local emergency draft, and save-state UI;
 - flushes before navigation, export, and controlled close;
 - reopen and user-controlled recovery;
 - local version history;
@@ -77,6 +77,14 @@ A successful write of the active card to the existing backend API followed by
 successful SQLite persistence. The frontend may display `saved` only after the
 API reports success. The server response is the authoritative saved snapshot.
 
+### Manual save command
+
+One immediate user-initiated canonical-save command, invoked either by the
+visible Polish **Zapisz** button or by `Cmd/Ctrl+S`. Both entry points use the
+same save coordinator, target the newest complete editor snapshot, do not wait
+for an autosave timer, expose identical failure behavior, and use the same
+version-history policy.
+
 ### Local recovery draft
 
 A local browser-storage record containing a dirty writing-card snapshot and
@@ -124,7 +132,7 @@ authority unless a separately approved contract changes them.
 
 | Layer | Responsibility | Must not do |
 |---|---|---|
-| Writing editor | Own in-memory text, dirty state, explicit save command, and local-draft scheduling. | Claim a save without backend acknowledgement. |
+| Writing editor | Own in-memory text, dirty state, manual save command, and local-draft scheduling. | Claim a save without backend acknowledgement. |
 | Save coordinator | Serialize saves for the active card, schedule autosave, expose retry, and perform mandatory flush. | Send duplicate writes for unchanged content. |
 | Local recovery-draft store | Persist and compare emergency snapshots by project/card identity. | Become canonical or silently replace SQLite data. |
 | Existing card API | Validate and persist canonical card content. | Treat local browser data as authoritative. |
@@ -156,12 +164,19 @@ fingerprint observed when the draft session began or last reconciled;
 Both use the deterministic writer-visible fingerprint contract. `capturedAt`
 is diagnostic information only and never resolves a recovery conflict.
 
+When an older in-flight snapshot is confirmed while the editor contains newer
+content, the coordinator rebases the retained recovery record: it preserves the
+newest editor content and its `draftFingerprint`, sets `savedCardFingerprint`
+to the just-confirmed canonical fingerprint, and retains the record as dirty.
+This makes a later reopen compare the newest local draft against its actual
+canonical base point.
+
 ### 5.3 Data flow
 
 ```mermaid
 flowchart LR
   E[Writing editor] -->|3 s idle or 15 s max wait; no backend request| L[Local recovery draft]
-  E -->|explicit save, autosave, or flush| S[Save coordinator]
+  E -->|manual save command, autosave, or flush| S[Save coordinator]
   S -->|PUT card snapshot| A[Existing card API]
   A --> Q[(SQLite canonical card)]
   A -->|confirmed saved snapshot| S
@@ -176,9 +191,11 @@ flowchart LR
 
 The backend save returns the canonical snapshot. The coordinator updates the
 editor baseline only from that confirmed result. A matching recovery draft is
-removed only after that result has been accepted by the editor. The coordinator
-computes all equality and recovery decisions from deterministic fingerprints,
-not from timestamps.
+removed only after that result has been accepted by the editor. If the response
+confirms an older in-flight snapshot, it instead preserves the newer dirty
+editor snapshot and rebases the local draft's `savedCardFingerprint` to the
+confirmed canonical fingerprint. The coordinator computes all equality and
+recovery decisions from deterministic fingerprints, not from timestamps.
 
 ## 6. Save state machine
 
@@ -194,17 +211,19 @@ The UI must show one primary state for the active writing card:
 Transitions:
 
 1. `saved → dirty` after a persisted writer-visible edit.
-2. `dirty → saving` for `Cmd/Ctrl+S`, an eligible autosave, retry, or mandatory
-   flush.
+2. `dirty → saving` for a manual save command, an eligible autosave, retry, or
+   mandatory flush.
 3. `saving → saved` only when the response confirms the same latest snapshot.
    A response for an older snapshot must not mark a newer editor snapshot as
    saved.
-4. `saving → dirty` when a newer edit occurred while an older snapshot saved;
-   the coordinator retains the newer recovery draft and schedules the newer
-   snapshot.
+4. `saving → dirty` when a newer edit occurred while an older snapshot saved.
+   The coordinator retains the newer editor content and local draft, keeps its
+   `draftFingerprint` aligned with that newer content, rebases
+   `savedCardFingerprint` to the confirmed older snapshot, and schedules the
+   newer snapshot. It must not enter `saved`.
 5. `saving → save-error` on a network error, timeout, non-success response, or
    persistence failure.
-6. `save-error → saving` only through retry, explicit save, eligible autosave,
+6. `save-error → saving` only through retry, manual save command, eligible autosave,
    or a mandatory flush.
 7. `save-error → dirty` when the user edits again; the error remains visible
    until a later canonical save succeeds or the active card changes only after
@@ -246,15 +265,17 @@ backend save per 30-second interval for the same card. An autosave response for
 an older snapshot cannot mark newer text as `saved`; the newer snapshot remains
 dirty for the next eligible save or an immediate flush.
 
-An explicit `Cmd/Ctrl+S`, retry, or mandatory flush is immediate and is not
-delayed by the autosave interval. It still uses the same save coordinator so
-that concurrent writes are serialized.
+A manual save command, retry, or mandatory flush is immediate and is not
+delayed by the autosave interval. A manual save command is available through
+both **Zapisz** and `Cmd/Ctrl+S`; both use the same save coordinator so that
+concurrent writes are serialized.
 
 ## 8. Mandatory flush
 
 The application must attempt a mandatory flush before:
 
-- `Cmd/Ctrl+S` completion;
+- completion of a manual save command, whether invoked by **Zapisz** or
+  `Cmd/Ctrl+S`;
 - changing the active scene/card;
 - changing the active project;
 - starting export;
@@ -339,17 +360,23 @@ replacing visible editor data:
 - **Cancel** keeps the decision surface open or returns to a non-destructive
   selection state; it performs neither recovery nor discard.
 
-**Case C — three-state conflict.** If
-`savedCardFingerprint != canonicalFingerprint`,
-`draftFingerprint != canonicalFingerprint`, and all three fingerprints are
-non-equivalent, the canonical database card, the local draft base point, and
-the local draft disagree. Nothing is automatically overwritten, recovered, or
-deleted. The recovery UI shows both canonical content and local draft content,
-identifies the base fingerprint, and requires a conscious user decision.
-Timestamp remains a helper only and does not determine precedence. The user
-may recover the local draft into a dirty editor or discard it only after the
-same explicit confirmation rules; canonical SQLite remains unchanged until a
-normal save succeeds.
+**Case C — canonical divergence conflict.** If
+`savedCardFingerprint != canonicalFingerprint` and
+`draftFingerprint != canonicalFingerprint`, the canonical state and the local
+draft base point diverge. This is a conflict whether
+`draftFingerprint == savedCardFingerprint` or all three fingerprints differ.
+Nothing is automatically deleted, recovered, or overwritten. The recovery UI
+shows canonical content and local draft content, identifies the base
+fingerprint, and requires a conscious user decision. Timestamp remains
+informative only and never determines precedence. The user may recover the
+local draft into a dirty editor or discard it only after the same explicit
+confirmation rules; canonical SQLite remains unchanged until a normal save
+succeeds.
+
+Cases A, B, and C are exhaustive for a matching project/card recovery record:
+either draft equals canonical (A), or it differs and saved base equals canonical
+(B), or it differs and saved base differs from canonical (C). No fingerprint
+relationship falls outside this classification.
 
 The recovery UI must identify the project, card, base fingerprint, draft
 fingerprint, canonical fingerprint, timestamp as supporting information, and
@@ -363,16 +390,23 @@ A local draft recorded after network or backend save failure is handled by the
 same comparison and decision flow. SQLite backup/restore is not a substitute
 for this recovery path and must not be cited as proof of unsaved-text recovery.
 
+### 10.4 Rebased draft after an older save response
+
+For canonical snapshot A, a save of B that is confirmed after the editor has
+already advanced to C leaves C in the editor and local draft. The local record
+then has `savedCardFingerprint` for B and `draftFingerprint` for C, so reopen
+compares C against B as case B rather than manufacturing a case-C conflict.
+
 ## 11. Version history
 
 Existing local card-version history remains a user-invoked recovery aid.
-Exactly these user-conscious canonical saves create a history entry: manual
-`Cmd/Ctrl+S`, a user save of a recovered local draft, and a user save of a
-restored historical version. Automatic backend autosave and technical mandatory
-flushes before navigation, export, or controlled close do not create history
-entries. An identical snapshot never creates a duplicate history entry, even
-when its canonical save succeeds. A canonical save may therefore occur without
-creating history.
+Exactly these user-conscious canonical saves create a history entry: a manual
+save command (whether **Zapisz** or `Cmd/Ctrl+S`), a user save of a recovered
+local draft, and a user save of a restored historical version. Automatic backend
+autosave and technical mandatory flushes before navigation, export, or
+controlled close do not create history entries. An identical snapshot never
+creates a duplicate history entry, even when its canonical save succeeds. A
+canonical save may therefore occur without creating history.
 
 History snapshots remain keyed by project/card. Version history does not change
 the canonical source of truth and does not replace the emergency recovery-draft
@@ -401,11 +435,25 @@ proceed without an unnecessary save.
 
 Each export acceptance check must verify artifact content, selected scope,
 format, and deterministic ordering, not merely that a browser download began.
-Writer-visible content and metadata in TXT and Markdown exports must be Polish:
-the artifact has zero visible Chinese labels or headings. JSON may retain
-technical field names required by its contract, but writer-visible values and
-labels must not introduce Chinese copy. Artifact-content assertions, including
-the visible-CJK count of zero for TXT and Markdown, are mandatory.
+
+### NovelForge-generated copy
+
+For TXT and Markdown, NovelForge-generated headings, labels, scope names,
+metadata names, messages, and export technical copy must be Polish and contain
+zero visible CJK. JSON may retain technical field names required by its
+contract, but its writer-visible values and labels must not introduce Chinese
+copy.
+
+### Author content
+
+Author-entered titles, card content, quotations, proper names, and text in any
+language are author content. Export must preserve it without translation,
+alphabet-based filtering, or removal; only format-required technical escaping
+is permitted. Deliberate CJK written by an author is allowed.
+
+Tests must separately assert zero CJK in NovelForge-generated copy and exact
+author-content preservation. A full-artifact CJK count of zero applies only to
+a controlled synthetic Polish fixture that contains no CJK itself.
 
 ## 13. Restart, Compose, and SQLite backup/restore
 
@@ -458,25 +506,28 @@ one FAIL or NOT VERIFIED means NOT READY.
 | WR-01 | Project → scene → writing | A synthetic project opens, an allowed writing-card type is selected or created, and prose becomes dirty after edit. | Browser QA recording and API/SQLite check. |
 | WR-02 | Local draft timing | A dirty draft writes after exactly 3 seconds idle; continuous typing resets idle debounce but cannot delay a snapshot beyond exactly 15 seconds from the prior successful local draft, or beyond 15 seconds from first dirty state. No local-draft write calls the backend. | Fake-timer unit tests plus browser check. |
 | WR-03 | Backend autosave cadence | First autosave occurs 30 seconds after entering dirty. While dirty, the newest complete changed snapshot is autosaved every 30 seconds, never more than once per card per interval; identical or queued snapshots produce no duplicate request. | Fake-clock unit test plus API-call integration test. |
-| WR-04 | `Cmd/Ctrl+S` | Shortcut immediately flushes newest text, shows `saving` then `saved`, and persists the server-confirmed snapshot. | Editor component test and browser QA. |
-| WR-05 | Scene change | Dirty current scene flushes before selection changes. Failed flush blocks scene change and keeps the draft visible. | Integration test and browser QA. |
-| WR-06 | Project change | Dirty scene flushes before project change. Failed flush blocks project change and keeps current project/card context. | Integration test and browser QA. |
-| WR-07 | Controlled close | Only interceptable view-close and internal navigation operations use mandatory flush; success permits close and failure blocks it with Retry/Cancel. | Component/integration test and browser QA. |
-| WR-08 | Force-close | Browser-tab close, process kill, crash, and power-loss simulation make no backend-flush guarantee or false saved claim; reopening exposes a recoverable local draft when appropriate. | Browser/process recovery drill. |
-| WR-09 | Network failure | Save transitions to `save-error`, retains draft, records recovery data, offers retry, and blocks flush-dependent operations. | Mocked integration test and browser QA. |
-| WR-10 | Backend failure | Non-success persistence response retains draft, exposes retry, and never changes UI to saved. | Backend/API integration test and browser QA. |
-| WR-11 | Reopen | After manual project/card selection, the exact canonical text appears when no newer draft exists. | Restart/browser QA and direct SQLite/API comparison. |
-| WR-12 | Recovery case A | When `draftFingerprint == canonicalFingerprint`, the redundant keyed draft is removed without a prompt and canonical content remains visible. | Unit/integration test. |
-| WR-13 | Recovery case B | When `savedCardFingerprint == canonicalFingerprint` and draft differs, Recover / Discard / Cancel are explicit; Recover opens dirty and does not overwrite SQLite before normal save. | Component/integration test and browser QA. |
-| WR-14 | Recovery case C | When canonical, saved-base, and draft fingerprints are all non-equivalent, neither draft nor canonical data is auto-deleted or overwritten; UI shows both and requires an explicit decision. | Unit/component test and browser QA. |
-| WR-15 | Version history policy | Manual save, save of recovered draft, and save of restored historical version create one non-duplicate history entry. Autosave and technical flush create none; existing retention limit is unchanged. | Unit/component test and browser QA. |
-| WR-16 | TXT export | Mandatory flush precedes all-card, single-card, and type-scoped TXT export; content/order are correct and visible CJK labels/headings count is zero. | API/service test and browser artifact inspection. |
-| WR-17 | Markdown export | Mandatory flush precedes all-card, single-card, and type-scoped Markdown export; content/order are correct and visible CJK labels/headings count is zero. | API/service test and browser artifact inspection. |
-| WR-18 | JSON export | Mandatory flush precedes all-card, single-card, and type-scoped JSON export; content/order are correct and technical field names do not introduce Chinese writer-visible copy. | API/service test and browser artifact inspection. |
-| WR-19 | Export with unsaved text | Failed flush blocks every export format and scope; no stale file is downloaded. | Integration test and browser QA. |
-| WR-20 | Compose restart | Stopping and starting Compose without volume deletion preserves canonical writing and supports the same reopen/recovery contract. | Controlled Compose evidence and browser QA. |
-| WR-21 | Backup → mutate → restore | Guarded SQLite restore returns the backed-up canonical state and leaves the safety-backup evidence; this row is separate from unsaved-draft recovery. | Existing backup test plus controlled operational drill. |
-| WR-22 | Evidence closure | All WR rows are PASS; no final evidence row is FAIL or NOT VERIFIED. | Committed redaction-safe acceptance record. |
+| WR-04 | Manual save command: **Zapisz** | Visible **Zapisz** immediately saves the newest snapshot through the common coordinator, shows the same state/error behavior as the shortcut, and follows the same history policy. | Editor component/integration test and browser QA. |
+| WR-05 | Manual save command: `Cmd/Ctrl+S` | Shortcut immediately saves the newest snapshot through the same coordinator and has behavior identical to **Zapisz**, including errors and history policy. | Editor component/integration test and browser QA. |
+| WR-06 | Scene change | Dirty current scene flushes before selection changes. Failed flush blocks scene change and keeps the draft visible. | Integration test and browser QA. |
+| WR-07 | Project change | Dirty scene flushes before project change. Failed flush blocks project change and keeps current project/card context. | Integration test and browser QA. |
+| WR-08 | Controlled close | Only interceptable view-close and internal navigation operations use mandatory flush; success permits close and failure blocks it with Retry/Cancel. | Component/integration test and browser QA. |
+| WR-09 | Force-close | Browser-tab close, process kill, crash, and power-loss simulation make no backend-flush guarantee or false saved claim; reopening exposes a recoverable local draft when appropriate. | Browser/process recovery drill. |
+| WR-10 | Network failure | Save transitions to `save-error`, retains draft, records recovery data, offers retry, and blocks flush-dependent operations. | Mocked integration test and browser QA. |
+| WR-11 | Backend failure | Non-success persistence response retains draft, exposes retry, and never changes UI to saved. | Backend/API integration test and browser QA. |
+| WR-12 | Reopen | After manual project/card selection, the exact canonical text appears when no newer draft exists. | Restart/browser QA and direct SQLite/API comparison. |
+| WR-13 | Recovery case A | When `draftFingerprint == canonicalFingerprint`, the redundant keyed draft is removed without a prompt and canonical content remains visible. | Unit/integration test. |
+| WR-14 | Recovery case B | When `savedCardFingerprint == canonicalFingerprint` and draft differs, Recover / Discard / Cancel are explicit; Recover opens dirty and does not overwrite SQLite before normal save. | Component/integration test and browser QA. |
+| WR-15 | Recovery case C | When both saved-base and draft differ from canonical, neither draft nor canonical data is auto-deleted, recovered, or overwritten, whether saved-base equals draft or all three differ; UI shows both and requires an explicit decision. | Unit/component test and browser QA. |
+| WR-16 | Rebase after older save | A canonical B is confirmed after newer C was edited: editor and local draft retain C, `savedCardFingerprint` becomes B, `draftFingerprint` remains C, state remains dirty, and reopen classifies C versus B as case B. | Unit/integration sequence test. |
+| WR-17 | Version history policy | A manual save command from either entry point, save of recovered draft, and save of restored historical version create one non-duplicate history entry. Autosave and technical flush create none; existing retention limit is unchanged. | Unit/component test and browser QA. |
+| WR-18 | TXT export | Mandatory flush precedes all-card, single-card, and type-scoped TXT export; deterministic order is correct, generated NovelForge copy is Polish with zero CJK, and author content is unchanged. | API/service test and browser artifact inspection. |
+| WR-19 | Markdown export | Mandatory flush precedes all-card, single-card, and type-scoped Markdown export; deterministic order is correct, generated NovelForge copy is Polish with zero CJK, and author content is unchanged. | API/service test and browser artifact inspection. |
+| WR-20 | JSON export | Mandatory flush precedes all-card, single-card, and type-scoped JSON export; technical field names are allowed, generated writer-visible copy is not Chinese, and author content is unchanged. | API/service test and browser artifact inspection. |
+| WR-21 | Polish fixture CJK scan | The controlled synthetic Polish fixture contains no author CJK and its complete TXT and Markdown artifacts have CJK count zero. | API/service artifact-content test. |
+| WR-22 | Export with unsaved text | Failed flush blocks every export format and scope; no stale file is downloaded. | Integration test and browser QA. |
+| WR-23 | Compose restart | Stopping and starting Compose without volume deletion preserves canonical writing and supports the same reopen/recovery contract. | Controlled Compose evidence and browser QA. |
+| WR-24 | Backup → mutate → restore | Guarded SQLite restore returns the backed-up canonical state and leaves the safety-backup evidence; this row is separate from unsaved-draft recovery. | Existing backup test plus controlled operational drill. |
+| WR-25 | Evidence closure | All WR rows are PASS; no final evidence row is FAIL or NOT VERIFIED. | Committed redaction-safe acceptance record. |
 
 ## 16. Test strategy
 
@@ -490,12 +541,19 @@ one FAIL or NOT VERIFIED means NOT READY.
   fake timers, including first dirty snapshot and continuous typing;
 - guaranteed first 30-second autosave and repeated 30-second dirty cadence with
   fake clocks, unchanged-snapshot suppression, and queued-snapshot suppression;
-- save coordinator serialization and retry;
-- all three recovery cases and Recover/Discard/Cancel behavior;
+- common manual save command behavior for **Zapisz** and `Cmd/Ctrl+S`, including
+  newest-snapshot selection, errors, and history policy;
+- save coordinator serialization and retry, including the A → B save → C edit
+  sequence: confirmation of B leaves C dirty, retains C in the local draft,
+  rebases `savedCardFingerprint` to B, and reopens C as case-B recovery;
+- all three recovery cases and Recover/Discard/Cancel behavior, including case
+  C where `savedCardFingerprint == draftFingerprint != canonicalFingerprint`;
 - mandatory-flush result handling;
 - history-entry policy, duplicate suppression, and unchanged retention limit;
-- deterministic export ordering, format serialization, and zero visible CJK in
-  TXT/Markdown artifacts.
+- deterministic export ordering and format serialization;
+- generated NovelForge copy is Polish and contains zero CJK while author text,
+  including deliberate CJK, is preserved byte-for-byte except required format
+  escaping; full-artifact CJK count is zero only for the no-CJK Polish fixture.
 
 ### Integration tests
 
@@ -506,7 +564,9 @@ one FAIL or NOT VERIFIED means NOT READY.
 - export blocked on failed flush and generated only after confirmed save;
 - all export scopes in `txt`, `md`, and `json`, with artifact-content rather
   than download-start assertions;
-- Polish TXT/Markdown metadata and zero visible-CJK artifact assertions;
+- separate assertions for Polish/zero-CJK NovelForge-generated TXT/Markdown
+  copy, untouched multilingual author content, and full-artifact zero CJK for
+  the controlled Polish no-CJK fixture;
 - restart with a fresh frontend state and persisted local recovery data;
 - existing guarded backup/restore path.
 
@@ -551,10 +611,12 @@ The acceptance record must include:
   relevant;
 - recovery decision outcome and proof that canonical data was not silently
   replaced;
-- all three recovery fingerprints and proof that timestamp did not resolve a
-  conflict;
-- TXT/Markdown visible-CJK scan result of zero and JSON writer-visible-copy
-  result;
+- all three recovery fingerprints, including the saved-base-equals-draft case,
+  plus rebase evidence after an older save response and proof that timestamp
+  did not resolve a conflict;
+- separate TXT/Markdown generated-copy CJK scan, author-content preservation
+  result, and full-artifact CJK=0 result for the controlled Polish no-CJK
+  fixture; plus JSON writer-visible-copy result;
 - Compose persistence and backup/restore evidence;
 - explicitly recorded exclusions and any test environment limitations.
 
@@ -569,13 +631,18 @@ WRITER-READY-01 is DONE only when:
 1. an implementation conforms to every requirement in this contract;
 2. the complete writer journey has been run on a fresh synthetic environment;
 3. canonical SQLite persistence, exactly 3-second/15-second local draft,
-   guaranteed 30-second autosave, all three recovery cases, mandatory flush,
-   reopen, version restore, and all export formats/scopes have direct evidence;
+   guaranteed 30-second autosave, both manual-save entry points, all three
+   exhaustive recovery cases (including local-draft rebase after an older save
+   response), mandatory flush, reopen, version restore, and all export
+   formats/scopes have direct evidence;
 4. controlled-close, force-close, network failure, backend failure, Compose
    restart, and backup/restore have the specified outcomes;
 5. no operation claims success after a failed save;
 6. the final acceptance matrix contains zero FAIL and zero NOT VERIFIED rows;
-7. all evidence is redaction-safe and reproducible.
+7. NovelForge-generated export copy is Polish with the required zero-CJK
+   fixture result, while author content is demonstrably unmodified apart from
+   format-required escaping;
+8. all evidence is redaction-safe and reproducible.
 
 ## 20. Out of scope
 
