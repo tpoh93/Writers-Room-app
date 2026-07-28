@@ -97,3 +97,73 @@ describe('WriterSaveCoordinator atomic canonical save', () => {
     expect(history).toEqual(['manual'])
   })
 })
+
+describe('WriterSaveCoordinator backend autosave', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    localStorage.clear()
+  })
+
+  afterEach(() => vi.useRealTimers())
+
+  it('saves first at thirty seconds and repeats every thirty seconds while dirty', async () => {
+    const save = vi.fn(async (snapshot: WriterSnapshot) => snapshot)
+    const { coordinator } = createCoordinator(save)
+    const snapshot = changed()
+    coordinator.update(snapshot)
+
+    await vi.advanceTimersByTimeAsync(29_999)
+    expect(save).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(save).toHaveBeenLastCalledWith(snapshot)
+
+    coordinator.update({ ...snapshot, content: { content: 'C' } })
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ content: { content: 'C' } }))
+  })
+
+  it('does not autosave a snapshot already confirmed or already in flight', async () => {
+    let resolveSave: ((snapshot: WriterSnapshot) => void) | undefined
+    const save = vi.fn(() => new Promise<WriterSnapshot>((resolve) => { resolveSave = resolve }))
+    const { coordinator } = createCoordinator(save)
+    const snapshot = changed()
+    coordinator.update(snapshot)
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(save).toHaveBeenCalledTimes(1)
+
+    resolveSave?.(snapshot)
+    await Promise.resolve()
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(save).toHaveBeenCalledTimes(1)
+  })
+
+  it('rebases the local recovery draft when response B arrives after newer content C', async () => {
+    let resolveSave: ((snapshot: WriterSnapshot) => void) | undefined
+    const save = vi.fn(() => new Promise<WriterSnapshot>((resolve) => { resolveSave = resolve }))
+    const { coordinator, drafts, states } = createCoordinator(save)
+    const B = changed()
+    const C = { ...B, content: { content: 'C' }, contextTemplates: { generation: 'G-C', review: 'R-C' } }
+    coordinator.update(B)
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    coordinator.update(C)
+    resolveSave?.(B)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(states.at(-1)).toBe('dirty')
+    expect(drafts.read(1, 2)).toMatchObject({
+      content: C.content,
+      contextTemplates: C.contextTemplates,
+      savedCardFingerprint: expect.any(String),
+    })
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(save).toHaveBeenLastCalledWith(C)
+  })
+})

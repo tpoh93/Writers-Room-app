@@ -38,6 +38,7 @@ export class WriterSaveCoordinator {
   private confirmed: WriterSnapshot
   private idleTimer: ReturnType<typeof setTimeout> | null = null
   private maxWaitTimer: ReturnType<typeof setTimeout> | null = null
+  private autosaveTimer: ReturnType<typeof setTimeout> | null = null
   private state: WriterSaveState = 'saved'
   private inFlight = false
   private failedAttempt: WriterSaveAttempt | null = null
@@ -53,11 +54,13 @@ export class WriterSaveCoordinator {
     this.current = snapshot
     if (snapshotsEqual(snapshot, this.confirmed)) {
       this.clearRecoveryTimers()
+      this.clearAutosaveTimer()
       this.setState('saved', null)
       return
     }
 
     if (!this.inFlight) this.setState('dirty', null)
+    this.scheduleAutosave()
     if (this.idleTimer !== null) this.clearTimer(this.idleTimer)
     this.idleTimer = this.setTimer(() => this.persistRecoveryDraft('local-idle'), 3_000)
 
@@ -105,6 +108,7 @@ export class WriterSaveCoordinator {
 
   dispose(): void {
     this.clearRecoveryTimers()
+    this.clearAutosaveTimer()
   }
 
   private async saveLatest(attempt: WriterSaveAttempt): Promise<WriterSaveResult> {
@@ -125,10 +129,12 @@ export class WriterSaveCoordinator {
       if (snapshotsEqual(this.current, confirmed)) {
         this.options.drafts.remove(this.current.projectId, this.current.cardId)
         this.clearRecoveryTimers()
+        this.clearAutosaveTimer()
         this.setState('saved', null)
       } else {
         this.persistRecoveryDraft('local-idle')
         this.setState('dirty', null)
+        this.scheduleAutosave()
       }
       return { ok: true, snapshot: confirmed }
     } catch (error) {
@@ -136,6 +142,7 @@ export class WriterSaveCoordinator {
       this.failedAttempt = attempt
       this.persistRecoveryDraft('failed-save')
       this.setState('save-error', saveError)
+      this.scheduleAutosave()
       return { ok: false, error: saveError }
     } finally {
       this.inFlight = false
@@ -153,5 +160,21 @@ export class WriterSaveCoordinator {
     if (this.maxWaitTimer !== null) this.clearTimer(this.maxWaitTimer)
     this.idleTimer = null
     this.maxWaitTimer = null
+  }
+
+  private scheduleAutosave(): void {
+    if (this.autosaveTimer !== null || snapshotsEqual(this.current, this.confirmed)) return
+    this.autosaveTimer = this.setTimer(async () => {
+      this.autosaveTimer = null
+      if (!snapshotsEqual(this.current, this.confirmed) && !this.inFlight) {
+        await this.saveLatest({ historyReason: 'autosave', flushReason: null })
+      }
+      if (!snapshotsEqual(this.current, this.confirmed)) this.scheduleAutosave()
+    }, 30_000)
+  }
+
+  private clearAutosaveTimer(): void {
+    if (this.autosaveTimer !== null) this.clearTimer(this.autosaveTimer)
+    this.autosaveTimer = null
   }
 }
