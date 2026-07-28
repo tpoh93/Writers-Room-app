@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { generateAIContent } from '@renderer/api/ai'
 import { useCardStore } from './useCardStore'
 import { showInterruptOverlay, hideInterruptOverlay } from '@renderer/services/interruptOverlay'
+import i18n from '@renderer/i18n'
 
 export const useAIStore = defineStore('ai', () => {
   const isGenerating = ref(false)
@@ -21,7 +22,7 @@ export const useAIStore = defineStore('ai', () => {
     try {
       currentAbort?.abort()
       currentAbort = new AbortController()
-      showInterruptOverlay('AI生成中…', () => { try { currentAbort?.abort() } catch {} })
+      showInterruptOverlay(i18n.global.t('chapterEditor.generating'), () => { try { currentAbort?.abort() } catch {} })
       const cardStore = useCardStore()
       const allowed = new Set(['角色卡','场景卡','组织卡','物品卡','概念卡'])
       const typeIdToName = new Map<number, string>()
@@ -68,7 +69,7 @@ export const useAIStore = defineStore('ai', () => {
     try {
       currentAbort?.abort()
       currentAbort = new AbortController()
-      showInterruptOverlay('AI生成中…', () => { try { currentAbort?.abort() } catch {} })
+      showInterruptOverlay(i18n.global.t('chapterEditor.generating'), () => { try { currentAbort?.abort() } catch {} })
       const cardStore = useCardStore()
       const allowed = new Set(['角色卡','场景卡','组织卡','物品卡','概念卡'])
       const typeIdToName = new Map<number, string>()

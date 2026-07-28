@@ -1,13 +1,13 @@
 <template>
   <div class="ctx-panel">
     <div class="panel-header">
-      <h3 class="panel-title">参与实体</h3>
-      <el-button size="small" type="primary" :loading="assembling" @click="assemble">刷新上下文</el-button>
+      <h3 class="panel-title">{{ t('contextPanel.entities') }}</h3>
+      <el-button size="small" type="primary" :loading="assembling" @click="assemble">{{ t('contextPanel.refresh') }}</el-button>
     </div>
     
     <el-form label-width="70px" class="controls">
-      <el-form-item label="参与者">
-        <el-select v-model="localParticipants" multiple filterable allow-create default-first-option placeholder="输入或选择参与者" @change="onParticipantsChange">
+      <el-form-item :label="t('contextPanel.participants')">
+        <el-select v-model="localParticipants" multiple filterable allow-create default-first-option :placeholder="t('contextPanel.participantsPlaceholder')" @change="onParticipantsChange">
           <el-option-group v-for="g in participantGroups" :key="g.label" :label="g.label">
             <el-option v-for="p in g.values" :key="p" :label="p" :value="p" />
           </el-option-group>
@@ -17,12 +17,12 @@
 
     <div v-if="assembled" class="assembled">
       <div class="facts-structured" v-if="assembled.facts_structured">
-        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.fact_summaries) && ((assembled.facts_structured as any)?.fact_summaries?.length > 0)">关键事实</div>
+        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.fact_summaries) && ((assembled.facts_structured as any)?.fact_summaries?.length > 0)">{{ t('contextPanel.keyFacts') }}</div>
         <ul class="list" v-if="Array.isArray((assembled.facts_structured as any)?.fact_summaries) && ((assembled.facts_structured as any)?.fact_summaries?.length > 0)">
           <li v-for="(f, i0) in ((assembled.facts_structured as any)?.fact_summaries as string[] || [])" :key="i0">- {{ f }}</li>
         </ul>
 
-        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.relation_summaries) && ((assembled.facts_structured as any)?.relation_summaries?.length > 0)">关系摘要</div>
+        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.relation_summaries) && ((assembled.facts_structured as any)?.relation_summaries?.length > 0)">{{ t('contextPanel.relationSummary') }}</div>
         <ul class="list" v-if="Array.isArray((assembled.facts_structured as any)?.relation_summaries) && ((assembled.facts_structured as any)?.relation_summaries?.length > 0)">
           <li v-for="(r, idx) in ((assembled.facts_structured as any)?.relation_summaries as any[] || [])" :key="idx" class="relation-item">
             <div class="relation-head">{{ (r as any).a }} ↔ {{ (r as any).b }}（{{ (r as any).kind }}）
@@ -30,23 +30,23 @@
             </div>
             <div v-if="(r as any).description" class="muted" style="margin: 2px 0;">{{ (r as any).description }}</div>
             <div v-if="(r as any).a_to_b_addressing || (r as any).b_to_a_addressing" class="muted addressing">
-              <span v-if="(r as any).a_to_b_addressing">A称B：{{ (r as any).a_to_b_addressing }}</span>
-              <span v-if="(r as any).b_to_a_addressing" style="margin-left:12px;">B称A：{{ (r as any).b_to_a_addressing }}</span>
+              <span v-if="(r as any).a_to_b_addressing">{{ t('chapterEditor.addressAtoB') }}: {{ (r as any).a_to_b_addressing }}</span>
+              <span v-if="(r as any).b_to_a_addressing" style="margin-left:12px;">{{ t('chapterEditor.addressBtoA') }}: {{ (r as any).b_to_a_addressing }}</span>
             </div>
             <div v-if="Array.isArray((r as any)?.recent_dialogues) && ((r as any).recent_dialogues?.length > 0)" class="muted">
-              对话样例：
+              {{ t('contextPanel.dialogueExamples') }}:
               <ul class="list">
                 <li v-for="(d, i3) in ((r as any).recent_dialogues as string[] || [])" :key="i3"><div class="dialog-text">{{ d }}</div></li>
               </ul>
             </div>
             <div v-if="Array.isArray((r as any)?.recent_event_summaries) && ((r as any).recent_event_summaries?.length > 0)" class="muted">
-              近期事件：
+              {{ t('contextPanel.recentEvents') }}:
               <ul class="list">
                 <li v-for="(ev, i4) in ((r as any).recent_event_summaries as any[] || [])" :key="i4">
                   <span>{{ (ev as any).summary }}</span>
                   <span class="badges" v-if="(ev as any).volume_number != null || (ev as any).chapter_number != null">
-                    <el-tag size="small" type="info" v-if="(ev as any).volume_number != null">卷{{ (ev as any).volume_number }}</el-tag>
-                    <el-tag size="small" type="info" v-if="(ev as any).chapter_number != null" style="margin-left:6px;">章{{ (ev as any).chapter_number }}</el-tag>
+                    <el-tag size="small" type="info" v-if="(ev as any).volume_number != null">{{ t('contextPanel.volumeNumber', { number: (ev as any).volume_number }) }}</el-tag>
+                    <el-tag size="small" type="info" v-if="(ev as any).chapter_number != null" style="margin-left:6px;">{{ t('contextPanel.chapterNumber', { number: (ev as any).chapter_number }) }}</el-tag>
                   </span>
                 </li>
               </ul>
@@ -54,7 +54,7 @@
           </li>
         </ul>
 
-        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.item_summaries) && ((assembled.facts_structured as any)?.item_summaries?.length > 0)">物品摘要</div>
+        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.item_summaries) && ((assembled.facts_structured as any)?.item_summaries?.length > 0)">{{ t('contextPanel.itemSummary') }}</div>
         <ul class="list" v-if="Array.isArray((assembled.facts_structured as any)?.item_summaries) && ((assembled.facts_structured as any)?.item_summaries?.length > 0)">
           <li v-for="(item, idx) in ((assembled.facts_structured as any)?.item_summaries as any[] || [])" :key="`item-${idx}`" class="relation-item">
             <div class="relation-head">
@@ -62,12 +62,12 @@
               <el-tag v-if="(item as any).category" size="small" style="margin-left:6px;">{{ (item as any).category }}</el-tag>
             </div>
             <div v-if="(item as any).description" class="muted" style="margin: 2px 0;">{{ (item as any).description }}</div>
-            <div v-if="(item as any).current_state" class="muted">当前状态：{{ (item as any).current_state }}</div>
-            <div v-if="(item as any).owner_hint" class="muted">归属提示：{{ (item as any).owner_hint }}</div>
-            <div v-if="(item as any).power_or_effect" class="muted">效果/用途：{{ (item as any).power_or_effect }}</div>
-            <div v-if="(item as any).constraints" class="muted">限制条件：{{ (item as any).constraints }}</div>
+            <div v-if="(item as any).current_state" class="muted">{{ t('chapterEditor.currentState') }}: {{ (item as any).current_state }}</div>
+            <div v-if="(item as any).owner_hint" class="muted">{{ t('chapterEditor.ownerHint') }}: {{ (item as any).owner_hint }}</div>
+            <div v-if="(item as any).power_or_effect" class="muted">{{ t('chapterEditor.effect') }}: {{ (item as any).power_or_effect }}</div>
+            <div v-if="(item as any).constraints" class="muted">{{ t('chapterEditor.constraints') }}: {{ (item as any).constraints }}</div>
             <div v-if="Array.isArray((item as any)?.important_events) && ((item as any).important_events?.length > 0)" class="muted">
-              重要事件：
+              {{ t('chapterEditor.importantEvents') }}:
               <ul class="list">
                 <li v-for="(eventText, eventIdx) in ((item as any).important_events as string[] || [])" :key="eventIdx">{{ eventText }}</li>
               </ul>
@@ -75,7 +75,7 @@
           </li>
         </ul>
 
-        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.concept_summaries) && ((assembled.facts_structured as any)?.concept_summaries?.length > 0)">概念摘要</div>
+        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.concept_summaries) && ((assembled.facts_structured as any)?.concept_summaries?.length > 0)">{{ t('contextPanel.conceptSummary') }}</div>
         <ul class="list" v-if="Array.isArray((assembled.facts_structured as any)?.concept_summaries) && ((assembled.facts_structured as any)?.concept_summaries?.length > 0)">
           <li v-for="(concept, idx) in ((assembled.facts_structured as any)?.concept_summaries as any[] || [])" :key="`concept-${idx}`" class="relation-item">
             <div class="relation-head">
@@ -83,26 +83,29 @@
               <el-tag v-if="(concept as any).category" size="small" style="margin-left:6px;">{{ (concept as any).category }}</el-tag>
             </div>
             <div v-if="(concept as any).description" class="muted" style="margin: 2px 0;">{{ (concept as any).description }}</div>
-            <div v-if="(concept as any).rule_definition" class="muted">规则定义：{{ (concept as any).rule_definition }}</div>
-            <div v-if="(concept as any).mastery_hint" class="muted">掌握提示：{{ (concept as any).mastery_hint }}</div>
-            <div v-if="(concept as any).cost" class="muted">代价：{{ (concept as any).cost }}</div>
-            <div v-if="Array.isArray((concept as any)?.known_by) && ((concept as any).known_by?.length > 0)" class="muted">已知掌握者：{{ ((concept as any).known_by as string[]).join('、') }}</div>
-            <div v-if="Array.isArray((concept as any)?.counter_relations) && ((concept as any).counter_relations?.length > 0)" class="muted">克制/对立：{{ ((concept as any).counter_relations as string[]).join('、') }}</div>
+            <div v-if="(concept as any).rule_definition" class="muted">{{ t('chapterEditor.ruleDefinition') }}: {{ (concept as any).rule_definition }}</div>
+            <div v-if="(concept as any).mastery_hint" class="muted">{{ t('chapterEditor.masteryHint') }}: {{ (concept as any).mastery_hint }}</div>
+            <div v-if="(concept as any).cost" class="muted">{{ t('chapterEditor.cost') }}: {{ (concept as any).cost }}</div>
+            <div v-if="Array.isArray((concept as any)?.known_by) && ((concept as any).known_by?.length > 0)" class="muted">{{ t('chapterEditor.knownBy') }}: {{ ((concept as any).known_by as string[]).join(', ') }}</div>
+            <div v-if="Array.isArray((concept as any)?.counter_relations) && ((concept as any).counter_relations?.length > 0)" class="muted">{{ t('chapterEditor.counterRelations') }}: {{ ((concept as any).counter_relations as string[]).join(', ') }}</div>
           </li>
         </ul>
         
       </div>
       <pre class="pre" v-if="!assembled.facts_structured && assembled.facts_subgraph">{{ assembled.facts_subgraph }}</pre>
-      <div v-if="!assembled.facts_structured && !assembled.facts_subgraph">关键事实：暂无（相关实体之间信息尚未收集）。</div>
+      <div v-if="!assembled.facts_structured && !assembled.facts_subgraph">{{ t('contextPanel.noFacts') }}</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { assembleContext, type AssembleContextResponse } from '@renderer/api/ai'
 import { ElMessage } from 'element-plus'
 import { getCardsForProject, type CardRead } from '@renderer/api/cards'
+
+const { t } = useI18n()
 
 const props = defineProps<{ projectId?: number; participants?: string[]; volumeNumber?: number | null; stageNumber?: number | null; chapterNumber?: number | null; draftTail?: string; prefetched?: AssembleContextResponse | null }>()
 const emit = defineEmits<{
@@ -142,27 +145,27 @@ function emitChapter() { emit('update:chapterNumber', localChapterNumber.value ?
 function detectTypeGroupByCard(c: CardRead): string {
   // 1) 优先使用内容中的实体类型标记（后端新增）
   const et = (c.content as any)?.entity_type
-  if (et === 'character') return '角色'
-  if (et === 'scene') return '场景'
-  if (et === 'organization') return '组织'
-  if (et === 'item') return '物品'
-  if (et === 'concept') return '概念'
+  if (et === 'character') return t('contextPanel.characters')
+  if (et === 'scene') return t('contextPanel.scenes')
+  if (et === 'organization') return t('contextPanel.organizations')
+  if (et === 'item') return t('contextPanel.items')
+  if (et === 'concept') return t('contextPanel.concepts')
 
   // 2) 使用卡片类型中文名归类
   const tname = (c.card_type?.name || '').trim()
-  if (tname.includes('角色')) return '角色'
-  if (tname.includes('场景')) return '场景'
-  if (tname.includes('组织')) return '组织'
-  if (tname.includes('物品')) return '物品'
-  if (tname.includes('概念')) return '概念'
+  if (tname.includes('角色')) return t('contextPanel.characters')
+  if (tname.includes('场景')) return t('contextPanel.scenes')
+  if (tname.includes('组织')) return t('contextPanel.organizations')
+  if (tname.includes('物品')) return t('contextPanel.items')
+  if (tname.includes('概念')) return t('contextPanel.concepts')
 
   // 3) 兼容旧模型名：优先实例/类型的 model_name
   const m = (c as any).model_name || (c.card_type as any)?.model_name || ''
-  if (m === 'CharacterCard') return '角色'
-  if (m === 'SceneCard') return '场景'
-  if (m === 'OrganizationCard') return '组织'
+  if (m === 'CharacterCard') return t('contextPanel.characters')
+  if (m === 'SceneCard') return t('contextPanel.scenes')
+  if (m === 'OrganizationCard') return t('contextPanel.organizations')
 
-  return '其他'
+  return t('contextPanel.other')
 }
 
 async function buildNameGroupCache() {
@@ -182,7 +185,14 @@ async function buildAllGroups() {
   if (!props.projectId) { participantGroups.value = []; return }
   try {
     const cards: CardRead[] = await getCardsForProject(props.projectId)
-    const order = ['角色','场景','组织','物品','概念','其他']
+    const order = [
+      t('contextPanel.characters'),
+      t('contextPanel.scenes'),
+      t('contextPanel.organizations'),
+      t('contextPanel.items'),
+      t('contextPanel.concepts'),
+      t('contextPanel.other'),
+    ]
     const buckets = new Map<string, Set<string>>()
     order.forEach(t => buckets.set(t, new Set<string>()))
     for (const c of cards) {
@@ -219,9 +229,9 @@ async function assemble() {
     emit('context-updated', res)
     // 将最新本地值回写父层，确保保存时同步
     emitParticipants(); emitVolume(); emitStage(); emitChapter();
-    ElMessage.success('上下文已装配')
+    ElMessage.success(t('contextPanel.assembled'))
   } catch (e:any) {
-    ElMessage.error('装配失败')
+    ElMessage.error(t('contextPanel.assembleError'))
   } finally {
     assembling.value = false
   }

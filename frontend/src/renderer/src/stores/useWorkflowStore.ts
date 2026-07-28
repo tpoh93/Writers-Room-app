@@ -7,6 +7,7 @@ import {
     type WorkflowStreamCallbacks,
     type WorkflowNodeType 
 } from '@/api/workflows'
+import i18n from '@renderer/i18n'
 
 // 简单的运行信息接口，用于状态栏显示
 export interface RunInfo {
@@ -110,7 +111,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
             id,
             workflow_id: 0,
             status: 'running',
-            workflow_name: workflowName || '加载中...',
+            workflow_name: workflowName || i18n.global.t('workflow.loadingName'),
             progress: 0
         })
 
@@ -160,7 +161,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
                 runs.value.set(id, {
                     id: run.id,
                     workflow_id: run.workflow_id,
-                    workflow_name: run.workflow?.name || '未命名工作流',
+                    workflow_name: run.workflow?.name || i18n.global.t('workflow.unnamed'),
                     status: run.status,
                     created_at: run.created_at || undefined,
                     error: errorMessage,
@@ -201,7 +202,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
             // 添加所有新启动的运行到状态
             runIds.forEach(runId => {
                 if (!runs.value.has(runId)) {
-                    addRun(runId, '触发器工作流')
+                    addRun(runId, i18n.global.t('workflow.triggeredName'))
                 }
             })
         }

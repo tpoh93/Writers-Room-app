@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useUpdateStore } from '@renderer/stores/useUpdateStore'
 import { ElMessage } from 'element-plus'
 import { Refresh, Download } from '@element-plus/icons-vue'
+
+const { t } = useI18n()
 
 const updateStore = useUpdateStore()
 
@@ -13,19 +16,19 @@ const handleManualCheck = async () => {
   try {
     const result = await updateStore.manualCheck()
     if (result.hasUpdate) {
-      ElMessage.success(`发现新版本 v${result.latestVersion}！`)
+      ElMessage.success(t('updates.newVersion', { version: result.latestVersion }))
     } else {
-      ElMessage.info('当前已是最新版本')
+      ElMessage.info(t('updates.upToDate'))
     }
   } catch (error: any) {
-    ElMessage.error(error.message || '检测失败，请检查网络连接')
+    ElMessage.error(error.message || t('updates.checkError'))
   }
 }
 
 // 切换自动检测
 const handleAutoCheckToggle = (value: boolean) => {
   updateStore.setAutoCheckEnabled(value)
-  ElMessage.success(value ? '已开启自动检测更新' : '已关闭自动检测更新')
+  ElMessage.success(value ? t('updates.autoEnabled') : t('updates.autoDisabled'))
 }
 
 // 打开 Release 页面
@@ -37,8 +40,8 @@ const openReleasePage = () => {
 
 // 格式化时间
 const formatTime = (date: Date | null) => {
-  if (!date) return '从未检测'
-  return new Intl.DateTimeFormat('zh-CN', {
+  if (!date) return t('updates.neverChecked')
+  return new Intl.DateTimeFormat('pl-PL', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -54,14 +57,14 @@ const formatTime = (date: Date | null) => {
     <el-card shadow="never" class="version-card">
       <template #header>
         <div class="card-header">
-          <span>当前版本</span>
+          <span>{{ t('updates.currentVersion') }}</span>
         </div>
       </template>
       <div class="version-info">
         <div class="version-number">{{ updateStore.currentVersion }}</div>
         <div class="version-meta">
           <div v-if="updateStore.lastCheckTime" class="last-check">
-            上次检测：{{ formatTime(updateStore.lastCheckTime) }}
+            {{ t('updates.lastChecked', { time: formatTime(updateStore.lastCheckTime) }) }}
           </div>
         </div>
       </div>
@@ -71,26 +74,26 @@ const formatTime = (date: Date | null) => {
     <el-card shadow="never" class="update-settings-card">
       <template #header>
         <div class="card-header">
-          <span>更新设置</span>
+          <span>{{ t('updates.settings') }}</span>
         </div>
       </template>
       <div class="settings-row">
         <div class="setting-item">
-          <span class="setting-label">自动检测更新</span>
+          <span class="setting-label">{{ t('updates.automatic') }}</span>
           <el-switch
             :model-value="updateStore.autoCheckEnabled"
             @change="handleAutoCheckToggle"
           />
         </div>
         <div class="setting-item">
-          <span class="setting-label">手动检测</span>
+          <span class="setting-label">{{ t('updates.manual') }}</span>
           <el-button
             type="primary"
             :icon="Refresh"
             :loading="updateStore.isChecking"
             @click="handleManualCheck"
           >
-            {{ updateStore.isChecking ? '检测中...' : '检测更新' }}
+            {{ updateStore.isChecking ? t('updates.checking') : t('updates.check') }}
           </el-button>
         </div>
       </div>
@@ -100,7 +103,7 @@ const formatTime = (date: Date | null) => {
     <el-card v-if="updateStore.hasUpdate" shadow="never" class="new-version-card">
       <template #header>
         <div class="card-header">
-          <span>最新 Release</span>
+          <span>{{ t('updates.latestRelease') }}</span>
           <el-tag type="warning" effect="dark">v{{ updateStore.latestVersion }}</el-tag>
         </div>
       </template>
@@ -113,12 +116,12 @@ const formatTime = (date: Date | null) => {
             :icon="Download"
             @click="openReleasePage"
           >
-            查看详情
+            {{ t('updates.details') }}
           </el-button>
         </div>
         <div class="release-notes">
-          <div class="notes-title">更新内容：</div>
-          <div class="notes-content">{{ updateStore.releaseInfo?.body || '暂无更新说明' }}</div>
+          <div class="notes-title">{{ t('updates.releaseNotes') }}</div>
+          <div class="notes-content">{{ updateStore.releaseInfo?.body || t('updates.noReleaseNotes') }}</div>
         </div>
       </div>
     </el-card>

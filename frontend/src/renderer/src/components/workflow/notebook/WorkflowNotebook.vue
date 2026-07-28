@@ -2,8 +2,8 @@
   <div class="workflow-notebook">
     <div class="notebook-header">
       <div class="header-left">
-        <span class="notebook-title">执行结果</span>
-        <el-tag v-if="isRunning" type="primary" size="small">运行中</el-tag>
+        <span class="notebook-title">{{ t('workflow.results') }}</span>
+        <el-tag v-if="isRunning" type="primary" size="small">{{ t('workflow.running') }}</el-tag>
       </div>
       <el-button
         text
@@ -11,13 +11,13 @@
         @click="handleClearOutput"
         :icon="Delete"
       >
-        清空输出
+        {{ t('workflow.clearOutput') }}
       </el-button>
     </div>
 
     <div ref="notebookContent" class="notebook-content">
       <div v-if="cells.length === 0" class="empty-state">
-        <el-empty description="点击执行按钮运行工作流" />
+        <el-empty :description="t('workflow.runEmpty')" />
       </div>
 
       <div v-else class="cells-container">
@@ -36,6 +36,7 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { Delete } from '@element-plus/icons-vue'
 import NotebookCell from './NotebookCell.vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
   cells: {
@@ -47,6 +48,7 @@ const props = defineProps({
     default: false
   }
 })
+const { t } = useI18n()
 
 const emit = defineEmits(['cell-output', 'clear-output'])
 

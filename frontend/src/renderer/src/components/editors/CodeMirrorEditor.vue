@@ -4,7 +4,7 @@
 		<div class="toolbar-row">
 			<!-- 编辑功能组 -->
 			<div class="toolbar-group">
-				<span class="group-label">编辑</span>
+				<span class="group-label">{{ t('chapterEditor.edit') }}</span>
 				<el-dropdown @command="(c:any) => fontSize = c" size="small">
 					<el-button size="small">
 						{{ fontSize }}px
@@ -12,13 +12,13 @@
 					</el-button>
 					<template #dropdown>
 						<el-dropdown-menu>
-							<el-dropdown-item :command="14">小 (14px)</el-dropdown-item>
-							<el-dropdown-item :command="16">中 (16px)</el-dropdown-item>
-							<el-dropdown-item :command="18">大 (18px)</el-dropdown-item>
-							<el-dropdown-item :command="20">特大 (20px)</el-dropdown-item>
-							<el-dropdown-item :command="24">超大 (24px)</el-dropdown-item>
-							<el-dropdown-item :command="28">巨大 (28px)</el-dropdown-item>
-							<el-dropdown-item :command="32">最大 (32px)</el-dropdown-item>
+							<el-dropdown-item :command="14">{{ t('chapterEditor.fontSmall') }} (14px)</el-dropdown-item>
+							<el-dropdown-item :command="16">{{ t('chapterEditor.fontMedium') }} (16px)</el-dropdown-item>
+							<el-dropdown-item :command="18">{{ t('chapterEditor.fontLarge') }} (18px)</el-dropdown-item>
+							<el-dropdown-item :command="20">{{ t('chapterEditor.fontExtraLarge') }} (20px)</el-dropdown-item>
+							<el-dropdown-item :command="24">{{ t('chapterEditor.fontVeryLarge') }} (24px)</el-dropdown-item>
+							<el-dropdown-item :command="28">{{ t('chapterEditor.fontHuge') }} (28px)</el-dropdown-item>
+							<el-dropdown-item :command="32">{{ t('chapterEditor.fontMaximum') }} (32px)</el-dropdown-item>
 						</el-dropdown-menu>
 					</template>
 				</el-dropdown>
@@ -30,10 +30,10 @@
 					</el-button>
 					<template #dropdown>
 						<el-dropdown-menu>
-							<el-dropdown-item :command="1.4">紧凑</el-dropdown-item>
-							<el-dropdown-item :command="1.6">适中</el-dropdown-item>
-							<el-dropdown-item :command="1.8">舒适</el-dropdown-item>
-							<el-dropdown-item :command="2.0">宽松</el-dropdown-item>
+							<el-dropdown-item :command="1.4">{{ t('chapterEditor.spacingCompact') }}</el-dropdown-item>
+							<el-dropdown-item :command="1.6">{{ t('chapterEditor.spacingNormal') }}</el-dropdown-item>
+							<el-dropdown-item :command="1.8">{{ t('chapterEditor.spacingComfortable') }}</el-dropdown-item>
+							<el-dropdown-item :command="2.0">{{ t('chapterEditor.spacingLoose') }}</el-dropdown-item>
 						</el-dropdown-menu>
 					</template>
 				</el-dropdown>
@@ -46,7 +46,7 @@
 				<span class="group-label">AI</span>
 				<div class="ai-action-bar">
 					<el-button type="primary" size="small" :loading="aiLoading" :disabled="reviewLoading" @click="executeAIContinuation">
-						<el-icon><MagicStick /></el-icon> 续写
+						<el-icon><MagicStick /></el-icon> {{ t('chapterEditor.continueWriting') }}
 					</el-button>
 
 					<el-dropdown
@@ -62,7 +62,7 @@
 						<span class="review-button-label">
 							<el-icon v-if="reviewLoading" class="review-loading-icon"><Loading /></el-icon>
 							<el-icon v-else><List /></el-icon>
-							{{ reviewLoading ? '审核中...' : '审核' }}
+							{{ reviewLoading ? t('chapterEditor.reviewing') : t('chapterEditor.review') }}
 						</span>
 						<template #dropdown>
 							<el-dropdown-menu>
@@ -82,16 +82,16 @@
 
 					<el-dropdown size="small" @command="handleAiQuickAction">
 						<el-button plain size="small">
-							更多 AI
+							{{ t('chapterEditor.moreAi') }}
 							<el-icon class="el-icon--right"><ArrowDown /></el-icon>
 						</el-button>
 						<template #dropdown>
 							<el-dropdown-menu>
 								<el-dropdown-item command="polish" :disabled="aiLoading || reviewLoading">
-									润色（{{ currentPolishPrompt }}）
+									{{ t('chapterEditor.polish') }} ({{ currentPolishPrompt }})
 								</el-dropdown-item>
 							<el-dropdown-item command="expand" :disabled="aiLoading || reviewLoading">
-								扩写（{{ currentExpandPrompt }}）
+								{{ t('chapterEditor.expand') }} ({{ currentExpandPrompt }})
 							</el-dropdown-item>
 						</el-dropdown-menu>
 					</template>
@@ -99,18 +99,18 @@
 
 					<el-popover trigger="click" width="320" popper-class="chapter-ai-prompt-popper">
 						<template #reference>
-							<el-button plain size="small">提示词</el-button>
+							<el-button plain size="small">{{ t('settings.prompt') }}</el-button>
 						</template>
 						<div class="prompt-settings-panel">
-							<div class="prompt-settings-title">AI 提示词</div>
+							<div class="prompt-settings-title">{{ t('chapterEditor.aiPrompts') }}</div>
 							<div class="prompt-settings-item">
-								<label>润色</label>
+								<label>{{ t('chapterEditor.polish') }}</label>
 								<el-select v-model="currentPolishPrompt" size="small" @change="handlePolishPromptChange">
 									<el-option v-for="p in polishPrompts" :key="p" :label="p" :value="p" />
 								</el-select>
 							</div>
 							<div class="prompt-settings-item">
-								<label>扩写</label>
+								<label>{{ t('chapterEditor.expand') }}</label>
 								<el-select v-model="currentExpandPrompt" size="small" @change="handleExpandPromptChange">
 									<el-option v-for="p in expandPrompts" :key="p" :label="p" :value="p" />
 								</el-select>
@@ -131,7 +131,7 @@
 						:disabled="!canInterruptAiTask"
 						@click="interruptStream"
 					>
-						<el-icon><CircleClose /></el-icon> 中断
+						<el-icon><CircleClose /></el-icon> {{ t('chapterEditor.interrupt') }}
 					</el-button>
 				</div>
 			</div>
@@ -139,9 +139,9 @@
 		<div class="toolbar-status-row">
 			<div class="toolbar-status-spacer"></div>
 			<div class="ai-status-strip">
-				<span class="status-pill">模型 · {{ selectedModelName || '未设置' }}</span>
-				<span class="status-pill">目标 · {{ activeContinuationConfig.targetWordCount }} 字</span>
-				<span class="status-pill">模式 · {{ formatContinuationMode(activeContinuationConfig.wordControlMode) }}</span>
+				<span class="status-pill">{{ t('chapterEditor.modelStatus', { model: selectedModelName || t('editor.notSet') }) }}</span>
+				<span class="status-pill">{{ t('chapterEditor.targetStatus', { count: activeContinuationConfig.targetWordCount }, activeContinuationConfig.targetWordCount) }}</span>
+				<span class="status-pill">{{ t('chapterEditor.modeStatus', { mode: formatContinuationMode(activeContinuationConfig.wordControlMode) }) }}</span>
 			</div>
 		</div>
 	</div>
@@ -159,7 +159,7 @@
 			>{{ localCard.title }}</h1>
 			<div class="title-meta">
 				<el-icon class="word-count-icon"><Timer /></el-icon>
-				<span class="word-count-text">{{ wordCount }} 字</span>
+				<span class="word-count-text">{{ t('chapterEditor.wordCount', { count: wordCount }) }}</span>
 			</div>
 		</div>
 	</div>
@@ -169,20 +169,20 @@
 		<div v-if="pendingAiEdit && !pendingAiEdit.generating" class="ai-replace-review-bar">
 			<span class="review-hint">
                 <template v-if="nfAssistantPatchTotal">
-                        建议 #{{ nfAssistantPatchCurrentNo }} / {{ nfAssistantPatchTotal }}：灰色为原文，蓝色为新文本
+                        {{ t('chapterEditor.suggestionProgress', { current: nfAssistantPatchCurrentNo, total: nfAssistantPatchTotal }) }}
                 </template>
                 <template v-else>
-                        已生成替换建议：灰色为原文，蓝色为新文本
+                        {{ t('chapterEditor.suggestionReady') }}
                 </template>
         </span>
         <div class="review-actions">
-                <el-button v-if="nfAssistantPatchTotal > 1" size="small" @click="nfAssistantPatchPrev">上一条</el-button>
-                <el-button v-if="nfAssistantPatchTotal > 1" size="small" @click="nfAssistantPatchNext">下一条</el-button>
+                <el-button v-if="nfAssistantPatchTotal > 1" size="small" @click="nfAssistantPatchPrev">{{ t('chapterEditor.previous') }}</el-button>
+                <el-button v-if="nfAssistantPatchTotal > 1" size="small" @click="nfAssistantPatchNext">{{ t('chapterEditor.next') }}</el-button>
                 <el-button type="primary" size="small" @click="nfAssistantPatchTotal ? nfAssistantPatchAcceptCurrent() : acceptPendingAiEdit()">
-                        {{ nfAssistantPatchTotal ? '接受本条' : '接受并替换' }}
+                        {{ nfAssistantPatchTotal ? t('chapterEditor.acceptCurrent') : t('chapterEditor.acceptReplace') }}
                 </el-button>
                 <el-button size="small" @click="nfAssistantPatchTotal ? nfAssistantPatchRejectCurrent() : rejectPendingAiEdit()">
-                        {{ nfAssistantPatchTotal ? '拒绝本条' : '拒绝并还原' }}
+                        {{ nfAssistantPatchTotal ? t('chapterEditor.rejectCurrent') : t('chapterEditor.rejectRestore') }}
                 </el-button>
         </div>
 		</div>
@@ -201,21 +201,21 @@
 						size="small"
 						@click="expandContextMenu"
 					>
-						快速编辑
+						{{ t('chapterEditor.quickEdit') }}
 					</el-button>
 					<el-button
 						size="small"
 						type="warning"
 						@click="handleContextMenuThinkingPorn"
 					>
-						Thinking p*rn
+						{{ t('selectionPipeline.title') }}
 					</el-button>
 					<el-button
 						size="small"
 						type="success"
 						@click="handleContextMenuReference"
 					>
-						引用到灵感助手
+						{{ t('chapterEditor.referenceInAssistant') }}
 					</el-button>
 				</div>
 				<div v-else class="context-menu-expanded">
@@ -223,7 +223,7 @@
 						v-model="contextMenu.userRequirement"
 						:autosize="{ minRows: 2, maxRows: 4 }"
 						type="textarea"
-						placeholder="描述你的要求，如：让语气更加强硬、增加环境描写..."
+						:placeholder="t('chapterEditor.requirementPlaceholder')"
 						size="small"
 						style="margin-bottom: 8px;"
 					/>
@@ -234,7 +234,7 @@
 							:loading="aiLoading"
 							@click="handleContextMenuPolish"
 						>
-							<el-icon><Document /></el-icon> 润色
+							<el-icon><Document /></el-icon> {{ t('chapterEditor.polish') }}
 						</el-button>
 						<el-button
 							type="primary"
@@ -242,13 +242,13 @@
 							:loading="aiLoading"
 							@click="handleContextMenuExpand"
 						>
-							<el-icon><MagicStick /></el-icon> 扩写
+							<el-icon><MagicStick /></el-icon> {{ t('chapterEditor.expand') }}
 						</el-button>
 						<el-button
 							size="small"
 							@click="closeContextMenu"
 						>
-							取消
+							{{ t('common.cancel') }}
 						</el-button>
 					</div>
 				</div>
@@ -266,7 +266,7 @@
 			@close="closeSelectionPipeline"
 		/>
 
-		<el-dialog v-model="reviewDialogVisible" title="章节审核结果" width="72%">
+		<el-dialog v-model="reviewDialogVisible" :title="t('chapterEditor.chapterReviewResults')" width="72%">
 			<div v-if="reviewText" class="review-dialog-body">
 				<div class="review-overview">
 					<div class="review-overview-main">
@@ -281,26 +281,26 @@
 							{{ reviewDraft.review_profile }}
 						</span>
 					</div>
-					<p class="review-summary">这是本次审核草稿。确认后可创建或更新对应的审核结果卡片。</p>
+					<p class="review-summary">{{ t('chapterEditor.reviewDraftHint') }}</p>
 				</div>
 
 				<div class="review-text-block">
 					<SimpleMarkdown
-						:markdown="reviewText || '（暂无内容）'"
+						:markdown="reviewText || t('editor.noContent')"
 						class="review-markdown"
 					/>
 				</div>
 			</div>
 			<template #footer>
 				<div class="review-dialog-footer">
-					<el-button @click="reviewDialogVisible = false">关闭</el-button>
+					<el-button @click="reviewDialogVisible = false">{{ t('common.close') }}</el-button>
 					<el-button
 						type="primary"
 						:loading="reviewCardSaving"
 						:disabled="!reviewDraft"
 						@click="handleCreateOrUpdateReviewCard"
 					>
-						{{ reviewDraft?.existing_review_card_id ? '更新审核结果卡片' : '创建审核结果卡片' }}
+						{{ reviewDraft?.existing_review_card_id ? t('chapterEditor.updateReviewCard') : t('chapterEditor.createReviewCard') }}
 					</el-button>
 				</div>
 			</template>
@@ -314,10 +314,10 @@
 			@confirm="handleContinuationDialogConfirm"
 		/>
 
-		<el-dialog v-model="previewDialogVisible" title="动态信息预览" width="70%">
+		<el-dialog v-model="previewDialogVisible" :title="t('chapterEditor.dynamicPreview')" width="70%">
 			<template #header>
 				<div class="preview-dialog-header">
-					<div class="preview-dialog-header__title">动态信息预览</div>
+					<div class="preview-dialog-header__title">{{ t('chapterEditor.dynamicPreview') }}</div>
 				</div>
 			</template>
 			<div v-if="previewData">
@@ -326,13 +326,13 @@
 						type="warning"
 						:closable="false"
 						show-icon
-						title="以下角色在本章正文中被提取到了，但当前项目里还没有对应角色卡。确认更新时这些角色会被跳过；如果需要，请先手动新建对应角色卡，再回到当前预览继续确认。"
+						:title="t('chapterEditor.missingCharacterCards')"
 					/>
 					<div class="missing-card-list">
 						<div v-for="item in dynamicMissingCards" :key="item.key" class="missing-card-item">
 							<span>{{ item.title }}</span>
 							<el-button size="small" type="primary" plain @click="openCreateCardFromPreview(item)">
-								新增{{ item.cardTypeName }}
+								{{ t('chapterEditor.addCardType', { type: item.cardTypeName }) }}
 							</el-button>
 						</div>
 					</div>
@@ -342,20 +342,20 @@
 						type="info"
 						:closable="false"
 						show-icon
-						title="以下角色仍在本章参与实体里，但这次动态提取结果中没有出现。若确认他们已不再参与本章节，可将其移出本章参与实体；如果只是本章没有新的动态信息，也可以忽略。"
+						:title="t('chapterEditor.unmatchedCharacterParticipants')"
 					/>
 					<div class="missing-card-list">
 						<div v-for="item in dynamicParticipantReviewNotices" :key="item.key" class="missing-card-item">
 							<span>{{ item.title }}</span>
 							<el-button size="small" type="warning" plain @click="removeParticipantFromCurrentChapter(item)">
-								移出本章参与实体
+								{{ t('chapterEditor.removeParticipant') }}
 							</el-button>
 						</div>
 					</div>
 				</div>
 				<el-empty
 					v-if="isDynamicPreviewEmpty"
-					description="本次未提取到可写回的角色动态信息。你可以直接关闭预览，或调整提示词后重试。"
+					:description="t('chapterEditor.noDynamicInfo')"
 				/>
 				<div v-for="(role, roleIndex) in validDynamicPreviewRoles" :key="role.name" class="role-block">
 					<el-input
@@ -376,7 +376,7 @@
 						<div class="cat-title">{{ formatCategory(catKey) }}</div>
 						<el-table :data="items as any[]" size="small" border class="preview-table">
 							<el-table-column prop="id" label="ID" width="60" />
-							<el-table-column label="信息" min-width="360">
+							<el-table-column :label="t('chapterEditor.information')" min-width="360">
 								<template #default="scope">
 									<el-input
 										v-if="isPreviewEditing(buildPreviewEditKey('dynamic-role', roleIndex, String(catKey), scope.$index, 'info'))"
@@ -400,9 +400,9 @@
 									</div>
 								</template>
 							</el-table-column>
-							<el-table-column label="操作" width="90">
+							<el-table-column :label="t('editor.actionsColumn')" width="90">
 								<template #default="scope">
-									<el-button type="danger" text size="small" @click="removePreviewItem(role.name, String(catKey), scope.$index)">删除</el-button>
+									<el-button type="danger" text size="small" @click="removePreviewItem(role.name, String(catKey), scope.$index)">{{ t('common.delete') }}</el-button>
 								</template>
 							</el-table-column>
 						</el-table>
@@ -417,15 +417,15 @@
 				/>
 			</div>
 			<template #footer>
-				<el-button @click="previewDialogVisible=false">取消</el-button>
-				<el-button type="primary" :loading="dynamicPreviewApplying" @click="confirmApplyUpdates">确认</el-button>
+				<el-button @click="previewDialogVisible=false">{{ t('common.cancel') }}</el-button>
+				<el-button type="primary" :loading="dynamicPreviewApplying" @click="confirmApplyUpdates">{{ t('common.confirm') }}</el-button>
 			</template>
 		</el-dialog>
 
-		<el-dialog v-model="relationsPreviewVisible" title="关系入图预览" width="70%">
+		<el-dialog v-model="relationsPreviewVisible" :title="t('chapterEditor.relationPreview')" width="70%">
 			<template #header>
 				<div class="preview-dialog-header">
-					<div class="preview-dialog-header__title">关系入图预览</div>
+					<div class="preview-dialog-header__title">{{ t('chapterEditor.relationPreview') }}</div>
 				</div>
 			</template>
 			<div v-if="relationsPreview">
@@ -434,23 +434,23 @@
 						type="warning"
 						:closable="false"
 						show-icon
-						title="以下关系端点在卡片树中还没有对应实体卡。确认入图仍可继续；如果你希望先补齐实体卡，可以先手动新建，再回到当前预览继续确认。"
+						:title="t('chapterEditor.missingRelationCards')"
 					/>
 					<div class="missing-card-list">
 						<div v-for="item in relationMissingCards" :key="item.key" class="missing-card-item">
 							<span>{{ item.title }} · {{ item.cardTypeName }}</span>
 							<el-button size="small" type="primary" plain @click="openCreateCardFromPreview(item)">
-								新增{{ item.cardTypeName }}
+								{{ t('chapterEditor.addCardType', { type: item.cardTypeName }) }}
 							</el-button>
 						</div>
 					</div>
 				</div>
 				<el-empty
 					v-if="isRelationsPreviewEmpty"
-					description="本次未提取到可入图的关系信息。你可以直接关闭预览，或调整模型参数后重试。"
+					:description="t('chapterEditor.noRelations')"
 				/>
 				<div style="margin-top: 16px" v-if="validRelationPreviewItems.length">
-					<h4>关系项</h4>
+					<h4>{{ t('chapterEditor.relations') }}</h4>
 					<el-table :data="validRelationPreviewItems" size="small" border class="preview-table">
 						<el-table-column label="A" width="180">
 							<template #default="{ row, $index }">
@@ -469,7 +469,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="关系" width="140">
+						<el-table-column :label="t('chapterEditor.relation')" width="140">
 							<template #default="{ row, $index }">
 								<el-select
 									v-if="isPreviewEditing(buildPreviewEditKey('relation', $index, 'kind'))"
@@ -486,7 +486,7 @@
 									class="preview-read-field"
 									@click="activatePreviewEdit(buildPreviewEditKey('relation', $index, 'kind'))"
 								>
-									{{ formatPreviewDisplayValue(row.kind, '点击选择') }}
+									{{ formatPreviewDisplayValue(row.kind, t('chapterEditor.clickToSelect')) }}
 								</div>
 							</template>
 						</el-table-column>
@@ -507,7 +507,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="说明" min-width="180">
+						<el-table-column :label="t('settings.description')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('relation', $index, 'description'))"
@@ -531,28 +531,28 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="证据">
+						<el-table-column :label="t('chapterEditor.evidence')">
 							<template #default="{ row, $index }">
 								<div
 									v-if="!isPreviewEditing(buildPreviewEditKey('relation', $index, 'evidence'))"
 									class="preview-read-field preview-read-field--multiline preview-evidence-summary"
 									@click="activatePreviewEdit(buildPreviewEditKey('relation', $index, 'evidence'))"
 								>
-									<div class="preview-read-field__line">A 对 B 称呼：{{ formatPreviewDisplayValue(row.a_to_b_addressing, '未填写') }}</div>
-									<div class="preview-read-field__line">B 对 A 称呼：{{ formatPreviewDisplayValue(row.b_to_a_addressing, '未填写') }}</div>
+									<div class="preview-read-field__line">{{ t('chapterEditor.addressAtoB') }}: {{ formatPreviewDisplayValue(row.a_to_b_addressing, t('chapterEditor.notProvided')) }}</div>
+									<div class="preview-read-field__line">{{ t('chapterEditor.addressBtoA') }}: {{ formatPreviewDisplayValue(row.b_to_a_addressing, t('chapterEditor.notProvided')) }}</div>
 									<div
-										v-for="(line, lineIndex) in formatPreviewDisplayLines(row.recent_dialogues, '点击补充近期对白')"
+										v-for="(line, lineIndex) in formatPreviewDisplayLines(row.recent_dialogues, t('chapterEditor.addRecentDialogue'))"
 										:key="`dialogue-${lineIndex}`"
 										class="preview-read-field__line"
 									>
-										对白：{{ line }}
+										{{ t('chapterEditor.dialogue') }}: {{ line }}
 									</div>
 									<div
-										v-for="(line, lineIndex) in formatEventSummaryDisplayLines(row.recent_event_summaries, '点击补充近期事件摘要')"
+										v-for="(line, lineIndex) in formatEventSummaryDisplayLines(row.recent_event_summaries, t('chapterEditor.addRecentEvent'))"
 										:key="`event-${lineIndex}`"
 										class="preview-read-field__line"
 									>
-										事件：{{ line }}
+										{{ t('chapterEditor.event') }}: {{ line }}
 									</div>
 								</div>
 								<div
@@ -562,33 +562,33 @@
 									<el-input
 										v-model="row.a_to_b_addressing"
 										size="small"
-										placeholder="A 对 B 的称呼"
+										:placeholder="t('chapterEditor.addressAtoB')"
 									/>
 									<el-input
 										v-model="row.b_to_a_addressing"
 										size="small"
-										placeholder="B 对 A 的称呼"
+										:placeholder="t('chapterEditor.addressBtoA')"
 									/>
 									<el-input
 										:model-value="joinPreviewLines(row.recent_dialogues)"
 										type="textarea"
 										:autosize="compactTextareaAutosize"
-										placeholder="每行一条对话样例"
+										:placeholder="t('chapterEditor.dialoguePerLine')"
 										@update:model-value="value => updatePreviewStringArray(row, 'recent_dialogues', value)"
 									/>
 									<el-input
 										:model-value="joinEventSummaryLines(row.recent_event_summaries)"
 										type="textarea"
 										:autosize="compactTextareaAutosize"
-										placeholder="每行一条近期事件摘要"
+										:placeholder="t('chapterEditor.eventPerLine')"
 										@update:model-value="value => updateRelationEventSummaries(row, value)"
 									/>
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="操作" width="90">
+						<el-table-column :label="t('editor.actionsColumn')" width="90">
 							<template #default="{ row, $index }">
-								<el-button type="danger" text size="small" @click="removeRelationPreviewItem($index, row)">删除</el-button>
+								<el-button type="danger" text size="small" @click="removeRelationPreviewItem($index, row)">{{ t('common.delete') }}</el-button>
 							</template>
 						</el-table-column>
 					</el-table>
@@ -602,8 +602,8 @@
 				/>
 			</div>
 			<template #footer>
-				<el-button @click="relationsPreviewVisible=false">取消</el-button>
-				<el-button type="primary" :loading="relationsPreviewApplying" @click="confirmIngestRelationsFromPreview">确认</el-button>
+				<el-button @click="relationsPreviewVisible=false">{{ t('common.cancel') }}</el-button>
+				<el-button type="primary" :loading="relationsPreviewApplying" @click="confirmIngestRelationsFromPreview">{{ t('common.confirm') }}</el-button>
 			</template>
 		</el-dialog>
 
@@ -619,13 +619,13 @@
 						type="warning"
 						:closable="false"
 						show-icon
-						title="以下实体在本章正文中被提取到了，但当前项目里还没有对应卡片。确认写入时这些实体会被跳过；如果需要，请先手动新建对应卡片，再回到当前预览继续确认。"
+						:title="t('chapterEditor.missingEntityCards')"
 					/>
 					<div class="missing-card-list">
 						<div v-for="item in memoryMissingCards" :key="item.key" class="missing-card-item">
 							<span>{{ item.title }} · {{ item.cardTypeName }}</span>
 							<el-button size="small" type="primary" plain @click="openCreateCardFromPreview(item)">
-								新增{{ item.cardTypeName }}
+								{{ t('chapterEditor.addCardType', { type: item.cardTypeName }) }}
 							</el-button>
 						</div>
 					</div>
@@ -635,13 +635,13 @@
 						type="info"
 						:closable="false"
 						show-icon
-						title="以下实体仍在本章参与实体里，但这次提取结果中没有出现。若确认它们已不再参与本章节，可将其移出本章参与实体；如果只是本章没有新的状态变化，也可以忽略。"
+						:title="t('chapterEditor.unmatchedEntityParticipants')"
 					/>
 					<div class="missing-card-list">
 						<div v-for="item in memoryParticipantReviewNotices" :key="item.key" class="missing-card-item">
 							<span>{{ item.title }} · {{ item.cardTypeName }}</span>
 							<el-button size="small" type="warning" plain @click="removeParticipantFromCurrentChapter(item)">
-								移出本章参与实体
+								{{ t('chapterEditor.removeParticipant') }}
 							</el-button>
 						</div>
 					</div>
@@ -651,9 +651,9 @@
 					:description="memoryPreviewEmptyDescription"
 				/>
 				<div v-if="memoryPreviewExtractorCode === 'scene_state' && validScenePreviewItems.length" style="margin-top: 16px">
-					<h4>场景状态预览</h4>
+					<h4>{{ t('chapterEditor.sceneStatePreview') }}</h4>
 					<el-table :data="validScenePreviewItems" size="small" border class="preview-table">
-						<el-table-column label="名称" width="150">
+						<el-table-column :label="t('settings.name')" width="150">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('scene', $index, 'name'))"
@@ -670,7 +670,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="简介" min-width="180">
+						<el-table-column :label="t('settings.description')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('scene', $index, 'description'))"
@@ -688,7 +688,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="剧情作用" min-width="180">
+						<el-table-column :label="t('chapterEditor.storyFunction')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('scene', $index, 'function_in_story'))"
@@ -706,14 +706,14 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="当前状态" min-width="220">
+						<el-table-column :label="t('chapterEditor.currentState')" min-width="220">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('scene', $index, 'dynamic_state'))"
 									:model-value="joinPreviewLines(row.dynamic_state)"
 									type="textarea"
 									:autosize="compactTextareaAutosize"
-									placeholder="每行一条当前状态"
+									:placeholder="t('chapterEditor.statePerLine')"
 									@update:model-value="value => updatePreviewStringArray(row, 'dynamic_state', value)"
 									@blur="deactivatePreviewEdit(buildPreviewEditKey('scene', $index, 'dynamic_state'))"
 								/>
@@ -726,18 +726,18 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="操作" width="90">
+						<el-table-column :label="t('editor.actionsColumn')" width="90">
 							<template #default="{ row, $index }">
-								<el-button type="danger" text size="small" @click="removeMemoryCardPreviewItem('scenes', $index, row)">删除</el-button>
+								<el-button type="danger" text size="small" @click="removeMemoryCardPreviewItem('scenes', $index, row)">{{ t('common.delete') }}</el-button>
 							</template>
 						</el-table-column>
 					</el-table>
 				</div>
 
 				<div v-if="memoryPreviewExtractorCode === 'organization_state' && validOrganizationPreviewItems.length" style="margin-top: 16px">
-					<h4>组织状态预览</h4>
+					<h4>{{ t('chapterEditor.organizationStatePreview') }}</h4>
 					<el-table :data="validOrganizationPreviewItems" size="small" border class="preview-table">
-						<el-table-column label="名称" width="150">
+						<el-table-column :label="t('settings.name')" width="150">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('organization', $index, 'name'))"
@@ -754,7 +754,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="简介" min-width="180">
+						<el-table-column :label="t('settings.description')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('organization', $index, 'description'))"
@@ -772,7 +772,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="影响力" min-width="160">
+						<el-table-column :label="t('chapterEditor.influence')" min-width="160">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('organization', $index, 'influence'))"
@@ -790,14 +790,14 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="对外关系" min-width="180">
+						<el-table-column :label="t('chapterEditor.externalRelations')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('organization', $index, 'relationship'))"
 									:model-value="joinPreviewLines(row.relationship)"
 									type="textarea"
 									:autosize="compactTextareaAutosize"
-									placeholder="每行一条对外关系"
+									:placeholder="t('chapterEditor.relationPerLine')"
 									@update:model-value="value => updatePreviewStringArray(row, 'relationship', value)"
 									@blur="deactivatePreviewEdit(buildPreviewEditKey('organization', $index, 'relationship'))"
 								/>
@@ -810,14 +810,14 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="当前状态" min-width="220">
+						<el-table-column :label="t('chapterEditor.currentState')" min-width="220">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('organization', $index, 'dynamic_state'))"
 									:model-value="joinPreviewLines(row.dynamic_state)"
 									type="textarea"
 									:autosize="compactTextareaAutosize"
-									placeholder="每行一条当前状态"
+									:placeholder="t('chapterEditor.statePerLine')"
 									@update:model-value="value => updatePreviewStringArray(row, 'dynamic_state', value)"
 									@blur="deactivatePreviewEdit(buildPreviewEditKey('organization', $index, 'dynamic_state'))"
 								/>
@@ -830,18 +830,18 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="操作" width="90">
+						<el-table-column :label="t('editor.actionsColumn')" width="90">
 							<template #default="{ row, $index }">
-								<el-button type="danger" text size="small" @click="removeMemoryCardPreviewItem('organizations', $index, row)">删除</el-button>
+								<el-button type="danger" text size="small" @click="removeMemoryCardPreviewItem('organizations', $index, row)">{{ t('common.delete') }}</el-button>
 							</template>
 						</el-table-column>
 					</el-table>
 				</div>
 
 				<div v-if="memoryPreviewExtractorCode === 'item_state' && validItemPreviewItems.length" style="margin-top: 16px">
-					<h4>物品状态预览</h4>
+					<h4>{{ t('chapterEditor.itemStatePreview') }}</h4>
 					<el-table :data="validItemPreviewItems" size="small" border class="preview-table">
-						<el-table-column label="名称" width="150">
+						<el-table-column :label="t('settings.name')" width="150">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('item', $index, 'name'))"
@@ -858,7 +858,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="类别" width="120">
+						<el-table-column :label="t('chapterEditor.category')" width="120">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('item', $index, 'category'))"
@@ -875,7 +875,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="简介" min-width="180">
+						<el-table-column :label="t('settings.description')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('item', $index, 'description'))"
@@ -893,7 +893,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="归属提示" width="140">
+						<el-table-column :label="t('chapterEditor.ownerHint')" width="140">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('item', $index, 'owner_hint'))"
@@ -911,7 +911,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="当前状态" min-width="180">
+						<el-table-column :label="t('chapterEditor.currentState')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('item', $index, 'current_state'))"
@@ -929,7 +929,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="作用/效果" min-width="180">
+						<el-table-column :label="t('chapterEditor.effect')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('item', $index, 'power_or_effect'))"
@@ -947,7 +947,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="限制" min-width="160">
+						<el-table-column :label="t('chapterEditor.constraints')" min-width="160">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('item', $index, 'constraints'))"
@@ -965,14 +965,14 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="重要事件" min-width="180">
+						<el-table-column :label="t('chapterEditor.importantEvents')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('item', $index, 'important_events'))"
 									:model-value="joinPreviewLines(row.important_events)"
 									type="textarea"
 									:autosize="compactTextareaAutosize"
-									placeholder="每行一条重要事件"
+									:placeholder="t('chapterEditor.eventPerLine')"
 									@update:model-value="value => updatePreviewStringArray(row, 'important_events', value)"
 									@blur="deactivatePreviewEdit(buildPreviewEditKey('item', $index, 'important_events'))"
 								/>
@@ -985,18 +985,18 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="操作" width="90">
+						<el-table-column :label="t('editor.actionsColumn')" width="90">
 							<template #default="{ row, $index }">
-								<el-button type="danger" text size="small" @click="removeMemoryCardPreviewItem('items', $index, row)">删除</el-button>
+								<el-button type="danger" text size="small" @click="removeMemoryCardPreviewItem('items', $index, row)">{{ t('common.delete') }}</el-button>
 							</template>
 						</el-table-column>
 					</el-table>
 				</div>
 
 				<div v-if="memoryPreviewExtractorCode === 'concept_state' && validConceptPreviewItems.length" style="margin-top: 16px">
-					<h4>概念掌握预览</h4>
+					<h4>{{ t('chapterEditor.conceptStatePreview') }}</h4>
 					<el-table :data="validConceptPreviewItems" size="small" border class="preview-table">
-						<el-table-column label="名称" width="150">
+						<el-table-column :label="t('settings.name')" width="150">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('concept', $index, 'name'))"
@@ -1013,7 +1013,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="类别" width="120">
+						<el-table-column :label="t('chapterEditor.category')" width="120">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('concept', $index, 'category'))"
@@ -1030,7 +1030,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="简介" min-width="180">
+						<el-table-column :label="t('settings.description')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('concept', $index, 'description'))"
@@ -1048,7 +1048,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="规则定义" min-width="220">
+						<el-table-column :label="t('chapterEditor.ruleDefinition')" min-width="220">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('concept', $index, 'rule_definition'))"
@@ -1066,7 +1066,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="代价" min-width="160">
+						<el-table-column :label="t('chapterEditor.cost')" min-width="160">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('concept', $index, 'cost'))"
@@ -1084,7 +1084,7 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="掌握提示" min-width="180">
+						<el-table-column :label="t('chapterEditor.masteryHint')" min-width="180">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('concept', $index, 'mastery_hint'))"
@@ -1102,14 +1102,14 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="已知掌握者" min-width="160">
+						<el-table-column :label="t('chapterEditor.knownBy')" min-width="160">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('concept', $index, 'known_by'))"
 									:model-value="joinPreviewLines(row.known_by)"
 									type="textarea"
 									:autosize="compactTextareaAutosize"
-									placeholder="每行一个已知掌握者"
+									:placeholder="t('chapterEditor.knownByPerLine')"
 									@update:model-value="value => updatePreviewStringArray(row, 'known_by', value)"
 									@blur="deactivatePreviewEdit(buildPreviewEditKey('concept', $index, 'known_by'))"
 								/>
@@ -1122,14 +1122,14 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="克制关系" min-width="160">
+						<el-table-column :label="t('chapterEditor.counterRelations')" min-width="160">
 							<template #default="{ row, $index }">
 								<el-input
 									v-if="isPreviewEditing(buildPreviewEditKey('concept', $index, 'counter_relations'))"
 									:model-value="joinPreviewLines(row.counter_relations)"
 									type="textarea"
 									:autosize="compactTextareaAutosize"
-									placeholder="每行一条克制关系"
+									:placeholder="t('chapterEditor.counterRelationPerLine')"
 									@update:model-value="value => updatePreviewStringArray(row, 'counter_relations', value)"
 									@blur="deactivatePreviewEdit(buildPreviewEditKey('concept', $index, 'counter_relations'))"
 								/>
@@ -1142,9 +1142,9 @@
 								</div>
 							</template>
 						</el-table-column>
-						<el-table-column label="操作" width="90">
+						<el-table-column :label="t('editor.actionsColumn')" width="90">
 							<template #default="{ row, $index }">
-								<el-button type="danger" text size="small" @click="removeMemoryCardPreviewItem('concepts', $index, row)">删除</el-button>
+								<el-button type="danger" text size="small" @click="removeMemoryCardPreviewItem('concepts', $index, row)">{{ t('common.delete') }}</el-button>
 							</template>
 						</el-table-column>
 					</el-table>
@@ -1158,8 +1158,8 @@
 				/>
 			</div>
 			<template #footer>
-				<el-button @click="closeMemoryPreview">取消</el-button>
-				<el-button type="primary" :loading="memoryPreviewApplying" @click="applyMemoryPreviewConfirm">确认</el-button>
+				<el-button @click="closeMemoryPreview">{{ t('common.cancel') }}</el-button>
+				<el-button type="primary" :loading="memoryPreviewApplying" @click="applyMemoryPreviewConfirm">{{ t('common.confirm') }}</el-button>
 			</template>
 		</el-dialog>
 	</div>
@@ -1167,6 +1167,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import SimpleMarkdown from '../common/SimpleMarkdown.vue'
@@ -1206,6 +1207,8 @@ import { EditorState, StateEffect, StateField } from '@codemirror/state'
 import { EditorView, keymap, Decoration, DecorationSet, lineNumbers } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, insertNewline } from '@codemirror/commands'
 
+const { t } = useI18n()
+
 const props = defineProps<{
 	card: CardRead
 	chapter?: any
@@ -1216,8 +1219,7 @@ const props = defineProps<{
 	reviewContextKind?: ContextTemplateKind
 }>()
 
-const previewConfirmReminder =
-	'若信息提取有误，如卡片名称不准确，请手动编辑调整后再确认，避免数据回写对应卡片失败'
+const previewConfirmReminder = t('chapterEditor.previewConfirmReminder')
 
 const emit = defineEmits<{
 	(e: 'update:chapter', value: any): void
@@ -1346,11 +1348,11 @@ const selectedModelName = computed(() => {
 })
 const paramSummary = computed(() => {
 	const p = perCardParams.value || editingParams.value
-	const model = selectedModelName.value ? `模型:${selectedModelName.value}` : '模型:未设'
-	const prompt = p?.prompt_name ? `任务:${p.prompt_name}` : '任务:未设'
-	const t = p?.temperature != null ? `温度:${p.temperature}` : ''
+	const model = t('chapterEditor.modelSummary', { value: selectedModelName.value || t('editor.notSet') })
+	const prompt = t('chapterEditor.taskSummary', { value: p?.prompt_name || t('editor.notSet') })
+	const temperature = p?.temperature != null ? t('chapterEditor.temperatureSummary', { value: p.temperature }) : ''
 	const m = p?.max_tokens != null ? `max_tokens:${p.max_tokens}` : ''
-	return [model, prompt, t, m].filter(Boolean).join(' · ')
+	return [model, prompt, temperature, m].filter(Boolean).join(' · ')
 })
 
 watch(() => props.card, async (newCard) => {
@@ -1431,7 +1433,7 @@ watch(() => props.card?.content, (newContent) => {
 }, { deep: true })
 
 function applyAndSavePerCardParams() {
-	try { perCardStore.setForCard(props.card.id, { ...editingParams.value }); ElMessage.success('已保存到本卡片设置') } catch { ElMessage.error('保存失败') }
+	try { perCardStore.setForCard(props.card.id, { ...editingParams.value }); ElMessage.success(t('chapterEditor.savedToCard')) } catch { ElMessage.error(t('settings.saveError')) }
 }
 function resetToPreset() {
 	const preset = getPresetForType(props.card.card_type?.name)
@@ -1550,7 +1552,7 @@ function runWithPendingPreviewMutation<T>(fn: () => T): T {
 
 function ensureNoPendingAiEdit(): boolean {
 	if (pendingAiEdit.value) {
-		ElMessage.warning('请先接受或拒绝当前替换建议')
+		ElMessage.warning(t('chapterEditor.resolveSuggestionFirst'))
 		return false
 	}
 	return true
@@ -1676,15 +1678,15 @@ const continuationDialogState = reactive<{
 const memoryPreviewTitleResolved = computed(() => {
 	switch (memoryPreviewExtractorCode.value) {
 		case 'scene_state':
-			return '场景状态预览'
+			return t('chapterEditor.sceneStatePreview')
 		case 'organization_state':
-			return '组织状态预览'
+			return t('chapterEditor.organizationStatePreview')
 		case 'item_state':
-			return '物品状态预览'
+			return t('chapterEditor.itemStatePreview')
 		case 'concept_state':
-			return '概念掌握预览'
+			return t('chapterEditor.conceptStatePreview')
 		default:
-			return '记忆预览'
+			return t('chapterEditor.memoryPreview')
 	}
 })
 
@@ -1790,30 +1792,30 @@ const isMemoryPreviewEmpty = computed(() => {
 const memoryPreviewEmptyDescription = computed(() => {
 	switch (memoryPreviewExtractorCode.value) {
 		case 'scene_state':
-			return '本次未提取到可写回的场景状态。你可以直接关闭预览，或调整提示词后重试。'
+			return t('chapterEditor.noSceneState')
 		case 'organization_state':
-			return '本次未提取到可写回的组织状态。你可以直接关闭预览，或调整提示词后重试。'
+			return t('chapterEditor.noOrganizationState')
 		case 'item_state':
-			return '本次未提取到可写回的物品状态。你可以直接关闭预览，或调整提示词后重试。'
+			return t('chapterEditor.noItemState')
 		case 'concept_state':
-			return '本次未提取到可写回的概念掌握信息。你可以直接关闭预览，或调整提示词后重试。'
+			return t('chapterEditor.noConceptState')
 		default:
-			return '本次未提取到可写回的内容。'
+			return t('chapterEditor.noMemoryContent')
 	}
 })
 
 function getMemoryExtractorDisplayLabel(extractorCode: MemoryExtractorCode): string {
 	switch (extractorCode) {
 		case 'scene_state':
-			return '场景状态'
+			return t('chapterEditor.sceneState')
 		case 'organization_state':
-			return '组织状态'
+			return t('chapterEditor.organizationState')
 		case 'item_state':
-			return '物品状态'
+			return t('chapterEditor.itemState')
 		case 'concept_state':
-			return '概念掌握'
+			return t('chapterEditor.conceptState')
 		default:
-			return '记忆'
+			return t('chapterEditor.memory')
 	}
 }
 
@@ -1871,17 +1873,17 @@ function joinEventSummaryLines(values: unknown): string {
 		: ''
 }
 
-function formatPreviewDisplayValue(value: unknown, fallback = '点击修改'): string {
+function formatPreviewDisplayValue(value: unknown, fallback = t('chapterEditor.clickToEdit')): string {
 	const text = String(value || '').trim()
 	return text || fallback
 }
 
-function formatPreviewDisplayLines(values: unknown, fallback = '点击补充'): string[] {
+function formatPreviewDisplayLines(values: unknown, fallback = t('chapterEditor.clickToAdd')): string[] {
 	const lines = normalizePreviewLines(values)
 	return lines.length ? lines : [fallback]
 }
 
-function formatEventSummaryDisplayLines(values: unknown, fallback = '点击补充'): string[] {
+function formatEventSummaryDisplayLines(values: unknown, fallback = t('chapterEditor.clickToAdd')): string[] {
 	if (Array.isArray(values)) {
 		const lines = values
 			.map(item => String(item?.summary || '').trim())
@@ -1956,11 +1958,11 @@ function formatCategory(catKey: any) { return String(catKey) }
 function formatReviewVerdict(verdict?: QualityGate | null | string): string {
 	switch (verdict) {
 		case 'pass':
-			return '基本通过'
+			return t('editor.reviewPassed')
 		case 'block':
-			return '高风险拦截'
+			return t('editor.reviewBlocked')
 		default:
-			return '建议修改'
+			return t('editor.reviewChangesSuggested')
 	}
 }
 
@@ -1983,8 +1985,8 @@ function setText(text: string) {
 }
 
 function formatContinuationMode(mode: ContinuationWordControlMode): string {
-	if (mode === 'prompt_only') return '提示词约束'
-	return '控制模式'
+	if (mode === 'prompt_only') return t('editor.promptOnlyMode')
+	return t('editor.balancedMode')
 }
 
 function buildChapterReviewTarget(
@@ -2101,10 +2103,10 @@ type EditorTaskDoneKind = 'continue' | 'polish' | 'expand' | 'review'
 
 function notifyEditorTaskDone(kind: EditorTaskDoneKind): void {
 	const map = {
-		continue: ['续写完成', '章节续写已完成。'],
-		polish: ['润色完成', '选区润色已完成。'],
-		expand: ['扩写完成', '选区扩写已完成。'],
-		review: ['审阅完成', '审阅结果已生成。'],
+		continue: [t('chapterEditor.continuationCompleteTitle'), t('chapterEditor.continuationCompleteBody')],
+		polish: [t('chapterEditor.polishCompleteTitle'), t('chapterEditor.polishCompleteBody')],
+		expand: [t('chapterEditor.expandCompleteTitle'), t('chapterEditor.expandCompleteBody')],
+		review: [t('chapterEditor.reviewCompleteTitle'), t('chapterEditor.reviewCompleteBody')],
 	} as const
 	const [title, body] = map[kind]
 	notifyTaskDone({
@@ -2180,7 +2182,7 @@ function initEditor() {
 					const now = Date.now()
 					if (now - lastPendingPreviewWarnAt > 1200) {
 						lastPendingPreviewWarnAt = now
-						ElMessage.warning('请先接受或拒绝当前替换建议')
+						ElMessage.warning(t('chapterEditor.resolveSuggestionFirst'))
 					}
 					return []
 				}),
@@ -2207,7 +2209,7 @@ function initEditor() {
 								|| selectionPipeline.applied
 							) return
 							selectionPipeline.conflict = result.status === 'conflict'
-								? (result.reason || 'Document changed after pipeline launch')
+								? (result.reason || t('selectionPipeline.documentChanged'))
 								: ''
 						})
 					}
@@ -2333,9 +2335,9 @@ async function saveTitle(newTitle: string) {
 			content: localCard.content as any,
 		}
 		await cardStore.modifyCard(localCard.id, updatePayload)
-		ElMessage.success('标题已更新')
+		ElMessage.success(t('chapterEditor.titleUpdated'))
 	} catch (e) {
-		ElMessage.error('标题更新失败')
+		ElMessage.error(t('chapterEditor.titleUpdateError'))
 		// 恢复原标题
 		if (titleElement.value) titleElement.value.textContent = localCard.title
 	}
@@ -2484,13 +2486,13 @@ async function executeReview() {
 
 	const chapterText = getText().trim()
 	if (!chapterText) {
-		ElMessage.warning('请先输入本章正文后再审核')
+		ElMessage.warning(t('chapterEditor.enterChapterBeforeReview'))
 		return
 	}
 
 	const llmConfigId = resolveLlmConfigId()
 	if (!llmConfigId) {
-		ElMessage.error('请先设置有效的模型ID')
+		ElMessage.error(t('chapterEditor.selectValidModel'))
 		return
 	}
 
@@ -2544,7 +2546,7 @@ async function executeReview() {
 
 		const result = await runReview(requestPayload, { signal: abortController.signal }).catch((e) => {
 			if (isCanceledRequest(e)) {
-				ElMessage.info('审核已中断')
+				ElMessage.info(t('chapterEditor.reviewInterrupted'))
 				return null
 			}
 			throw e
@@ -2554,10 +2556,10 @@ async function executeReview() {
 		reviewDraft.value = result.draft
 		reviewDialogVisible.value = true
 		notifyEditorTaskDone('review')
-		ElMessage.success('章节审核完成')
+		ElMessage.success(t('chapterEditor.chapterReviewComplete'))
 	} catch (e) {
 		console.error('章节审核失败:', e)
-		ElMessage.error('章节审核失败')
+		ElMessage.error(t('chapterEditor.chapterReviewError'))
 	} finally {
 		if (reviewAbortController.value === abortController) {
 			reviewAbortController.value = null
@@ -2587,10 +2589,10 @@ async function handleCreateOrUpdateReviewCard() {
 		reviewDraft.value.existing_review_card_id = saved.card_id
 		await cardStore.fetchCards(projectStore.currentProject?.id || props.card.project_id)
 		window.dispatchEvent(new CustomEvent('nf:review-history-refresh'))
-		ElMessage.success('审核结果卡片已更新')
+		ElMessage.success(t('chapterEditor.reviewCardUpdated'))
 	} catch (error) {
 		console.error('Failed to upsert review result card:', error)
-		ElMessage.error('创建审核结果卡片失败')
+		ElMessage.error(t('chapterEditor.reviewCardCreateError'))
 	} finally {
 		reviewCardSaving.value = false
 	}
@@ -2629,9 +2631,9 @@ async function runContinuationWithConfig(payload: {
 }) {
 	if (!ensureNoPendingAiEdit()) return
 	const llmConfigId = resolveLlmConfigId()
-	if (!llmConfigId) { ElMessage.error('请先设置有效的模型ID'); return }
+	if (!llmConfigId) { ElMessage.error(t('chapterEditor.selectValidModel')); return }
 	const promptName = resolvePromptName()
-	if (!promptName) { ElMessage.error('未设置生成任务名（prompt）'); return }
+	if (!promptName) { ElMessage.error(t('chapterEditor.promptTaskMissing')); return }
 
 	aiLoading.value = true
 
@@ -2684,28 +2686,28 @@ async function runContinuationWithConfig(payload: {
 
 	if (view) { view.focus(); const end = view.state.doc.length; view.dispatch({ selection: { anchor: end } }) }
 
-	executeAIGeneration(requestData, false, '续写', undefined, undefined, 'continue')
+	executeAIGeneration(requestData, false, t('chapterEditor.continueWriting'), undefined, undefined, 'continue')
 }
 
 function handlePolishPromptChange(promptName: string) {
 	currentPolishPrompt.value = promptName
 	promptPicker.polish.visible = false
 	promptPicker.polish.keyword = ''
-	ElMessage.success(`已切换润色提示词为: ${promptName}`)
+	ElMessage.success(t('chapterEditor.polishPromptChanged', { name: promptName }))
 }
 
 function handleExpandPromptChange(promptName: string) {
 	currentExpandPrompt.value = promptName
 	promptPicker.expand.visible = false
 	promptPicker.expand.keyword = ''
-	ElMessage.success(`已切换扩写提示词为: ${promptName}`)
+	ElMessage.success(t('chapterEditor.expandPromptChanged', { name: promptName }))
 }
 
 function handleReviewPromptChange(promptName: string) {
 	currentReviewPrompt.value = promptName
 	promptPicker.review.visible = false
 	promptPicker.review.keyword = ''
-	ElMessage.success(`已切换审核提示词为: ${promptName}`)
+	ElMessage.success(t('chapterEditor.reviewPromptChanged', { name: promptName }))
 }
 
 function handlePromptPickerShow(activeKey: PromptPickerKey) {
@@ -2812,7 +2814,7 @@ async function handleContextMenuThinkingPorn() {
 	const selectedText = contextMenu.selectedText
 	if (!selectedText || !selectedText.text.trim()) {
 		closeContextMenu()
-		ElMessage.warning('Zaznacz fragment do przetworzenia przez Thinking p*rn')
+		ElMessage.warning(t('chapterEditor.selectTextForPipeline'))
 		return
 	}
 
@@ -2832,7 +2834,7 @@ async function handleContextMenuThinkingPorn() {
 		ElMessage.error(
 			error instanceof Error
 				? error.message
-				: 'Nie udało się przechwycić zaznaczenia',
+				: t('chapterEditor.selectionCaptureError'),
 		)
 	}
 }
@@ -2849,12 +2851,12 @@ async function acceptSelectionPipeline(replacement: string) {
 	)
 
 	if (result.status === 'conflict') {
-		selectionPipeline.conflict = result.reason || 'Document changed after pipeline launch'
-		ElMessage.error('Zastosowanie zablokowane: dokument się zmienił')
+		selectionPipeline.conflict = result.reason || t('selectionPipeline.documentChanged')
+		ElMessage.error(t('chapterEditor.pipelineDocumentChanged'))
 		return
 	}
 	if (result.status === 'already_applied') {
-		ElMessage.warning('Ten wynik został już zastosowany')
+		ElMessage.warning(t('chapterEditor.pipelineAlreadyApplied'))
 		return
 	}
 
@@ -2862,7 +2864,7 @@ async function acceptSelectionPipeline(replacement: string) {
 	selectionPipeline.conflict = ''
 	selectionPipeline.visible = false
 	clearHighlight()
-	ElMessage.success('Zastosowano wynik Thinking p*rn')
+	ElMessage.success(t('chapterEditor.pipelineApplied'))
 }
 
 function resetSelectionPipelineState() {
@@ -2899,7 +2901,7 @@ async function handleContextMenuReference() {
 	const selectedText = contextMenu.selectedText
 	if (!selectedText || !selectedText.text.trim()) {
 		closeContextMenu()
-		ElMessage.warning('请先选中要引用的正文片段')
+		ElMessage.warning(t('chapterEditor.selectTextToReference'))
 		return
 	}
 	if (isDirty.value) {
@@ -2912,7 +2914,7 @@ async function handleContextMenuReference() {
 	closeContextMenu()
 	const projectId = projectStore.currentProject?.id || props.card.project_id
 	if (!projectId) {
-		ElMessage.error('未找到当前项目，无法引用')
+		ElMessage.error(t('chapterEditor.projectNotFoundForReference'))
 		return
 	}
 	const projectName = projectStore.currentProject?.name || ''
@@ -2940,7 +2942,7 @@ async function handleContextMenuReference() {
 	}
 	assistantStore.addInjectedRefDirect(excerptRef as any, 'manual')
 	emit('switch-tab', 'assistant')
-	ElMessage.success(`已引用第 ${selectedText.startLine}-${selectedText.endLine} 行到灵感助手`)
+	ElMessage.success(t('chapterEditor.referencedLines', { start: selectedText.startLine, end: selectedText.endLine }))
 }
 
 async function executeAIEdit(
@@ -2953,13 +2955,13 @@ async function executeAIEdit(
 
 	const selectedText = selectedTextInput || getSelectedText()
 	if (!selectedText) {
-		ElMessage.warning(`请先选中要${promptName}的内容`)
+		ElMessage.warning(t('chapterEditor.selectTextForTask', { task: promptName }))
 		return
 	}
 
 	const llmConfigId = resolveLlmConfigId()
 	if (!llmConfigId) {
-		ElMessage.error('请先设置有效的模型ID')
+		ElMessage.error(t('chapterEditor.selectValidModel'))
 		return
 	}
 
@@ -3037,7 +3039,7 @@ async function executeAIEdit(
 function acceptPendingAiEdit() {
 	if (!view || !pendingAiEdit.value) return
 	if (pendingAiEdit.value.generating) {
-		ElMessage.warning('正在生成中，请稍后')
+		ElMessage.warning(t('chapterEditor.generationInProgress'))
 		return
 	}
 	const pending = pendingAiEdit.value
@@ -3050,7 +3052,7 @@ function acceptPendingAiEdit() {
 	})
 	pendingAiEdit.value = null
 	clearHighlight()
-	ElMessage.success('已接受替换')
+	ElMessage.success(t('chapterEditor.replacementAccepted'))
 }
 
 function rejectPendingAiEdit() {
@@ -3067,13 +3069,13 @@ function rejectPendingAiEdit() {
 	})
 	pendingAiEdit.value = null
 	clearHighlight()
-	ElMessage.info('已拒绝替换，保留原文')
+	ElMessage.info(t('chapterEditor.replacementRejected'))
 }
 
 function executeAIGeneration(
 	requestData: ContinuationRequest,
 	replaceMode = false,
-	taskName = 'AI生成',
+	taskName = t('generation.title'),
 	replaceFrom?: number,
 	replaceTo?: number,
 	notifyKind?: EditorTaskDoneKind
@@ -3170,9 +3172,9 @@ function executeAIGeneration(
 			} catch {}
 			console.log('✅ [AI] 生成完成，高亮已保留（点击编辑器任意位置可清除）')
 			if (replaceMode) {
-				ElMessage.success(`${taskName}完成，已生成替换建议`)
+				ElMessage.success(t('chapterEditor.taskSuggestionReady', { task: taskName }))
 			} else {
-				ElMessage.success(`${taskName}完成！`)
+				ElMessage.success(t('chapterEditor.taskComplete', { task: taskName }))
 			}
 			if (!wasCanceled && notifyKind) {
 				notifyEditorTaskDone(notifyKind)
@@ -3197,7 +3199,7 @@ function executeAIGeneration(
 			}
 			clearHighlight()
 			console.error(`${taskName}失败:`, error)
-			ElMessage.error(`${taskName}失败`)
+			ElMessage.error(t('chapterEditor.taskFailed', { task: taskName }))
 		}
 	)
 }
@@ -3526,12 +3528,12 @@ editorStore.setApplyChapterReplacements(async (pairs) => {
 			const startLine = Number(op.startLine)
 			const endLine = Number(op.endLine)
 			if (!Number.isFinite(startLine) || !Number.isFinite(endLine) || startLine <= 0 || endLine < startLine) {
-				ElMessage.warning('按行替换失败：无效的行号范围')
+				ElMessage.warning(t('chapterEditor.invalidLineRange'))
 				continue
 			}
 			const lines = replaced.split('\n')
 			if (endLine > lines.length) {
-				ElMessage.warning('按行替换失败：行号超出正文范围')
+				ElMessage.warning(t('chapterEditor.lineRangeOutOfBounds'))
 				continue
 			}
 			const replacementLines = String(op.newText ?? '').split('\n')
@@ -3554,12 +3556,12 @@ editorStore.setPersistActiveChapterDraft(async () => {
 	if (!isDirty.value) return true
 	try {
 		await ElMessageBox.confirm(
-			'你引用的正文片段包含未保存修改。为确保灵感助手按行替换时能定位到最新正文，需要先保存当前章节。是否现在保存？',
-			'请先保存章节',
+			t('chapterEditor.saveBeforeReferenceConfirm'),
+			t('chapterEditor.saveChapterFirst'),
 			{
 				type: 'warning',
-				confirmButtonText: '保存后继续',
-				cancelButtonText: '取消',
+				confirmButtonText: t('chapterEditor.saveAndContinue'),
+				cancelButtonText: t('common.cancel'),
 			},
 		)
 		await handleSave()
@@ -3571,14 +3573,14 @@ editorStore.setPersistActiveChapterDraft(async () => {
 
 async function extractDynamicInfo() {
 	const llmConfigId = resolveLlmConfigId()
-	if (!llmConfigId) { ElMessage.error('请先选择一个有效的AI参数配置（模型）'); return }
+	if (!llmConfigId) { ElMessage.error(t('chapterEditor.selectValidModel')); return }
 	await extractDynamicInfoWithLlm(llmConfigId, { llm_config_id: llmConfigId })
 }
 
 async function extractDynamicInfoWithLlm(llmConfigId: number, opts?: ChapterExtractRunOptions) {
 	try {
 		const projectId = projectStore.currentProject?.id || (localCard as any).project_id
-		if (!projectId) { ElMessage.error('未找到当前项目ID'); return }
+		if (!projectId) { ElMessage.error(t('chapterEditor.currentProjectMissing')); return }
 		const participants = extractParticipantsWithTypeForCurrentChapter()
 		const chapterText = getText() || ''
 		const extraContext = (props.contextParams as any)?.extra_context_fn()
@@ -3598,7 +3600,7 @@ async function extractDynamicInfoWithLlm(llmConfigId: number, opts?: ChapterExtr
 		previewDialogVisible.value = true
 	} catch (e) {
 		console.error(e)
-		ElMessage.error('提取动态信息失败')
+		ElMessage.error(t('chapterEditor.dynamicExtractionError'))
 	}
 }
 
@@ -3641,16 +3643,16 @@ async function confirmApplyUpdates() {
 				appendedCount = await appendParticipantsToCurrentChapter(collectConfirmedDynamicParticipantNames())
 			} catch (syncError) {
 				console.error(syncError)
-				ElMessage.warning('动态信息已写入，但同步本章参与实体失败')
+				ElMessage.warning(t('chapterEditor.participantSyncWarning'))
 			}
-			ElMessage.success(`动态信息已更新：${resp.updated_card_count} 个角色卡${appendedCount > 0 ? `，并补充 ${appendedCount} 个参与实体` : ''}`)
+			ElMessage.success(t('chapterEditor.dynamicUpdateSuccess', { cards: resp.updated_card_count, participants: appendedCount }))
 			try { await cardStore.fetchCards(projectId) } catch {}
 		} else {
-			ElMessage.warning('未检测到需要更新的动态信息')
+			ElMessage.warning(t('chapterEditor.noDynamicUpdates'))
 		}
 	} catch (e) {
 		console.error(e)
-		ElMessage.error('更新动态信息失败')
+		ElMessage.error(t('chapterEditor.dynamicUpdateError'))
 	} finally {
 		dynamicPreviewApplying.value = false
 		previewDialogVisible.value = false
@@ -3660,7 +3662,7 @@ async function confirmApplyUpdates() {
 
 async function handleIngestRelations() {
 	const llmConfigId = resolveLlmConfigId()
-	if (!llmConfigId) { ElMessage.error('请先选择一个有效的AI参数配置（模型）'); return }
+	if (!llmConfigId) { ElMessage.error(t('chapterEditor.selectValidModel')); return }
 	await extractRelationsWithLlm(llmConfigId, { llm_config_id: llmConfigId })
 }
 
@@ -3678,10 +3680,10 @@ async function confirmIngestRelationsFromPreview() {
 		const vol = (localCard as any)?.content?.volume_number ?? (props.contextParams as any)?.volume_number
 		const ch = (localCard as any)?.content?.chapter_number ?? (props.contextParams as any)?.chapter_number
 		const resp = await ingestRelationsFromPreview({ project_id: projectId, data: sanitizedRelationsPreview, volume_number: vol, chapter_number: ch })
-		ElMessage.success(`已写入关系/别名：${resp.written} 条`)
+		ElMessage.success(t('chapterEditor.relationsWritten', { count: resp.written }))
 	} catch (e) {
 		console.error(e)
-		ElMessage.error('关系入图失败')
+		ElMessage.error(t('chapterEditor.relationWriteError'))
 	} finally {
 		relationsPreviewApplying.value = false
 		relationsPreviewVisible.value = false
@@ -3737,14 +3739,14 @@ async function extractRelationsWithLlm(llmConfigId: number, opts?: ChapterExtrac
 		relationsPreviewVisible.value = true
 	} catch (e) {
 		console.error(e)
-		ElMessage.error('关系抽取失败')
+		ElMessage.error(t('chapterEditor.relationExtractionError'))
 	}
 }
 
 async function extractMemoryByCode(extractorCode: MemoryExtractorCode, llmConfigId: number, opts?: ChapterExtractRunOptions) {
 	try {
 		const projectId = projectStore.currentProject?.id || (localCard as any).project_id
-		if (!projectId) { ElMessage.error('未找到当前项目ID'); return }
+		if (!projectId) { ElMessage.error(t('chapterEditor.currentProjectMissing')); return }
 		const text = getText() || ''
 		const participants = extractParticipantsWithTypeForCurrentChapter()
 		const vol = (localCard as any)?.content?.volume_number ?? (props.contextParams as any)?.volume_number
@@ -3777,7 +3779,7 @@ async function extractMemoryByCode(extractorCode: MemoryExtractorCode, llmConfig
 		memoryPreviewVisible.value = true
 	} catch (e) {
 		console.error(e)
-		ElMessage.error(`${getMemoryExtractorDisplayLabel(extractorCode)}提取失败`)
+		ElMessage.error(t('chapterEditor.memoryExtractionError', { type: getMemoryExtractorDisplayLabel(extractorCode) }))
 	}
 }
 
@@ -3898,7 +3900,7 @@ async function ensureEditorMainTabVisible() {
 async function removeParticipantFromCurrentChapter(item: ParticipantReviewNotice) {
 	const cardId = Number((props.card as any)?.id || (localCard as any)?.id || 0)
 	if (!cardId) {
-		ElMessage.warning('未找到当前章节卡片，无法更新参与实体')
+		ElMessage.warning(t('chapterEditor.chapterCardMissing'))
 		return
 	}
 	const currentList = Array.isArray((localCard.content as any)?.entity_list)
@@ -3909,7 +3911,7 @@ async function removeParticipantFromCurrentChapter(item: ParticipantReviewNotice
 		return String(name || '').trim() !== item.title
 	})
 	if (nextList.length === currentList.length) {
-		ElMessage.warning(`${item.title} 当前不在本章参与实体列表中`)
+		ElMessage.warning(t('chapterEditor.participantNotPresent', { name: item.title }))
 		return
 	}
 	try {
@@ -3919,10 +3921,10 @@ async function removeParticipantFromCurrentChapter(item: ParticipantReviewNotice
 		}
 		await cardStore.modifyCard(cardId, { content: baseContent } as any)
 		;(localCard.content as any).entity_list = nextList
-		ElMessage.success(`已将 ${item.title} 移出本章参与实体`)
+		ElMessage.success(t('chapterEditor.participantRemoved', { name: item.title }))
 	} catch (error) {
 		console.error(error)
-		ElMessage.error('更新本章参与实体失败')
+		ElMessage.error(t('chapterEditor.participantUpdateError'))
 	}
 }
 
@@ -3988,16 +3990,16 @@ async function applyMemoryPreviewConfirm() {
 				appendedCount = await appendParticipantsToCurrentChapter(collectConfirmedMemoryParticipantNames())
 			} catch (syncError) {
 				console.error(syncError)
-				ElMessage.warning('提取结果已写入，但同步本章参与实体失败')
+				ElMessage.warning(t('chapterEditor.participantSyncWarning'))
 			}
-			ElMessage.success(`${label}已写入：${resp.updated_card_count} 张卡片${appendedCount > 0 ? `，并补充 ${appendedCount} 个参与实体` : ''}`)
+			ElMessage.success(t('chapterEditor.memoryWriteSuccess', { type: label, cards: resp.updated_card_count, participants: appendedCount }))
 			try { await cardStore.fetchCards(projectId) } catch {}
 		} else {
-			ElMessage.warning('未检测到需要写入的记忆')
+			ElMessage.warning(t('chapterEditor.noMemoryUpdates'))
 		}
 	} catch (e) {
 		console.error(e)
-		ElMessage.error('写入扩展记忆失败')
+		ElMessage.error(t('chapterEditor.memoryWriteError'))
 	} finally {
 		memoryPreviewApplying.value = false
 		closeMemoryPreview()
@@ -4238,7 +4240,7 @@ function nfAssistantOpenPatch(index: number) {
     if (p.source === 'assistant_batch_patch') {
       nfAssistantClearCurrentPreview()
     } else {
-      ElMessage.warning('请先接受或拒绝当前替换建议')
+      ElMessage.warning(t('chapterEditor.resolveSuggestionFirst'))
       return
     }
   }
@@ -4250,7 +4252,7 @@ function nfAssistantOpenPatch(index: number) {
   const range = nfAssistantLocatePatch(patch)
   if (!range) {
     patch.status = 'conflict'
-    ElMessage.warning(`建议 #${nfAssistantPatchIndex.value + 1} 无法自动定位，已标记为冲突`)
+    ElMessage.warning(t('chapterEditor.suggestionConflict', { number: nfAssistantPatchIndex.value + 1 }))
     nfAssistantOpenNextPending(nfAssistantPatchIndex.value + 1)
     return
   }
@@ -4280,7 +4282,7 @@ function nfAssistantOpenPatch(index: number) {
 
   setCompareHighlight(range.from, range.to, range.to, range.to + newText.length)
   nfAssistantScrollToRange(range)
-  ElMessage.info(`正在查看建议 #${nfAssistantPatchIndex.value + 1} / ${nfAssistantPatchTotal.value}`)
+  ElMessage.info(t('chapterEditor.viewingSuggestion', { current: nfAssistantPatchIndex.value + 1, total: nfAssistantPatchTotal.value }))
 }
 
 function nfAssistantOpenNextPending(fromIndex: number = nfAssistantPatchIndex.value + 1) {
@@ -4336,7 +4338,7 @@ async function nfAssistantPatchAcceptCurrent() {
     return
   }
   if (!nfAssistantHasCurrentBatchPreview()) {
-    ElMessage.warning('当前没有可接受的批量建议预览')
+    ElMessage.warning(t('chapterEditor.noBatchAcceptPreview'))
     return
   }
   const idx = nfAssistantPatchIndex.value
@@ -4352,7 +4354,7 @@ async function nfAssistantPatchRejectCurrent() {
     return
   }
   if (!nfAssistantHasCurrentBatchPreview()) {
-    ElMessage.warning('当前没有可拒绝的批量建议预览')
+    ElMessage.warning(t('chapterEditor.noBatchRejectPreview'))
     return
   }
   const idx = nfAssistantPatchIndex.value
@@ -4373,7 +4375,7 @@ function nfAssistantHandlePatchBatchEvent(event: Event) {
     return
   }
   if (pendingAiEdit.value && (pendingAiEdit.value as any).source !== 'assistant_batch_patch') {
-    ElMessage.warning('请先接受或拒绝当前替换建议')
+    ElMessage.warning(t('chapterEditor.resolveSuggestionFirst'))
     return
   }
 

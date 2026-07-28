@@ -1,5 +1,9 @@
 import { computed, ref, type Ref } from 'vue'
 import type { CardRead } from '@renderer/api/cards'
+import i18n, {
+  getCardDisplayTitle,
+  getCardTypeDisplayName,
+} from '@renderer/i18n'
 
 interface AssistantProjectLite {
   id: number
@@ -29,20 +33,22 @@ export function useAssistantInjectionSelector(options: UseAssistantInjectionSele
   const filteredSelectorCards = computed(() => {
     const query = (selectorSearch.value || '').trim().toLowerCase()
     if (!query) return selectorCards.value
-    return (selectorCards.value || []).filter(card => (card.title || '').toLowerCase().includes(query))
+    return (selectorCards.value || []).filter(card => (
+      getCardDisplayTitle(card.title || '').toLowerCase().includes(query)
+    ))
   })
 
   const selectorTreeData = computed(() => {
     const cardsByType: Record<string, any[]> = {}
     for (const card of filteredSelectorCards.value || []) {
-      const typeName = card.card_type?.name || '未分类'
+      const typeName = card.card_type?.name || i18n.global.t('assistant.uncategorized')
       if (!cardsByType[typeName]) {
         cardsByType[typeName] = []
       }
       cardsByType[typeName].push({
         id: card.id,
         title: card.title,
-        label: card.title,
+        label: getCardDisplayTitle(card.title),
         key: `card:${card.id}`,
         isLeaf: true,
       })
@@ -52,7 +58,7 @@ export function useAssistantInjectionSelector(options: UseAssistantInjectionSele
       .sort()
       .map((typeName, idx) => ({
         key: `type:${idx}`,
-        label: typeName,
+        label: getCardTypeDisplayName(typeName),
         children: cardsByType[typeName],
       }))
   })

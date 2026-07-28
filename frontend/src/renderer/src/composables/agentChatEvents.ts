@@ -1,4 +1,5 @@
 import type { AgentChatMessage, AgentStreamEvent, AgentTimelineItem, AgentToolTrace } from '@/types/agentChat'
+import i18n from '@renderer/i18n'
 
 interface ApplyAgentEventOptions {
   onToolEnd?: (toolName: string, result: any) => void
@@ -164,7 +165,9 @@ export function applyAgentStreamEvent(
       target.tools = target.tools || []
       target.tools.push({ tool_name: data.tool_name || 'tool', args: data.args })
     }
-    target.toolsInProgress = `⏳ 正在调用工具: ${data.tool_name || '工具'}...`
+    target.toolsInProgress = i18n.global.t('assistant.callingTool', {
+      tool: data.tool_name || i18n.global.t('assistant.tool'),
+    })
     return
   }
 
@@ -201,7 +204,7 @@ export function applyAgentStreamEvent(
     ;(target as any)._agentLastEventType = 'error'
     target.toolsInProgress = undefined
     if (options?.appendErrorToContent !== false) {
-      target.content += `\n\n[错误] ${data.error || 'unknown error'}`
+      target.content += `\n\n[${i18n.global.t('assistant.errorLabel')}] ${data.error || i18n.global.t('errors.unknown')}`
     }
   }
 }

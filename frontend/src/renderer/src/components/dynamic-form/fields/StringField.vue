@@ -21,7 +21,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { JSONSchema } from '@renderer/api/schema'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   modelValue: string | undefined
@@ -53,6 +56,6 @@ const isLongText = computed(() => {
 })
 
 const placeholder = computed(() => {
-  return props.schema.description || `请输入 ${props.label}`
+  return props.schema.description || t('dynamicForm.enterPlaceholder', { label: props.label })
 })
 </script>

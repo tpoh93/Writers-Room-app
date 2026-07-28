@@ -3,7 +3,7 @@
     <div class="review-header">
       <div class="review-header-main">
         <div class="review-title-block">
-          <h2 class="review-title">{{ card.title }}</h2>
+          <h2 class="review-title">{{ getCardDisplayTitle(card.title) }}</h2>
           <div class="review-meta">
             <el-tag :type="verdictTagType" effect="dark" size="small">{{ verdictLabel }}</el-tag>
             <el-tag v-if="reviewProfile" type="info" effect="plain" size="small">{{ reviewProfile }}</el-tag>
@@ -12,11 +12,11 @@
           </div>
         </div>
         <div class="review-actions">
-          <el-button size="small" plain type="primary" @click="jumpToTarget">跳转被审核卡片</el-button>
+          <el-button size="small" plain type="primary" @click="jumpToTarget">{{ t('editor.jumpToReviewedCard') }}</el-button>
         </div>
       </div>
       <div class="review-target">
-        审核对象：{{ targetTitle || '未命名目标' }}
+        {{ t('editor.reviewTarget', { title: targetTitle || t('editor.unnamedTarget') }) }}
       </div>
     </div>
 
@@ -28,9 +28,13 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { getCardDisplayTitle } from '@renderer/i18n'
 import { ElTag } from 'element-plus'
 import type { CardRead } from '@renderer/api/cards'
 import SimpleMarkdown from '../common/SimpleMarkdown.vue'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   card: CardRead
@@ -40,12 +44,12 @@ const content = computed(() => (props.card.content || {}) as Record<string, any>
 const targetTitle = computed(() => String(content.value.review_target_title || ''))
 const reviewProfile = computed(() => String(content.value.review_profile || ''))
 const targetField = computed(() => String(content.value.review_target_field || ''))
-const reviewMarkdown = computed(() => String(content.value.review_markdown || '（暂无内容）'))
+const reviewMarkdown = computed(() => String(content.value.review_markdown || t('editor.noContent')))
 const reviewedAtText = computed(() => {
   const value = String(content.value.reviewed_at || '')
   if (!value) return ''
   try {
-    return new Intl.DateTimeFormat('zh-CN', {
+    return new Intl.DateTimeFormat('pl-PL', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -60,11 +64,11 @@ const reviewedAtText = computed(() => {
 const verdictLabel = computed(() => {
   switch (content.value.quality_gate) {
     case 'pass':
-      return '基本通过'
+      return t('editor.reviewPassed')
     case 'block':
-      return '高风险拦截'
+      return t('editor.reviewBlocked')
     default:
-      return '建议修改'
+      return t('editor.reviewChangesSuggested')
   }
 })
 

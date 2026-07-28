@@ -3,18 +3,18 @@
     <!-- 左侧卡片导航树 -->
     <el-aside class="sidebar card-navigation-sidebar" :style="{ width: leftSidebarDisplayWidth + 'px' }" @contextmenu.prevent="onSidebarContextMenu">
       <div class="sidebar-header">
-        <h3 class="sidebar-title">创作卡片</h3>
+        <h3 class="sidebar-title">{{ t('editor.writingCards') }}</h3>
         
       </div>
 
       <!-- 上半区（类型列表 + 自由卡片库） -->
       <div class="types-pane" :style="{ height: typesPaneHeight + 'px' }" @dragover.prevent @drop="onTypesPaneDrop">
-        <div class="pane-title">已有卡片类型</div>
+        <div class="pane-title">{{ t('editor.existingCardTypes') }}</div>
         <el-scrollbar class="types-scroll">
           <ul class="types-list">
             <li v-for="t in cardStore.cardTypes" :key="t.id" class="type-item" draggable="true"
                 @dragstart="onTypeDragStart(t)">
-              <span class="type-name">{{ t.name }}</span>
+              <span class="type-name">{{ getCardTypeDisplayName(t.name) }}</span>
             </li>
           </ul>
         </el-scrollbar>
@@ -26,8 +26,8 @@
       <div class="cards-pane" :style="{ height: `calc(100% - ${typesPaneHeight + innerResizerThickness}px)` }" @dragover.prevent @drop="onCardsPaneDrop">
         <div class="cards-title">
           <div class="cards-title-head">
-            <div class="cards-title-text">当前项目：{{ projectStore.currentProject?.name }}</div>
-            <div v-if="selectedCardIds.length > 0" class="cards-selection-chip">已选 {{ selectedCardIds.length }}</div>
+            <div class="cards-title-text">{{ t('editor.currentProject', { name: projectStore.currentProject?.name }) }}</div>
+            <div v-if="selectedCardIds.length > 0" class="cards-selection-chip">{{ t('editor.selectedCount', { count: selectedCardIds.length }) }}</div>
           </div>
           <div class="cards-title-actions">
             <el-button
@@ -38,7 +38,7 @@
               :icon="Plus"
               @click="openCreateRoot"
             >
-              新建卡片
+              {{ t('editor.newCard') }}
             </el-button>
             <el-button
               v-if="selectedCardIds.length > 0"
@@ -48,10 +48,10 @@
               :icon="Delete"
               @click="batchDeleteCards"
             >
-              删除选中 ({{ selectedCardIds.length }})
+              {{ t('editor.deleteSelected', { count: selectedCardIds.length }) }}
             </el-button>
-            <el-button v-if="!isFreeProject" class="toolbar-action toolbar-action-secondary" size="small" :icon="Upload" @click="openImportFreeCards">导入卡片</el-button>
-            <el-button class="toolbar-action toolbar-action-secondary" :class="{ 'toolbar-action-secondary--solo': isFreeProject }" size="small" :icon="Download" @click="openExportDialog">导出卡片</el-button>
+            <el-button v-if="!isFreeProject" class="toolbar-action toolbar-action-secondary" size="small" :icon="Upload" @click="openImportFreeCards">{{ t('editor.importCards') }}</el-button>
+            <el-button class="toolbar-action toolbar-action-secondary" :class="{ 'toolbar-action-secondary--solo': isFreeProject }" size="small" :icon="Download" @click="openExportDialog">{{ t('editor.exportCards') }}</el-button>
           </div>
         </div>
         
@@ -59,7 +59,7 @@
         <div class="search-box" style="padding: 0 8px 8px;">
            <el-input 
              v-model="searchQuery" 
-             placeholder="搜索卡片..." 
+             :placeholder="t('editor.searchCards')"
              :prefix-icon="Search"
              clearable
              @input="handleSearch"
@@ -75,9 +75,9 @@
              @click="handleNodeClick({ id: card.id, title: card.title, card_type: card.card_type })"
            >
               <el-icon class="card-icon"><component :is="getIconByCardType(card.card_type?.name)" /></el-icon>
-              <span class="search-item-title">{{ card.title }}</span>
+              <span class="search-item-title">{{ getCardDisplayTitle(card.title) }}</span>
            </div>
-           <el-empty v-if="!searchLoading && searchResults.length === 0" description="无搜索结果" :image-size="60" />
+           <el-empty v-if="!searchLoading && searchResults.length === 0" :description="t('editor.noSearchResults')" :image-size="60" />
         </div>
 
         <template v-else>
@@ -110,29 +110,35 @@
                   <el-icon class="card-icon"> 
                     <component :is="getIconByCardType(data.card_type?.name || data.__groupType)" />
                   </el-icon>
-                  <span class="label">{{ node.label || data.title }}</span>
+                  <span class="label">
+                    {{
+                      data.__isGroup
+                        ? getCardTypeDisplayName(node.label || data.title)
+                        : getCardDisplayTitle(node.label || data.title)
+                    }}
+                  </span>
                   <span v-if="data.children && data.children.length > 0" class="child-count">{{ data.children.length }}</span>
                 </div>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <template v-if="!data.__isGroup">
-                      <el-dropdown-item command="create-child" :disabled="selectedCardIds.length > 1">新建子卡片</el-dropdown-item>
-                      <el-dropdown-item command="rename" :disabled="selectedCardIds.length > 1">重命名</el-dropdown-item>
-                      <el-dropdown-item command="edit-structure" :disabled="selectedCardIds.length > 1">结构编辑</el-dropdown-item>
-                      <el-dropdown-item command="add-as-reference" :disabled="selectedCardIds.length > 1">添加为引用</el-dropdown-item>
-                      <el-dropdown-item v-if="selectedCardIds.length > 1" command="batch-delete" divided>删除选中的卡片 ({{ selectedCardIds.length }})</el-dropdown-item>
-                      <el-dropdown-item v-else command="delete" divided>删除卡片</el-dropdown-item>
+                      <el-dropdown-item command="create-child" :disabled="selectedCardIds.length > 1">{{ t('editor.newChildCard') }}</el-dropdown-item>
+                      <el-dropdown-item command="rename" :disabled="selectedCardIds.length > 1">{{ t('editor.rename') }}</el-dropdown-item>
+                      <el-dropdown-item command="edit-structure" :disabled="selectedCardIds.length > 1">{{ t('editor.editStructure') }}</el-dropdown-item>
+                      <el-dropdown-item command="add-as-reference" :disabled="selectedCardIds.length > 1">{{ t('editor.addAsReference') }}</el-dropdown-item>
+                      <el-dropdown-item v-if="selectedCardIds.length > 1" command="batch-delete" divided>{{ t('editor.deleteSelectedCards', { count: selectedCardIds.length }) }}</el-dropdown-item>
+                      <el-dropdown-item v-else command="delete" divided>{{ t('editor.deleteCard') }}</el-dropdown-item>
                     </template>
                     <template v-else>
-                      <el-dropdown-item command="create-child-in-group">新建子卡片</el-dropdown-item>
-                      <el-dropdown-item command="delete-group" divided>删除该分组下所有卡片</el-dropdown-item>
+                      <el-dropdown-item command="create-child-in-group">{{ t('editor.newChildCard') }}</el-dropdown-item>
+                      <el-dropdown-item command="delete-group" divided>{{ t('editor.deleteGroupCards') }}</el-dropdown-item>
                     </template>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
             </template>
           </el-tree>
-          <el-empty v-else description="暂无卡片" :image-size="80"></el-empty>
+          <el-empty v-else :description="t('editor.noCards')" :image-size="80"></el-empty>
         </template>
       </div>
 
@@ -142,7 +148,7 @@
         <span></span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item @click="openCreateRoot">新建卡片</el-dropdown-item>
+            <el-dropdown-item @click="openCreateRoot">{{ t('editor.newCard') }}</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -154,16 +160,16 @@
     <!-- 中栏主内容区 -->
     <el-main class="main-content">
       <el-tabs v-model="activeTab" type="border-card" class="main-tabs">
-        <el-tab-pane label="卡片库" name="market">
+        <el-tab-pane :label="t('editor.libraryTab')" name="market">
           <CardMarket @edit-card="handleEditCard" />
         </el-tab-pane>
-        <el-tab-pane label="编辑器" name="editor">
+        <el-tab-pane :label="t('editor.editorTab')" name="editor">
           <template v-if="activeCard">
             <CardEditorHost :card="activeCard" :prefetched="prefetchedContext" />
           </template>
-          <el-empty v-else description="请从左侧选择一个卡片进行编辑" />
+          <el-empty v-else :description="t('editor.chooseCard')" />
         </el-tab-pane>
-        <el-tab-pane label="关系图管理" name="relation-graph">
+        <el-tab-pane :label="t('editor.relationGraphTab')" name="relation-graph">
           <RelationGraphPanel :refresh-seq="relationGraphRefreshSeq" />
         </el-tab-pane>
       </el-tabs>
@@ -175,7 +181,7 @@
       <!-- 章节正文卡片：显示4个Tab -->
       <template v-if="showRightSidebarTabs">
         <el-tabs v-model="activeRightTab" type="card" class="right-tabs">
-          <el-tab-pane label="助手" name="assistant">
+          <el-tab-pane :label="t('editor.assistantTab')" name="assistant">
             <AssistantPanel
               :resolved-context="assistantResolvedContext"
               :llm-config-id="assistantParams.llm_config_id as any"
@@ -195,7 +201,7 @@
           </el-tab-pane>
           
           <template v-if="isChapterContent">
-          <el-tab-pane label="参与实体" name="context">
+          <el-tab-pane :label="t('editor.entitiesTab')" name="context">
             <ContextPanel 
               :project-id="projectStore.currentProject?.id"
               :prefetched="prefetchedContext"
@@ -207,11 +213,11 @@
             />
           </el-tab-pane>
           
-          <el-tab-pane label="提取" name="extract">
+          <el-tab-pane :label="t('editor.extractionTab')" name="extract">
             <ChapterToolsPanel />
           </el-tab-pane>
           
-          <el-tab-pane label="大纲" name="outline">
+          <el-tab-pane :label="t('editor.outlineTab')" name="outline">
             <OutlinePanel 
               :active-card="activeCard"
               :volume-number="chapterVolumeNumber"
@@ -220,7 +226,7 @@
           </el-tab-pane>
           </template>
           
-          <el-tab-pane label="审核结果" name="review-history">
+          <el-tab-pane :label="t('editor.reviewsTab')" name="review-history">
             <ReviewHistoryPanel
               :target-card-id="reviewTargetCardIdForSidebar"
             />
@@ -247,13 +253,13 @@
         @jump-to-card="handleJumpToCard"
       />
     </el-aside>
-    <el-tooltip :content="isLeftSidebarVisible ? '收起左侧导航' : '展开左侧导航'" placement="right">
+    <el-tooltip :content="isLeftSidebarVisible ? t('editor.collapseNavigation') : t('editor.expandNavigation')" placement="right">
       <button
         type="button"
         class="sidebar-edge-toggle"
         :class="{ 'is-collapsed': !isLeftSidebarVisible }"
         :style="{ left: `${leftSidebarToggleOffset}px` }"
-        :aria-label="isLeftSidebarVisible ? '收起左侧导航' : '展开左侧导航'"
+        :aria-label="isLeftSidebarVisible ? t('editor.collapseNavigation') : t('editor.expandNavigation')"
         @click="toggleLeftSidebar"
       >
         <el-icon class="sidebar-edge-toggle__icon">
@@ -264,57 +270,57 @@
   </div>
 
   <!-- 新建卡片对话框 -->
-  <el-dialog v-model="isCreateCardDialogVisible" title="新建创作卡片" width="500px">
+  <el-dialog v-model="isCreateCardDialogVisible" :title="t('editor.createCardTitle')" width="500px">
     <el-form :model="newCardForm" label-position="top">
-      <el-form-item label="卡片标题">
-        <el-input v-model="newCardForm.title" placeholder="请输入卡片标题"></el-input>
+      <el-form-item :label="t('editor.cardTitle')">
+        <el-input v-model="newCardForm.title" :placeholder="t('editor.cardTitlePlaceholder')"></el-input>
       </el-form-item>
-      <el-form-item label="卡片类型">
-        <el-select v-model="newCardForm.card_type_id" placeholder="请选择卡片类型" style="width: 100%">
+      <el-form-item :label="t('editor.cardType')">
+        <el-select v-model="newCardForm.card_type_id" :placeholder="t('editor.cardTypePlaceholder')" style="width: 100%">
           <el-option
             v-for="type in cardStore.cardTypes"
             :key="type.id"
-            :label="type.name"
+            :label="getCardTypeDisplayName(type.name)"
             :value="type.id"
           ></el-option>
         </el-select>
       </el-form-item>
-      <el-form-item label="父级卡片 (可选)">
+      <el-form-item :label="t('editor.parentCardOptional')">
                 <el-tree-select
            v-model="newCardForm.parent_id"
-           :data="cardTree"
+           :data="displayCardTree"
            :props="treeSelectProps"
            check-strictly
            :render-after-expand="false"
-           placeholder="选择父级卡片"
+           :placeholder="t('editor.parentCardPlaceholder')"
            clearable
            style="width: 100%"
          />
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="isCreateCardDialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="handleCreateCard">创建</el-button>
+      <el-button @click="isCreateCardDialogVisible = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" @click="handleCreateCard">{{ t('common.create') }}</el-button>
     </template>
   </el-dialog>
 
   <!-- 导入卡片对话框 -->
-  <el-dialog v-model="importDialog.visible" title="导入卡片" width="900px" class="nf-import-dialog">
+  <el-dialog v-model="importDialog.visible" :title="t('editor.importCards')" width="900px" class="nf-import-dialog">
     <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px; flex-wrap: wrap;">
-      <el-select v-model="importDialog.sourcePid" placeholder="来源项目" style="width:220px" @change="onImportSourceChange($event as any)">
+      <el-select v-model="importDialog.sourcePid" :placeholder="t('editor.sourceProject')" style="width:220px" @change="onImportSourceChange($event as any)">
         <el-option v-for="p in importDialog.projects" :key="p.id" :label="p.name" :value="p.id" />
       </el-select>
-      <el-input v-model="importDialog.search" placeholder="搜索来源卡片标题..." clearable style="flex:1; min-width: 200px" />
-      <el-select v-model="importFilter.types" multiple collapse-tags placeholder="类型筛选" style="min-width:220px;" :max-collapse-tags="2">
-        <el-option v-for="t in cardStore.cardTypes" :key="t.id" :label="t.name" :value="t.id!" />
+      <el-input v-model="importDialog.search" :placeholder="t('editor.searchSourceCards')" clearable style="flex:1; min-width: 200px" />
+      <el-select v-model="importFilter.types" multiple collapse-tags :placeholder="t('editor.filterTypes')" style="min-width:220px;" :max-collapse-tags="2">
+        <el-option v-for="t in cardStore.cardTypes" :key="t.id" :label="getCardTypeDisplayName(t.name)" :value="t.id!" />
       </el-select>
       <el-tree-select
         v-model="importDialog.parentId"
-        :data="cardTree"
+        :data="displayCardTree"
         :props="treeSelectProps"
         check-strictly
         :render-after-expand="false"
-        placeholder="目标父级 (可选)"
+        :placeholder="t('editor.targetParentOptional')"
         clearable
         popper-class="nf-tree-select-popper"
         style="width: 300px"
@@ -322,17 +328,19 @@
     </div>
     <el-table :data="filteredImportCards" height="360px" border @selection-change="onImportSelectionChange">
       <el-table-column type="selection" width="48" />
-      <el-table-column label="标题" prop="title" min-width="220" />
-      <el-table-column label="类型" min-width="160">
-        <template #default="{ row }">{{ row.card_type?.name }}</template>
+      <el-table-column :label="t('editor.titleColumn')" min-width="220">
+        <template #default="{ row }">{{ getCardDisplayTitle(row.title) }}</template>
       </el-table-column>
-      <el-table-column label="创建时间" min-width="160">
+      <el-table-column :label="t('editor.typeColumn')" min-width="160">
+        <template #default="{ row }">{{ getCardTypeDisplayName(row.card_type?.name || '') }}</template>
+      </el-table-column>
+      <el-table-column :label="t('editor.createdAtColumn')" min-width="160">
         <template #default="{ row }">{{ (row as any).created_at }}</template>
       </el-table-column>
     </el-table>
     <template #footer>
-      <el-button @click="importDialog.visible = false">取消</el-button>
-      <el-button type="primary" :disabled="!selectedImportIds.length" @click="confirmImportCards">导入所选</el-button>
+      <el-button @click="importDialog.visible = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :disabled="!selectedImportIds.length" @click="confirmImportCards">{{ t('editor.importSelected') }}</el-button>
     </template>
   </el-dialog>
 
@@ -355,6 +363,11 @@ import { storeToRefs } from 'pinia'
 import { Plus, Search, Upload, Download, Delete, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { debounce } from 'lodash-es'
+import { useI18n } from 'vue-i18n'
+import {
+  getCardDisplayTitle,
+  getCardTypeDisplayName,
+} from '@renderer/i18n'
 import { 
   Box,
   CollectionTag,
@@ -392,6 +405,7 @@ import type { AssistantRef, ChapterExcerptRef, ReviewResultRef } from '@renderer
  const CardEditorHost = defineAsyncComponent(() => import('@renderer/components/cards/CardEditorHost.vue'));
  const CardMarket = defineAsyncComponent(() => import('@renderer/components/cards/CardMarket.vue'));
  const CardExportDialog = defineAsyncComponent(() => import('@renderer/components/cards/CardExportDialog.vue'));
+ const { t } = useI18n()
 
 
  type Project = components['schemas']['ProjectRead']
@@ -428,16 +442,16 @@ async function openImportFreeCards() {
      selectedImportIds.value = []
      await onImportSourceChange(importDialog.value.sourcePid as any)
      importDialog.value.visible = true
-   } catch { ElMessage.error('加载来源项目失败') }
+   } catch { ElMessage.error(t('editor.sourceProjectsLoadError')) }
  }
 
 function openExportDialog() {
   if (!projectStore.currentProject?.id) {
-    ElMessage.warning('请先选择项目')
+    ElMessage.warning(t('editor.selectProjectFirst'))
     return
   }
   if ((cards.value || []).length === 0) {
-    ElMessage.warning('当前项目暂无可导出的卡片')
+    ElMessage.warning(t('editor.noCardsToExport'))
     return
   }
   exportDialogVisible.value = true
@@ -462,9 +476,9 @@ function openExportDialog() {
        await copyCard(id, { target_project_id: pid, parent_id: targetParent as any })
      }
      await cardStore.fetchCards(pid)
-     ElMessage.success('已导入所选卡片')
+     ElMessage.success(t('editor.importSuccess'))
      importDialog.value.visible = false
-   } catch { ElMessage.error('导入失败') }
+   } catch { ElMessage.error(t('editor.importError')) }
  }
 
  // Props
@@ -502,7 +516,7 @@ function openExportDialog() {
       // 统计子节点类型数量
       const byType: Record<string, any[]> = {}
       n.children.forEach((c: any) => {
-        const typeName = c.card_type?.name || '未知类型'
+        const typeName = c.card_type?.name || t('editor.unknownType')
         if (!byType[typeName]) byType[typeName] = []
         byType[typeName].push(c)
       })
@@ -540,6 +554,14 @@ function openExportDialog() {
 
 // 基于原始 cardTree 计算带分组的树
 const groupedTree = computed(() => buildGroupedNodes(cardTree.value as unknown as any[]))
+const displayCardTree = computed(() => {
+  const mapNodes = (nodes: any[]): any[] => nodes.map(node => ({
+    ...node,
+    title: getCardDisplayTitle(node.title || ''),
+    children: Array.isArray(node.children) ? mapNodes(node.children) : node.children,
+  }))
+  return mapNodes(cardTree.value as unknown as any[])
+})
 
 // Local State
 const activeTab = ref('market')
@@ -646,7 +668,7 @@ async function onCardsPaneDrop(e: DragEvent) {
    if (freeCardId) {
      await copyCard(Number(freeCardId), { target_project_id: projectStore.currentProject!.id, parent_id: null as any })
      await cardStore.fetchCards(projectStore.currentProject!.id)
-     ElMessage.success('已复制自由卡片到根目录')
+     ElMessage.success(t('editor.copyToRootSuccess'))
      return
    }
    // 注意：同项目内的卡片拖拽现在由 el-tree 的原生拖拽处理（handleNodeDrop）
@@ -662,19 +684,21 @@ async function onTypesPaneDrop(e: DragEvent) {
    // 读取该卡片的有效 schema
    const resp = await getCardSchema(cardId)
    const effective = resp?.effective_schema || resp?.json_schema
-   if (!effective) { ElMessage.warning('该卡片暂无可用结构，无法生成类型'); return }
+   if (!effective) { ElMessage.warning(t('editor.missingStructure')); return }
    // 默认名称：卡片标题或“新类型”
    const old = cards.value.find(c => (c as any).id === cardId)
    const defaultName = (old?.title || '新类型') as string
-   const { value } = await ElMessageBox.prompt('从该实例创建卡片类型，请输入类型名称：', '创建卡片类型', {
-     inputValue: defaultName,
-     confirmButtonText: '创建',
-     cancelButtonText: '取消',
-     inputValidator: (v:string) => v.trim().length > 0 || '名称不能为空'
+   const defaultDisplayName = getCardTypeDisplayName(getCardDisplayTitle(defaultName))
+   const { value } = await ElMessageBox.prompt(t('editor.createTypePrompt'), t('editor.createTypeTitle'), {
+     inputValue: defaultDisplayName,
+     confirmButtonText: t('common.create'),
+     cancelButtonText: t('common.cancel'),
+     inputValidator: (v:string) => v.trim().length > 0 || t('editor.nameRequired')
    })
-   const finalName = String(value).trim()
+   const enteredName = String(value).trim()
+   const finalName = enteredName === defaultDisplayName ? defaultName : enteredName
    await createCardType({ name: finalName, description: `${finalName}的默认卡片类型`, json_schema: effective } as any)
-   ElMessage.success('已从实例创建卡片类型')
+   ElMessage.success(t('editor.createTypeSuccess'))
    await cardStore.fetchCardTypes()
  } catch (err) {
    // 用户取消或错误忽略
@@ -725,7 +749,7 @@ async function handleNodeDrop(
         parent_id: null,
         display_order: maxOrder + 1
       }, { skipHooks: true })
-      ElMessage.success(`已将「${draggedCard.title}」移到根级`)
+      ElMessage.success(t('editor.movedToRoot', { title: getCardDisplayTitle(draggedCard.title) }))
       await cardStore.fetchCards(projectStore.currentProject!.id)
       
       // 记录移动操作（包含层级变化信息）
@@ -752,7 +776,10 @@ async function handleNodeDrop(
         parent_id: targetCard.id,
         display_order: maxOrder + 1
       }, { skipHooks: true })
-      ElMessage.success(`已将「${draggedCard.title}」设为「${targetCard.title}」的子卡片`)
+      ElMessage.success(t('editor.movedAsChild', {
+        title: getCardDisplayTitle(draggedCard.title),
+        target: getCardDisplayTitle(targetCard.title),
+      }))
       await cardStore.fetchCards(projectStore.currentProject!.id)
       
       // 记录移动操作（包含层级变化信息）
@@ -818,7 +845,7 @@ async function handleNodeDrop(
       await batchReorderCards({ updates })
     }
     
-    ElMessage.success(`已调整「${draggedCard.title}」的位置`)
+    ElMessage.success(t('editor.moved', { title: getCardDisplayTitle(draggedCard.title) }))
     await cardStore.fetchCards(projectStore.currentProject!.id)
     
     // 记录移动操作（包含位置和父级信息）
@@ -831,10 +858,10 @@ async function handleNodeDrop(
       // 优化：创建 Map 避免多次 find（仅在父级变化时）
       const cardMap = new Map(cards.value.map(c => [(c as any).id, c.title]))
       const oldParentName = draggedCard.parent_id 
-        ? cardMap.get(draggedCard.parent_id) || '未知' 
+        ? cardMap.get(draggedCard.parent_id) || '未知'
         : '根目录'
       const newParentName = newParentId 
-        ? cardMap.get(newParentId) || '未知' 
+        ? cardMap.get(newParentId) || '未知'
         : '根目录'
       moveDetail += ` (从「${oldParentName}」移到「${newParentName}」)`
     }
@@ -852,7 +879,7 @@ async function handleNodeDrop(
     
   } catch (err: any) {
     console.error('拖拽失败:', err)
-    ElMessage.error(err?.message || '拖拽失败')
+    ElMessage.error(err?.message || t('editor.dragError'))
     // 刷新以恢复状态
     await cardStore.fetchCards(projectStore.currentProject!.id)
     // 即使失败也更新结构
@@ -900,7 +927,7 @@ async function onExternalDropToNode(e: DragEvent, nodeData: any) {
      if (nodeData?.__isGroup) return
      await copyCard(Number(freeCardId), { target_project_id: projectStore.currentProject!.id, parent_id: Number(nodeData?.id) })
      await cardStore.fetchCards(projectStore.currentProject!.id)
-     ElMessage.success('已复制自由卡片到该节点下')
+     ElMessage.success(t('editor.copyToNodeSuccess'))
      return
    }
  } catch (err) {
@@ -1011,14 +1038,14 @@ function isCardSelected(cardId: number): boolean {
 // 批量删除卡片
 async function batchDeleteCards() {
   if (selectedCardIds.value.length === 0) {
-    ElMessage.warning('请先选择要删除的卡片')
+    ElMessage.warning(t('editor.selectCardsToDelete'))
     return
   }
   
   try {
     await ElMessageBox.confirm(
-      `确认删除选中的 ${selectedCardIds.value.length} 个卡片？此操作不可恢复`,
-      '批量删除确认',
+      t('editor.batchDeleteConfirm', { count: selectedCardIds.value.length }),
+      t('editor.batchDeleteTitle'),
       { type: 'warning' }
     )
     
@@ -1074,7 +1101,7 @@ async function batchDeleteCards() {
         successCount++
       } catch (error: any) {
         console.error(`删除卡片 ${cardId} 失败:`, error)
-        ElMessage.error(`删除卡片失败: ${error.message || '未知错误'}`)
+        ElMessage.error(t('editor.deleteError', { error: error.message || t('errors.unknown') }))
       }
     }
     
@@ -1094,7 +1121,7 @@ async function batchDeleteCards() {
     selectedCardIds.value = []
     lastSelectedCardId.value = null
     
-    ElMessage.success(`已删除 ${selectedCardIds.value.length || deletedCards.length} 个卡片`)
+    ElMessage.success(t('editor.deletedCount', { count: selectedCardIds.value.length || deletedCards.length }))
   } catch (e) {
     // 用户取消
   }
@@ -1196,7 +1223,7 @@ function handleEditCard(cardId: number) {
 
 async function handleCreateCard() {
   if (!newCardForm.title || !newCardForm.card_type_id) {
-    ElMessage.warning('请填写卡片标题和类型');
+    ElMessage.warning(t('editor.requiredCardFields'));
     return;
   }
   const payload: any = {
@@ -1293,13 +1320,17 @@ function handleContextCommand(command: string, data: any) {
         cardTitle: title,
         content,
       }, 'manual')
-      ElMessage.success('已添加为引用')
+      ElMessage.success(t('editor.referenceAdded'))
     } catch {}
   }
 }
 
 function openCardSchemaStudio(card: any) {
-  schemaStudio.value = { visible: true, cardId: card.id, cardTitle: card.title || '' }
+  schemaStudio.value = {
+    visible: true,
+    cardId: card.id,
+    cardTitle: getCardDisplayTitle(card.title || ''),
+  }
 }
 
 const schemaStudio = ref<{ visible: boolean; cardId: number; cardTitle: string }>({ visible: false, cardId: 0, cardTitle: '' })
@@ -1359,7 +1390,11 @@ function onSidebarContextMenu(e: MouseEvent) {
 // 删除卡片（确认）
 async function deleteNode(cardId: number, title: string) {
   try {
-    await ElMessageBox.confirm(`确认删除卡片「${title}」？此操作不可恢复`, '删除确认', { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('editor.deleteConfirm', { title: getCardDisplayTitle(title) }),
+      t('editor.deleteConfirmTitle'),
+      { type: 'warning' },
+    )
     
     //  删除前记录卡片信息
     const card = cards.value.find(c => (c as any).id === cardId)
@@ -1372,7 +1407,7 @@ async function deleteNode(cardId: number, title: string) {
     
     try {
       await cardStore.removeCard(cardId)
-      ElMessage.success('卡片已删除')
+      ElMessage.success(t('editor.deleteSuccess'))
       
       //  记录删除操作
       if (projectStore.currentProject?.id) {
@@ -1385,7 +1420,7 @@ async function deleteNode(cardId: number, title: string) {
       }
     } catch (error: any) {
       console.error('删除卡片失败:', error)
-      ElMessage.error('删除卡片失败')
+      ElMessage.error(t('editor.deleteGenericError'))
     }
   } catch (e) {
     // 用户取消
@@ -1394,8 +1429,12 @@ async function deleteNode(cardId: number, title: string) {
 
 async function deleteGroupNodes(groupData: any) {
   try {
-    const title = groupData?.title || groupData?.__groupType || '该分组'
-    await ElMessageBox.confirm(`确认删除${title}下的所有卡片？此操作不可恢复`, '删除确认', { type: 'warning' })
+    const title = groupData?.title || groupData?.__groupType || t('editor.thisGroup')
+    await ElMessageBox.confirm(
+      t('editor.deleteGroupConfirm', { title: getCardTypeDisplayName(title) }),
+      t('editor.deleteConfirmTitle'),
+      { type: 'warning' },
+    )
     const directChildren: any[] = Array.isArray(groupData?.children) ? groupData.children : []
     const toDeleteOrdered: number[] = []
 
@@ -1425,15 +1464,16 @@ async function deleteGroupNodes(groupData: any) {
 // 重命名功能
 async function renameCard(cardId: number, oldTitle: string) {
   try {
-    const { value } = await ElMessageBox.prompt('重命名会立即生效，请输入新名称：', '重命名', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      inputValue: oldTitle,
-      inputPlaceholder: '请输入卡片标题',
-      inputValidator: (v:string) => v.trim().length > 0 || '标题不能为空'
+    const oldDisplayTitle = getCardDisplayTitle(oldTitle)
+    const { value } = await ElMessageBox.prompt(t('editor.renamePrompt'), t('editor.renameTitle'), {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+      inputValue: oldDisplayTitle,
+      inputPlaceholder: t('editor.cardTitleInput'),
+      inputValidator: (v:string) => v.trim().length > 0 || t('editor.cardTitleRequired')
     })
     const newTitle = String(value).trim()
-    if (newTitle === oldTitle) return
+    if (newTitle === oldDisplayTitle) return
     // 默认仅更新外壳 card.title
     const card = (cards.value || []).find((c: any) => c.id === cardId) as any
     const payload: any = { title: newTitle }
@@ -1446,7 +1486,7 @@ async function renameCard(cardId: number, oldTitle: string) {
       payload.content = content
     }
     await cardStore.modifyCard(cardId, payload)
-    ElMessage.success('已重命名')
+    ElMessage.success(t('editor.renameSuccess'))
   } catch {
     // 用户取消或失败
   }
@@ -1630,7 +1670,7 @@ const assistantFinalize = async (summary: string) => {
     if (!card) return
     const evt = new CustomEvent('nf:assistant-finalize', { detail: { cardId: card.id, summary } })
     window.dispatchEvent(evt)
-    ElMessage.success('已发送定稿要点到编辑器页')
+    ElMessage.success(t('editor.finalizeSent'))
   } catch {}
 }
 
@@ -1669,8 +1709,8 @@ async function onAssistantFinalize(e: CustomEvent) {
     const llmId = assistantParams.value.llm_config_id
     const promptName = (assistantParams.value.prompt_name || '内容生成') as string
     const schema = assistantEffectiveSchema.value
-    if (!llmId) { ElMessage.warning('请先为该卡片选择模型'); return }
-    if (!schema) { ElMessage.warning('未获取到有效 Schema，无法定稿'); return }
+    if (!llmId) { ElMessage.warning(t('editor.selectModelFirst')); return }
+    if (!schema) { ElMessage.warning(t('editor.schemaUnavailable')); return }
     // 组装定稿输入：上下文 + 定稿要点
     const ctx = (assistantResolvedContext.value || '').trim()
     const inputText = [ctx ? `【上下文】\n${ctx}` : '', summary ? `【定稿要点】\n${summary}` : ''].filter(Boolean).join('\n\n')
@@ -1685,12 +1725,12 @@ async function onAssistantFinalize(e: CustomEvent) {
     } as any)
     if (result) {
       await cardStore.modifyCard(card.id, { content: result as any })
-      ElMessage.success('已根据要点生成并写回该卡片')
+      ElMessage.success(t('editor.finalizeSuccess'))
     } else {
-      ElMessage.error('定稿生成失败：无返回内容')
+      ElMessage.error(t('editor.finalizeEmpty'))
     }
   } catch (err) {
-    ElMessage.error('定稿生成失败')
+    ElMessage.error(t('editor.finalizeError'))
     console.error(err)
   }
 }

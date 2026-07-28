@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     :model-value="modelValue"
-    title="引用卡片/上下文"
+    :title="t('referenceSelector.title')"
     width="84%"
     @update:modelValue="$emit('update:modelValue', $event)"
     @close="reset"
@@ -9,16 +9,16 @@
     <div class="selector-container">
       <!-- 左列：模式选择 + 列表区 -->
       <div class="column left">
-        <h3>1. 选择引用方式</h3>
+        <h3>{{ t('referenceSelector.selectMode') }}</h3>
         <el-radio-group v-model="mode" size="small">
-          <el-radio-button label="title">按标题</el-radio-button>
-          <el-radio-button label="type">按类型</el-radio-button>
-          <el-radio-button label="special">特殊</el-radio-button>
+          <el-radio-button label="title">{{ t('referenceSelector.byTitle') }}</el-radio-button>
+          <el-radio-button label="type">{{ t('referenceSelector.byType') }}</el-radio-button>
+          <el-radio-button label="special">{{ t('referenceSelector.special') }}</el-radio-button>
         </el-radio-group>
 
         <!-- 按标题模式：原有卡片列表 -->
         <template v-if="mode === 'title'">
-          <el-input v-model="cardSearch" placeholder="搜索卡片..." clearable class="mt8" />
+          <el-input v-model="cardSearch" :placeholder="t('editor.searchCards')" clearable class="mt8" />
           <el-scrollbar class="list-container">
             <ul class="card-list">
               <li
@@ -27,7 +27,7 @@
                 :class="{ selected: selectedKard?.id === card.id }"
                 @click="handleCardSelect(card)"
               >
-                {{ card.title }}
+                {{ getCardDisplayTitle(card.title) }}
               </li>
             </ul>
           </el-scrollbar>
@@ -36,68 +36,68 @@
         <!-- 按类型模式：类型选择 + 过滤方式（previous/sibling/first/last/index） + index 表达式 -->
         <template v-else-if="mode === 'type'">
           <div class="mt8">
-            <el-select v-model="selectedTypeName" placeholder="选择卡片类型" style="width: 100%" @change="handleTypeChange">
-              <el-option v-for="t in cardTypeNames" :key="t" :label="t" :value="t" />
+            <el-select v-model="selectedTypeName" :placeholder="t('editor.cardTypePlaceholder')" style="width: 100%" @change="handleTypeChange">
+              <el-option v-for="t in cardTypeNames" :key="t" :label="getCardTypeDisplayName(t)" :value="t" />
             </el-select>
           </div>
           <div class="mt8">
             <el-radio-group v-model="typeFilterMode" size="small">
-              <el-radio-button label="first" :title="filterTips.first">first</el-radio-button>
-              <el-radio-button label="last" :title="filterTips.last">last</el-radio-button>
-              <el-radio-button label="previous" :title="filterTips.previous">previous</el-radio-button>
-              <el-radio-button label="sibling" :title="filterTips.sibling" :disabled="!hasParent">sibling</el-radio-button>
-              <el-radio-button label="index" :title="filterTips.index">index</el-radio-button>
+              <el-radio-button label="first" :title="filterTips.first">{{ t('referenceSelector.first') }}</el-radio-button>
+              <el-radio-button label="last" :title="filterTips.last">{{ t('referenceSelector.last') }}</el-radio-button>
+              <el-radio-button label="previous" :title="filterTips.previous">{{ t('referenceSelector.previous') }}</el-radio-button>
+              <el-radio-button label="sibling" :title="filterTips.sibling" :disabled="!hasParent">{{ t('referenceSelector.sibling') }}</el-radio-button>
+              <el-radio-button label="index" :title="filterTips.index">{{ t('referenceSelector.index') }}</el-radio-button>
             </el-radio-group>
           </div>
           <div class="mt8" v-if="typeFilterMode === 'previous'">
             <el-radio-group v-model="previousMode" size="small">
-              <el-radio-button label="global" :title="previousModeTips.global">全局</el-radio-button>
-              <el-radio-button label="local" :title="previousModeTips.local" :disabled="!hasParent">局部</el-radio-button>
+              <el-radio-button label="global" :title="previousModeTips.global">{{ t('referenceSelector.global') }}</el-radio-button>
+              <el-radio-button label="local" :title="previousModeTips.local" :disabled="!hasParent">{{ t('referenceSelector.local') }}</el-radio-button>
             </el-radio-group>
           </div>
           <div class="mt8" v-if="typeFilterMode === 'previous' && previousMode === 'global'">
-            <el-input v-model="previousCount" placeholder="可选：输入数字限制返回最近 n 个，留空=全部" />
+            <el-input v-model="previousCount" :placeholder="t('referenceSelector.previousCount')" />
           </div>
           <div class="mt8" v-if="typeFilterMode === 'index'">
-            <el-input v-model="indexExpr" placeholder="index= 的表达式，例如 1 / last / $current.volumeNumber-1 / $self.content.volume_number-1 / filter:content.name in $self.content.entity_list" />
+            <el-input v-model="indexExpr" :placeholder="t('referenceSelector.indexExpression')" />
             <div class="mt8">
-              <el-checkbox v-model="advMode">高级模式</el-checkbox>
+              <el-checkbox v-model="advMode">{{ t('referenceSelector.advanced') }}</el-checkbox>
             </div>
             <div class="mt8 adv-grid" v-if="advMode">
               <div class="cond-list">
                 <div class="cond-item" v-for="(c, idx) in advConds" :key="idx">
-                  <el-select v-model="c.field" placeholder="选择字段" style="width: 45%">
+                  <el-select v-model="c.field" :placeholder="t('referenceSelector.selectField')" style="width: 45%">
                     <el-option v-for="fp in flatFieldList" :key="fp.path" :label="fp.label + ' ('+fp.path+')'" :value="fp.path" />
                   </el-select>
-                  <el-select v-model="c.op" placeholder="操作符" style="width: 12%">
+                  <el-select v-model="c.op" :placeholder="t('referenceSelector.operator')" style="width: 12%">
                     <el-option label="=" value="=" />
                     <el-option label="in" value="in" />
                     <el-option label="<" value="<" />
                     <el-option label=">" value=">" />
                   </el-select>
-                  <el-input v-model="c.rhs" placeholder='右值：$self./$parent./$current. 或 JSON/字面量' style="width: 40%" />
-                  <el-button text type="danger" @click="removeCond(idx)">删除</el-button>
+                  <el-input v-model="c.rhs" :placeholder="t('referenceSelector.rightValue')" style="width: 40%" />
+                  <el-button text type="danger" @click="removeCond(idx)">{{ t('common.delete') }}</el-button>
                 </div>
                 <div class="mt8">
-                  <el-button size="small" @click="addCond">添加条件</el-button>
+                  <el-button size="small" @click="addCond">{{ t('referenceSelector.addCondition') }}</el-button>
                 </div>
               </div>
             </div>
-            <div class="hint" v-if="advMode">将生成：index=filter:{{ advCondPreview }}</div>
+            <div class="hint" v-if="advMode">{{ t('referenceSelector.generatedExpression') }}: index=filter:{{ advCondPreview }}</div>
           </div>
         </template>
 
         <!-- 特殊模式：self / parent / stage:current -->
         <template v-else>
           <div class="mt8">
-            <el-select v-model="specialKey" placeholder="选择特殊引用" style="width: 100%">
-              <el-option label="self（当前卡片）" value="self" />
-              <el-option label="parent（父卡片）" value="parent" :disabled="!hasParent" />
-              <el-option label="stage:current（当前阶段）" value="stage:current" />
+            <el-select v-model="specialKey" :placeholder="t('referenceSelector.selectSpecial')" style="width: 100%">
+              <el-option :label="t('referenceSelector.self')" value="self" />
+              <el-option :label="t('referenceSelector.parent')" value="parent" :disabled="!hasParent" />
+              <el-option :label="t('referenceSelector.currentStage')" value="stage:current" />
             </el-select>
           </div>
           <div class="mt8" v-if="specialKey === 'self' || specialKey === 'stage:current'">
-            <el-input v-model="specialPath" placeholder="可选：在此输入字段路径，如 content.volume_number" />
+            <el-input v-model="specialPath" :placeholder="t('referenceSelector.specialPath')" />
           </div>
         </template>
       </div>
@@ -105,9 +105,9 @@
       <!-- 右列：字段树 -->
       <div class="column">
         <div class="row-head">
-          <h3>2. 选择字段（可选）</h3>
+          <h3>{{ t('referenceSelector.selectFields') }}</h3>
           <div class="right-tools">
-            <el-checkbox v-model="multiMode">多选字段</el-checkbox>
+            <el-checkbox v-model="multiMode">{{ t('referenceSelector.multipleFields') }}</el-checkbox>
           </div>
         </div>
         <el-tree
@@ -123,7 +123,7 @@
           highlight-current
         />
         <div v-else class="empty-state">
-          <p>在此选择要追加的字段路径（可选）。</p>
+          <p>{{ t('referenceSelector.fieldHint') }}</p>
         </div>
       </div>
     </div>
@@ -132,12 +132,12 @@
     <template #footer>
       <div class="footer-container">
         <span class="selection-preview">
-          预览: <strong>{{ selectionPreview }}</strong>
+          {{ t('referenceSelector.preview') }}: <strong>{{ selectionPreview }}</strong>
         </span>
         <span class="dialog-footer">
-          <el-button @click="$emit('update:modelValue', false)">取消</el-button>
+          <el-button @click="$emit('update:modelValue', false)">{{ t('common.cancel') }}</el-button>
           <el-button type="primary" @click="handleConfirm" :disabled="!canConfirm">
-            确认
+            {{ t('common.confirm') }}
           </el-button>
         </span>
       </div>
@@ -147,10 +147,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { getCardDisplayTitle, getCardTypeDisplayName } from '@renderer/i18n'
 import type { CardRead } from '@renderer/api/cards'
 import { schemaService, type JSONSchema } from '@renderer/api/schema'
 import { getCardSchema } from '@renderer/api/setting'
 import { ElDialog, ElInput, ElScrollbar, ElTree, ElButton, ElRadioGroup, ElRadioButton, ElSelect, ElOption, ElCheckbox } from 'element-plus'
+
+const { t } = useI18n()
 
 interface FieldPath {
   label: string
@@ -181,16 +185,16 @@ const indexExpr = ref<string>('1')
 const previousCount = ref<string>('')
 
 const filterTips = {
-  first: '全局稳定排序中的第一个同类型卡片',
-  last: '全局稳定排序中的最后一个同类型卡片',
-  previous: '选择 previous 模式：全局/局部',
-  sibling: '与当前卡片同一父卡片下的同类型兄弟卡片（返回数组）',
-  index: '按表达式选择单个卡片：1、-1、$current.volumeNumber-1、$self.content.volume_number+1 等'
+  first: t('referenceSelector.firstTip'),
+  last: t('referenceSelector.lastTip'),
+  previous: t('referenceSelector.previousTip'),
+  sibling: t('referenceSelector.siblingTip'),
+  index: t('referenceSelector.indexTip')
 }
 
 const previousModeTips = {
-  global: '全局：树形先序顺序中，当前卡片之前的所有同类型卡片',
-  local: '局部：同一父卡片下，当前卡片之前的同类型兄弟卡片'
+  global: t('referenceSelector.globalTip'),
+  local: t('referenceSelector.localTip')
 }
 
 // 特殊
@@ -221,7 +225,9 @@ const flatFieldList = computed(() => {
 })
 
 // 过滤卡片（按标题）
-const filteredCards = computed(() => props.cards.filter(card => card.title.toLowerCase().includes(cardSearch.value.toLowerCase())))
+const filteredCards = computed(() => props.cards.filter(card => (
+  getCardDisplayTitle(card.title).toLowerCase().includes(cardSearch.value.toLowerCase())
+)))
 
 // 所有类型名
 const cardTypeNames = computed(() => Array.from(new Set(props.cards.map(c => c.card_type?.name).filter(Boolean) as string[])))
@@ -516,4 +522,4 @@ function handleConfirm() {
 .cond-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .cond-item { display: flex; gap: 8px; align-items: center; }
 .hint { margin-top: 6px; font-size: 12px; color: var(--el-text-color-secondary); }
-</style> 
+</style>

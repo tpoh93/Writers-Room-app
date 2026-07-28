@@ -7,7 +7,7 @@
     </template>
 
     <div v-if="!modelValue || modelValue.length === 0" class="empty-state">
-      <p>暂无项目</p>
+      <p>{{ t('dynamicForm.noItems') }}</p>
     </div>
 
     <div v-for="(item, index) in modelValue" :key="index" class="array-item">
@@ -16,7 +16,7 @@
         <component
           v-if="isSimpleTypeForIndex(index)"
           :is="getSimpleFieldComponentForIndex(index)"
-          :label="`项目 ${index + 1}`"
+          :label="t('dynamicForm.itemNumber', { number: index + 1 })"
           :prop="String(index)"
           :schema="getItemSchemaForIndex(index)"
           :model-value="item"
@@ -25,7 +25,7 @@
         <!-- 对于元组类型（array + prefixItems/anyOf），使用 TupleField 渲染每个元素 -->
         <TupleField
           v-else-if="isTupleTypeForIndex(index)"
-          :label="`项目 ${index + 1}`"
+          :label="t('dynamicForm.itemNumber', { number: index + 1 })"
           :prop="String(index)"
           :schema="getItemSchemaForIndex(index)"
           :model-value="item"
@@ -52,16 +52,19 @@
       </div>
     </div>
     <el-button type="primary" :icon="Plus" plain @click="addItem" class="add-button">
-      添加 {{ (displayNameMap && displayNameMap[itemSchema.title || '']) || itemSchema.title || '新项目' }}
+      {{ t('dynamicForm.addItem', { item: (displayNameMap && displayNameMap[itemSchema.title || '']) || itemSchema.title || t('dynamicForm.newItem') }) }}
     </el-button>
   </el-card>
 </template>
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { JSONSchema } from '@renderer/api/schema'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import { resolveActualSchema } from '@renderer/services/schemaFieldParser'
+
+const { t } = useI18n()
 
 const ModelDrivenForm = defineAsyncComponent(() => import('../ModelDrivenForm.vue'))
 const StringField = defineAsyncComponent(() => import('./StringField.vue'))
@@ -91,7 +94,7 @@ const itemSchema = computed((): JSONSchema => {
   if (props.schema.items) {
     return resolveActualSchema(props.schema.items, props.schema)
   }
-  return { type: 'string', title: '项目' }
+  return { type: 'string', title: t('dynamicForm.item') }
 })
 
 function getItemSchemaForIndex(index: number): JSONSchema {

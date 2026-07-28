@@ -6,8 +6,10 @@ import { useAppStore } from '@renderer/stores/useAppStore'
 import { useProjectStore } from '@renderer/stores/useProjectStore'
 import { useUpdateStore } from '@renderer/stores/useUpdateStore'
 import KnowledgeManager from '../setting/KnowledgeManager.vue'
+import { useI18n } from 'vue-i18n'
 
 const appStore = useAppStore()
+const { t } = useI18n()
 const projectStore = useProjectStore()
 const updateStore = useUpdateStore()
 const { currentView, isDarkMode } = storeToRefs(appStore)
@@ -46,17 +48,17 @@ function openIdeasWorkbench() {
 <template>
   <header class="app-header">
     <div class="logo-container" @click="handleLogoClick" :class="{ clickable: isLogoClickable }">
-      <span class="logo-text">Novel Forge</span>
+      <span class="logo-text">NovelForge</span>
     </div>
     <div class="actions-container">
-      <el-button type="primary" title="灵感工作台" @click="openIdeasWorkbench">
+      <el-button type="primary" :title="t('accessibility.openIdeas')" @click="openIdeasWorkbench">
         <el-icon><Document /></el-icon>
-        <span style="margin-left:6px;">灵感</span>
+        <span style="margin-left:6px;">{{ t('header.ideas') }}</span>
       </el-button>
-      <el-button type="primary" plain title="工作流" @click="openWorkflowManager">工作流</el-button>
-      <el-button :icon="isDarkMode ? Moon : Sunny" @click="toggleTheme" circle title="切换主题" />
+      <el-button type="primary" plain :title="t('accessibility.openWorkflows')" @click="openWorkflowManager">{{ t('header.workflows') }}</el-button>
+      <el-button :icon="isDarkMode ? Moon : Sunny" @click="toggleTheme" circle :title="t('accessibility.toggleTheme')" />
       <el-badge :is-dot="updateStore.hasUpdate" type="warning">
-        <el-button :icon="Setting" @click="openSettingsDialog" circle title="设置" />
+        <el-button :icon="Setting" @click="openSettingsDialog" circle :title="t('accessibility.openSettings')" />
       </el-badge>
     </div>
   </header>
@@ -93,4 +95,4 @@ function openIdeasWorkbench() {
   display: flex;
   gap: 15px;
 }
-</style> 
+</style>

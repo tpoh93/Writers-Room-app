@@ -10,6 +10,7 @@
           'is-selected': selectedIndex === index,
           'is-disabled': node.disabled
         }"
+        :data-disabled-label="t('workflow.disabledLabel')"
         @click="selectNode(index)"
         @dblclick="editNodeCode(index)"
       >
@@ -21,7 +22,7 @@
             </el-tag>
             <!-- 异步标识 -->
             <el-tag v-if="node.isAsync" type="warning" size="small" effect="dark">
-              ⚡ 异步
+              ⚡ {{ t('workflow.async') }}
             </el-tag>
             <!-- 变量名编辑 -->
             <el-input
@@ -38,14 +39,14 @@
               v-else
               class="node-variable editable"
               @click.stop="startVariableEdit(index, node.variable)"
-              :title="点击编辑变量名"
+              :title="t('workflow.editVariable')"
             >
               {{ node.variable }}
             </span>
             <span class="node-type">{{ node.nodeType }}</span>
           </div>
           <div class="node-actions">
-            <el-tooltip :content="node.isAsync ? '切换为同步' : '切换为异步'" placement="top">
+            <el-tooltip :content="node.isAsync ? t('workflow.switchToSync') : t('workflow.switchToAsync')" placement="top">
               <el-button
                 size="small"
                 text
@@ -57,7 +58,7 @@
                 </template>
               </el-button>
             </el-tooltip>
-            <el-tooltip :content="node.disabled ? '启用节点' : '禁用节点'" placement="top">
+            <el-tooltip :content="node.disabled ? t('workflow.enableNode') : t('workflow.disableNode')" placement="top">
               <el-switch
                 v-model="node.disabled"
                 @change="toggleNodeDisabled(index)"
@@ -70,7 +71,7 @@
                 @click.stop
               />
             </el-tooltip>
-            <el-tooltip content="删除节点" placement="top">
+            <el-tooltip :content="t('workflow.deleteNode')" placement="top">
               <el-button
                 size="small"
                 text
@@ -83,13 +84,13 @@
         </div>
 
         <div v-if="node.description" class="node-description" @click.stop>
-          {{ node.description }}
+          {{ getNodeDescription(node) }}
         </div>
 
         <!-- 节点参数编辑器 -->
         <div class="node-params" v-if="node.fields && node.fields.length > 0">
           <div class="params-header">
-            <div class="params-title">参数</div>
+            <div class="params-title">{{ t('workflow.parameters') }}</div>
             <el-button
               text
               size="small"
@@ -113,7 +114,7 @@
                   filterable
                   :allow-create="field.name === 'project_name'"
                   :default-first-option="field.name === 'project_name'"
-                  placeholder="选择项目"
+                  :placeholder="t('editor.selectProjectFirst')"
                   size="small"
                   @change="saveParamEdit"
                 >
@@ -132,7 +133,7 @@
                   filterable
                   :allow-create="field.name === 'llm_name'"
                   :default-first-option="field.name === 'llm_name'"
-                  placeholder="选择LLM配置"
+                  :placeholder="t('workflow.selectLlmConfig')"
                   size="small"
                   @change="saveParamEdit"
                 >
@@ -149,7 +150,7 @@
                   v-else-if="field.rawSchema?.['x-component'] === 'PromptSelect'"
                   v-model="editingParam.value"
                   filterable
-                  placeholder="选择提示词"
+                  :placeholder="t('settings.selectPrompt')"
                   size="small"
                   @change="saveParamEdit"
                 >
@@ -168,7 +169,7 @@
                   filterable
                   allow-create
                   default-first-option
-                  placeholder="卡片类型"
+                  :placeholder="t('editor.cardType')"
                   size="small"
                   @change="saveParamEdit"
                 >
@@ -185,11 +186,11 @@
                   v-else-if="field.rawSchema?.['x-component'] === 'ResponseModelSelect'"
                   v-model="editingParam.value"
                   filterable
-                  placeholder="选择响应模型"
+                  :placeholder="t('workflow.selectResponseModel')"
                   size="small"
                   @change="saveParamEdit"
                 >
-                  <el-option-group label="内置模型">
+                  <el-option-group :label="t('workflow.builtinModels')">
                     <el-option
                       v-for="model in builtinResponseModels"
                       :key="model"
@@ -197,7 +198,7 @@
                       :label="model"
                     />
                   </el-option-group>
-                  <el-option-group label="自定义卡片类型">
+                  <el-option-group :label="t('workflow.customCardTypes')">
                     <el-option
                       v-for="ct in cardTypeList"
                       :key="ct.id"
@@ -214,7 +215,7 @@
                   type="textarea"
                   :rows="4"
                   size="small"
-                  placeholder="输入内容"
+                  :placeholder="t('workflow.enterContent')"
                   @blur="saveParamEdit"
                 />
 
@@ -226,7 +227,7 @@
                   :rows="6"
                   size="small"
                   class="code-expression-input"
-                  placeholder="输入 Python 表达式"
+                  :placeholder="t('workflow.pythonExpression')"
                   @blur="saveParamEdit"
                   @keydown.ctrl.enter.stop="saveParamEdit"
                 />
@@ -238,16 +239,16 @@
                   filterable
                   multiple
                   collapse-tags
-                  placeholder="选择工具"
+                  :placeholder="t('workflow.selectTools')"
                   size="small"
                   @change="saveParamEdit"
                 >
-                  <el-option value="search_cards" label="搜索卡片" />
-                  <el-option value="create_card" label="创建卡片" />
-                  <el-option value="update_card" label="更新卡片" />
-                  <el-option value="delete_card" label="删除卡片" />
-                  <el-option value="get_card" label="获取卡片" />
-                  <el-option value="list_cards" label="列出卡片" />
+                  <el-option value="search_cards" :label="t('workflow.toolSearchCards')" />
+                  <el-option value="create_card" :label="t('workflow.toolCreateCard')" />
+                  <el-option value="update_card" :label="t('workflow.toolUpdateCard')" />
+                  <el-option value="delete_card" :label="t('workflow.toolDeleteCard')" />
+                  <el-option value="get_card" :label="t('workflow.toolGetCard')" />
+                  <el-option value="list_cards" :label="t('workflow.toolListCards')" />
                 </el-select>
 
                 <!-- Case 5: Boolean Switch -->
@@ -268,7 +269,7 @@
                     <el-input
                       v-model="editingParam.arrayItems[itemIndex]"
                       size="small"
-                      placeholder="输入值"
+                      :placeholder="t('workflow.enterValue')"
                       style="flex: 1;"
                     />
                     <el-button
@@ -284,14 +285,14 @@
                     :icon="Plus"
                     @click.stop="addArrayItem"
                   >
-                    添加项
+                    {{ t('workflow.addItem') }}
                   </el-button>
                   <el-button
                     size="small"
                     type="success"
                     @click.stop="saveParamEdit"
                   >
-                    保存
+                    {{ t('common.save') }}
                   </el-button>
                 </div>
                 
@@ -327,7 +328,7 @@
                 @click.stop="startParamEdit(index, fieldIndex)"
               >
                 {{ formatDisplayValue(field) }}
-                <el-tag v-if="field.required" size="small" type="danger" style="margin-left: 4px">必填</el-tag>
+                <el-tag v-if="field.required" size="small" type="danger" style="margin-left: 4px">{{ t('settings.required') }}</el-tag>
                 <!-- 智能选择器提示图标 -->
                 <el-icon v-if="isSmartSelectorField(field)" class="selector-icon">
                   <ArrowDown />
@@ -345,7 +346,7 @@
 
         <!-- 节点输出字段 -->
         <div class="node-outputs" v-if="node.outputs && node.outputs.length > 0">
-          <div class="outputs-title">输出字段</div>
+          <div class="outputs-title">{{ t('workflow.outputFields') }}</div>
           <div class="output-items">
             <el-tag
               v-for="output in node.outputs"
@@ -374,19 +375,19 @@
       <!-- 添加节点按钮 -->
       <div class="add-node-block" @click="showAddNodeDialog">
         <el-icon><Plus /></el-icon>
-        <span>添加节点</span>
+        <span>{{ t('workflow.addNode') }}</span>
       </div>
     </div>
 
     <!-- 添加节点对话框 -->
     <el-dialog
       v-model="addNodeDialogVisible"
-      title="添加节点"
+      :title="t('workflow.addNode')"
       width="600px"
     >
       <el-select
         v-model="selectedNodeType"
-        placeholder="选择节点类型"
+        :placeholder="t('workflow.selectNodeType')"
         filterable
         style="width: 100%; margin-bottom: 16px"
       >
@@ -411,13 +412,13 @@
 
       <el-input
         v-model="newNodeVariable"
-        placeholder="变量名，例如: project"
+        :placeholder="t('workflow.variablePlaceholder')"
         style="width: 100%"
       />
 
       <template #footer>
-        <el-button @click="addNodeDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="addNode">添加</el-button>
+        <el-button @click="addNodeDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="addNode">{{ t('common.add') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -425,6 +426,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Plus, Edit, Delete, Loading, CircleCheck, CircleClose, EditPen, Folder, ArrowDown, ArrowRight } from '@element-plus/icons-vue'
 import request from '@/api/request'
@@ -436,6 +438,9 @@ import { usePromptStore } from '@/stores/usePromptStore'
 import { useCardStore } from '@/stores/useCardStore'
 import { ParameterFormatter } from '@/utils/parameterFormatter'
 import { applyWorkflowPatch } from '@/api/workflowAgent'
+import { getWorkflowNodeDisplay } from '@renderer/i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: {
@@ -499,7 +504,8 @@ watch(() => props.revision, value => {
 // 按分类组织的节点类型
 const nodeTypesByCategory = computed(() => {
   const grouped = {}
-  nodeTypes.value.forEach(nodeType => {
+  nodeTypes.value.forEach(rawNodeType => {
+    const nodeType = getWorkflowNodeDisplay(rawNodeType, t)
     if (!grouped[nodeType.category]) {
       grouped[nodeType.category] = []
     }
@@ -507,6 +513,17 @@ const nodeTypesByCategory = computed(() => {
   })
   return grouped
 })
+
+function getNodeDescription(node) {
+  return getWorkflowNodeDisplay(
+    {
+      type: node.nodeType,
+      label: node.nodeType,
+      description: node.description,
+    },
+    t,
+  ).description
+}
 
 // 解析代码为节点块
 async function parseCodeToNodes(code) {
@@ -517,7 +534,7 @@ async function parseCodeToNodes(code) {
     const response = await request.post('/workflows/parse', { code }, '/api')
     
     if (!response.success || !response.statements) {
-      const errorMsg = response.errors?.join('; ') || '未知错误'
+      const errorMsg = response.errors?.join('; ') || t('errors.unknown')
       console.error('代码解析失败:', response.errors)
       throw new Error(errorMsg)
     }
@@ -971,12 +988,12 @@ async function applyCodeUpdateSafely(newCode, options = {}) {
           nodes.value = parsedNodes
           emitCodeUpdate(finalCode)
           if (!options.silent) {
-            ElMessage.warning('代码校验未通过：已暂存本地（未写回后端），请继续修改直至通过校验')
+            ElMessage.warning(t('workflow.codeStoredLocally'))
           }
           return true
         }
 
-        throw new Error(result?.error || '后端补丁应用失败')
+        throw new Error(result?.error || t('workflow.backendPatchError'))
       }
 
       const parsedNodes = await parseCodeToNodes(finalCode)
@@ -994,7 +1011,7 @@ async function applyCodeUpdateSafely(newCode, options = {}) {
   } catch (error) {
     console.error('[applyCodeUpdateSafely] 校验失败，拒绝写回:', error)
     if (!options.silent) {
-      ElMessage.error(`代码更新失败：${error?.message || error}`)
+      ElMessage.error(t('workflow.codeUpdateError', { error: error?.message || error }))
     }
     return false
   }
@@ -1032,11 +1049,11 @@ async function toggleNodeDisabled(index) {
   const applied = await applyCodeUpdateSafely(updateSingleNodeCode(node), { silent: true })
   if (!applied) {
     node.disabled = previousDisabledState
-    ElMessage.error('节点状态更新失败，已回滚')
+    ElMessage.error(t('workflow.nodeStateRollback'))
     return
   }
   
-  const message = targetDisabledState ? '节点已禁用' : '节点已启用'
+  const message = targetDisabledState ? t('workflow.nodeDisabled') : t('workflow.nodeEnabled')
   ElMessage.success(message)
 }
 
@@ -1056,11 +1073,11 @@ async function toggleAsync(index) {
   const applied = await applyCodeUpdateSafely(newCode, { silent: true })
   if (!applied) {
     node.isAsync = previousAsyncState
-    ElMessage.error('异步状态更新失败，已回滚')
+    ElMessage.error(t('workflow.asyncStateRollback'))
     return
   }
   
-  const message = targetAsyncState ? '已切换为异步节点' : '已切换为同步节点'
+  const message = targetAsyncState ? t('workflow.switchedToAsync') : t('workflow.switchedToSync')
   ElMessage.success(message)
 }
 
@@ -1074,7 +1091,7 @@ function showAddNodeDialog() {
 // 添加节点
 async function addNode() {
   if (!selectedNodeType.value || !newNodeVariable.value) {
-    ElMessage.warning('请选择节点类型并输入变量名')
+    ElMessage.warning(t('workflow.nodeTypeAndVariableRequired'))
     return
   }
 
@@ -1099,13 +1116,13 @@ ${newNodeVariable.value} = ${selectedNodeType.value}()
       emitCodeUpdate(finalCode)
       selectedIndex.value = nodes.value.length - 1
       emit('node-selected', nodes.value[selectedIndex.value])
-      ElMessage.success('节点已添加')
+      ElMessage.success(t('workflow.nodeAdded'))
     } else {
-      ElMessage.error('节点添加失败：代码解析失败')
+      ElMessage.error(t('workflow.nodeAddParseError'))
     }
   } catch (error) {
     console.error('[addNode] 添加节点失败:', error)
-    ElMessage.error(`节点添加失败：${error.message || error}`)
+    ElMessage.error(t('workflow.nodeAddError', { error: error.message || error }))
   }
 
   addNodeDialogVisible.value = false
@@ -1243,7 +1260,7 @@ async function saveParamEdit() {
   
   if (!node || !node.fields || !node.fields[fieldIndex]) {
     console.error('[saveParamEdit] 节点或字段不存在:', { nodeIndex, fieldIndex })
-    ElMessage.error('保存失败：节点数据异常')
+    ElMessage.error(t('workflow.nodeDataError'))
     editingParam.value = null
     return
   }
@@ -1286,11 +1303,11 @@ async function saveParamEdit() {
       const applied = await applyCodeUpdateSafely(allCode, { silent: true })
       if (!applied) {
         field.value = previousFieldValue
-        ElMessage.error('参数清除失败，已回滚')
+        ElMessage.error(t('workflow.parameterClearRollback'))
         editingParam.value = null
         return
       }
-      ElMessage.success('参数已清除')
+      ElMessage.success(t('workflow.parameterCleared'))
       
       editingParam.value = null
       return
@@ -1323,22 +1340,22 @@ async function saveParamEdit() {
     
     // 验证生成的代码是否有效
     if (!allCode || allCode.trim() === '') {
-      throw new Error('生成的代码为空')
+      throw new Error(t('workflow.generatedCodeEmpty'))
     }
     
     const applied = await applyCodeUpdateSafely(allCode, { silent: true })
     if (!applied) {
       field.value = previousFieldValue
-      ElMessage.error('参数更新失败，已回滚')
+      ElMessage.error(t('workflow.parameterUpdateRollback'))
       editingParam.value = null
       return
     }
-    ElMessage.success('参数已更新')
+    ElMessage.success(t('workflow.parameterUpdated'))
     
     editingParam.value = null
   } catch (error) {
     console.error('[saveParamEdit] 保存参数失败:', error)
-    ElMessage.error(`保存失败：${error.message}`)
+    ElMessage.error(t('settings.saveError') + ` ${error.message}`)
     editingParam.value = null
   }
 }
@@ -1366,7 +1383,7 @@ async function openFolderDialog() {
 function showAvailableParams(nodeIndex) {
   const node = nodes.value[nodeIndex]
   if (!node.fields || node.fields.length === 0) {
-    ElMessage.info('该节点没有可配置的参数')
+    ElMessage.info(t('workflow.noConfigurableParameters'))
     return
   }
   
@@ -1385,7 +1402,7 @@ function showAvailableParams(nodeIndex) {
 function formatParamValue(value) {
   // 处理空值
   if (value === undefined || value === null || value === '') {
-    return '(未设置)'
+    return t('editor.notSet')
   }
   
   // 转换为字符串
@@ -1414,9 +1431,9 @@ function getNodeCategoryColor(category) {
 // 获取状态文本
 function getStatusText(status) {
   const texts = {
-    'running': '运行中',
-    'completed': '已完成',
-    'error': '失败'
+    'running': t('workflow.running'),
+    'completed': t('workflow.completed'),
+    'error': t('workflow.failed')
   }
   return texts[status] || ''
 }
@@ -1466,7 +1483,7 @@ watch(() => props.modelValue, async (newCode, oldCode) => {
     // 解析失败时保持当前节点列表不变
     // 只有在非初始化时才显示错误提示（避免组件挂载时的错误提示）
     if (oldCode !== undefined) {
-      ElMessage.error(`代码解析失败：${error.message || error}`)
+      ElMessage.error(t('workflow.codeParseErrorWithDetail', { error: error.message || error }))
     }
   }
 }, { immediate: true })
@@ -1550,14 +1567,14 @@ async function saveVariableEdit() {
   
   // 验证变量名
   if (!newVariable) {
-    ElMessage.error('变量名不能为空')
+    ElMessage.error(t('workflow.variableRequired'))
     editingVariable.value = null
     return
   }
   
   // 验证变量名格式
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(newVariable)) {
-    ElMessage.error('变量名只能包含字母、数字、下划线，且不能以数字开头')
+    ElMessage.error(t('workflow.variableFormat'))
     editingVariable.value = null
     return
   }
@@ -1565,7 +1582,7 @@ async function saveVariableEdit() {
   // 检查是否与其他节点重名
   const isDuplicate = nodes.value.some((n, idx) => idx !== nodeIndex && n.variable === newVariable)
   if (isDuplicate) {
-    ElMessage.error(`变量名 "${newVariable}" 已被使用`)
+    ElMessage.error(t('workflow.variableExists', { name: newVariable }))
     editingVariable.value = null
     return
   }
@@ -1612,14 +1629,14 @@ async function saveVariableEdit() {
         console.error('[saveVariableEdit] 重新解析失败:', error)
       }
       
-      ElMessage.success(`变量名已更新：${originalValue} → ${newVariable}`)
+      ElMessage.success(t('workflow.variableUpdated', { from: originalValue, to: newVariable }))
     } else {
       console.error('[saveVariableEdit] 重命名失败:', response.error)
-      ElMessage.error(`重命名失败：${response.error || '未知错误'}`)
+      ElMessage.error(t('workflow.renameError', { error: response.error || t('errors.unknown') }))
     }
   } catch (error) {
     console.error('[saveVariableEdit] 重命名请求失败:', error)
-    ElMessage.error(`重命名失败：${error.message || error}`)
+    ElMessage.error(t('workflow.renameError', { error: error.message || error }))
   }
   
   editingVariable.value = null
@@ -1633,7 +1650,7 @@ function cancelVariableEdit() {
 // 格式化显示值（去掉引号和 $ 前缀）
 function formatDisplayValue(field) {
   if (ParameterFormatter.isEmpty(field.value)) {
-    return field.default || '(未设置)'
+    return field.default || t('editor.notSet')
   }
   
   // 使用 ParameterFormatter 解析显示值
@@ -1789,7 +1806,7 @@ onMounted(async () => {
 }
 
 .node-block.is-disabled::before {
-  content: '已禁用';
+  content: attr(data-disabled-label);
   position: absolute;
   top: 8px;
   right: 8px;

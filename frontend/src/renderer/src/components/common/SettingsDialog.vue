@@ -7,8 +7,10 @@ import CardTypeManager from '../setting/CardTypeManager.vue'
 import KnowledgeManager from '../setting/KnowledgeManager.vue'
 import AssistantSettings from '../setting/AssistantSettings.vue'
 import { useUpdateStore } from '@renderer/stores/useUpdateStore'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ modelValue: boolean }>()
+const { t } = useI18n()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean]; 'close': [] }>()
 
 const activeTab = ref('llm')
@@ -41,32 +43,32 @@ watch(() => props.modelValue, async (open) => { if (open) { await nextTick(); em
   <el-dialog 
     :model-value="modelValue" 
     @update:model-value="(val) => emit('update:modelValue', val)"
-    title="应用设置" 
+    :title="t('settings.title')"
     width="85%" 
     top="4vh"
     @close="handleClose"
   >
     <div class="settings-container">
       <el-tabs v-model="activeTab" tab-position="left" class="settings-tabs">
-        <el-tab-pane label="LLM 配置" name="llm">
+        <el-tab-pane :label="t('settings.llm')" name="llm">
           <LLMConfigManager ref="llmManagerRef" />
         </el-tab-pane>
-        <el-tab-pane label="知识库" name="knowledge">
+        <el-tab-pane :label="t('settings.knowledge')" name="knowledge">
           <KnowledgeManager />
         </el-tab-pane>
-        <el-tab-pane label="提示词工坊" name="prompts">
+        <el-tab-pane :label="t('settings.prompts')" name="prompts">
           <PromptWorkshop />
         </el-tab-pane>
-        <el-tab-pane label="卡片类型" name="card-types">
+        <el-tab-pane :label="t('settings.cardTypes')" name="card-types">
           <CardTypeManager />
         </el-tab-pane>
-        <el-tab-pane label="Agent 设置" name="assistant">
+        <el-tab-pane :label="t('settings.assistant')" name="assistant">
           <AssistantSettings />
         </el-tab-pane>
         <el-tab-pane name="about">
           <template #label>
             <el-badge :is-dot="updateStore.hasUpdate" type="warning">
-              <span>关于</span>
+              <span>{{ t('settings.about') }}</span>
             </el-badge>
           </template>
           <Versions />

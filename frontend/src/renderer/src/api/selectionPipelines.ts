@@ -1,5 +1,6 @@
 import request, { API_BASE_URL } from './request'
 import { listWorkflows } from './workflows'
+import i18n from '@renderer/i18n'
 
 export const THINKING_PORN_WORKFLOW_NAME = 'Thinking p*rn'
 
@@ -180,7 +181,7 @@ export function streamSelectionPipeline(
     } catch (error) {
       if (!closed) {
         handlers.onError?.(
-          error instanceof Error ? error.message : 'Failed to load pipeline outputs'
+          error instanceof Error ? error.message : i18n.global.t('selectionPipeline.outputsLoadError')
         )
       }
     } finally {
@@ -206,7 +207,7 @@ export function streamSelectionPipeline(
           if (step) handlers.onStepComplete?.(step, eventOutput(data))
           break
         case 'error': {
-          const message = String(data.error || data.message || 'Pipeline step failed')
+          const message = String(data.error || data.message || i18n.global.t('selectionPipeline.stepFailed'))
           if (step) handlers.onStepError?.(step, message)
           handlers.onError?.(message)
           break
@@ -218,14 +219,14 @@ export function streamSelectionPipeline(
       }
     } catch (error) {
       handlers.onError?.(
-        error instanceof Error ? error.message : 'Invalid pipeline event'
+        error instanceof Error ? error.message : i18n.global.t('selectionPipeline.invalidEvent')
       )
     }
   }
 
   source.onerror = () => {
     if (closed || finalized || source.readyState === EventSource.CLOSED) return
-    handlers.onError?.('SSE connection error')
+    handlers.onError?.(i18n.global.t('selectionPipeline.connectionError'))
     handlers.onEnd?.()
     close()
   }

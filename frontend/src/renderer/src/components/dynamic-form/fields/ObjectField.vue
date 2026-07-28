@@ -15,7 +15,10 @@
 
 <script setup lang="ts">
 import { defineAsyncComponent, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { JSONSchema } from '@renderer/api/schema'
+
+const { t } = useI18n()
 
 // 使用前向声明来处理递归组件。
 // 这在模块级别打破了循环依赖。
@@ -38,7 +41,7 @@ const effectiveSchema = computed<JSONSchema>(() => {
   if (dataKeys.length === 0) return sch
   const itemSchema: JSONSchema = {
     type: 'object',
-    title: 'Item',
+    title: t('dynamicForm.item'),
     properties: {
       id: { type: 'integer', title: 'id' },
       info: { type: 'string', title: 'info' }
@@ -58,4 +61,4 @@ const effectiveSchema = computed<JSONSchema>(() => {
   margin-bottom: 20px;
   background-color: var(--el-fill-color-lighter);
 }
-</style> 
+</style>

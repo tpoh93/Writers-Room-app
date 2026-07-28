@@ -4,60 +4,60 @@
       <template v-if="hasAny">
         <!-- 章节大纲 -->
         <template v-if="chapterOutline">
-          <h4 class="title">章节大纲</h4>
+          <h4 class="title">{{ t('outline.chapterOutline') }}</h4>
           <div class="section">
             <div class="stage-head">
-              <span class="name">第{{ chapterOutline.chapter_number || '-' }}章｜{{ chapterOutline.title || '未命名' }}</span>
-              <span class="badge">卷{{ volumeNumber ?? '-' }}</span>
+              <span class="name">{{ t('outline.chapterTitle', { number: chapterOutline.chapter_number || '-', title: chapterOutline.title || t('outline.unnamed') }) }}</span>
+              <span class="badge">{{ t('outline.volume', { number: volumeNumber ?? '-' }) }}</span>
             </div>
-            <p class="text">{{ chapterOutline.overview || '暂无概述' }}</p>
+            <p class="text">{{ chapterOutline.overview || t('outline.noOverview') }}</p>
           </div>
         </template>
 
         <!-- 当前阶段（推导或外部传入） -->
         <template v-if="stageNow">
-          <h4 class="title">当前阶段</h4>
+          <h4 class="title">{{ t('outline.currentStage') }}</h4>
           <div class="section">
             <div class="stage-head">
-              <span class="name">{{ stageNow.stage_name || `阶段${stageNow.stage_number || '-'}` }}</span>
-              <span v-if="Array.isArray(stageNow.reference_chapter) && stageNow.reference_chapter.length === 2" class="badge">第{{ stageNow.reference_chapter[0] }}-{{ stageNow.reference_chapter[1] }}章</span>
+              <span class="name">{{ stageNow.stage_name || t('outline.stage', { number: stageNow.stage_number || '-' }) }}</span>
+              <span v-if="Array.isArray(stageNow.reference_chapter) && stageNow.reference_chapter.length === 2" class="badge">{{ t('outline.chapterRange', { start: stageNow.reference_chapter[0], end: stageNow.reference_chapter[1] }) }}</span>
             </div>
-            <p class="text">{{ stageNow.overview || '暂无概述' }}</p>
-            <p v-if="stageNow.analysis" class="analysis"><b>创作分析：</b>{{ stageNow.analysis }}</p>
+            <p class="text">{{ stageNow.overview || t('outline.noOverview') }}</p>
+            <p v-if="stageNow.analysis" class="analysis"><b>{{ t('outline.analysis') }}:</b> {{ stageNow.analysis }}</p>
           </div>
         </template>
 
         <!-- 分卷大纲速查（原有） -->
         <template v-if="hasOutline">
-          <h4 class="title">分卷大纲速查</h4>
+          <h4 class="title">{{ t('outline.volumeOverview') }}</h4>
           <div v-if="outline.thinking" class="section">
-            <div class="sec-title">💭 创作思考</div>
+            <div class="sec-title">💭 {{ t('outline.creativeThinking') }}</div>
             <p class="text">{{ outline.thinking }}</p>
           </div>
           <div v-if="outline.main_target" class="section">
-            <div class="sec-title">🎯 主线目标</div>
-            <p class="text"><b>名称：</b>{{ outline.main_target.name || '未设置' }}</p>
-            <p class="text"><b>概述：</b>{{ outline.main_target.overview || '暂无概述' }}</p>
+            <div class="sec-title">🎯 {{ t('outline.mainGoal') }}</div>
+            <p class="text"><b>{{ t('settings.name') }}:</b> {{ outline.main_target.name || t('editor.notSet') }}</p>
+            <p class="text"><b>{{ t('outline.overview') }}:</b> {{ outline.main_target.overview || t('outline.noOverview') }}</p>
           </div>
           <div v-if="Array.isArray(outline.branch_line) && outline.branch_line.length" class="section">
-            <div class="sec-title">🌿 支线剧情</div>
+            <div class="sec-title">🌿 {{ t('outline.subplots') }}</div>
             <ul class="list">
-              <li v-for="(b, i) in outline.branch_line" :key="i">{{ b.name || `支线${Number(i)+1}` }}：{{ b.overview || '暂无概述' }}</li>
+              <li v-for="(b, i) in outline.branch_line" :key="i">{{ b.name || t('outline.subplot', { number: Number(i)+1 }) }}: {{ b.overview || t('outline.noOverview') }}</li>
             </ul>
           </div>
           <div v-if="Array.isArray(outline.stage_lines) && outline.stage_lines.length" class="section">
-            <div class="sec-title">📖 阶段性故事线</div>
+            <div class="sec-title">📖 {{ t('outline.stageStorylines') }}</div>
             <div class="stage" v-for="(st, i) in outline.stage_lines" :key="i">
               <div class="stage-head">
-                <span class="name">{{ st.stage_name || `阶段${Number(i)+1}` }}</span>
-                <span v-if="Array.isArray(st.reference_chapter) && st.reference_chapter.length === 2" class="badge">第{{ st.reference_chapter[0] }}-{{ st.reference_chapter[1] }}章</span>
+                <span class="name">{{ st.stage_name || t('outline.stage', { number: Number(i)+1 }) }}</span>
+                <span v-if="Array.isArray(st.reference_chapter) && st.reference_chapter.length === 2" class="badge">{{ t('outline.chapterRange', { start: st.reference_chapter[0], end: st.reference_chapter[1] }) }}</span>
               </div>
-              <p class="text">{{ st.overview || '暂无概述' }}</p>
-              <p v-if="st.analysis" class="analysis"><b>创作分析：</b>{{ st.analysis }}</p>
+              <p class="text">{{ st.overview || t('outline.noOverview') }}</p>
+              <p v-if="st.analysis" class="analysis"><b>{{ t('outline.analysis') }}:</b> {{ st.analysis }}</p>
             </div>
           </div>
           <div v-if="Array.isArray(outline.character_snapshot) && outline.character_snapshot.length" class="section">
-            <div class="sec-title">🧭 卷末快照</div>
+            <div class="sec-title">🧭 {{ t('outline.volumeSnapshot') }}</div>
             <ul class="list">
               <li v-for="(s, i) in outline.character_snapshot" :key="i">{{ s }}</li>
             </ul>
@@ -65,7 +65,7 @@
         </template>
       </template>
       <template v-else>
-        <div class="placeholder">暂无可用大纲</div>
+        <div class="placeholder">{{ t('outline.noOutline') }}</div>
       </template>
     </div>
   </div>
@@ -73,9 +73,12 @@
 
 <script setup lang="ts">
 import { computed, watch, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useCardStore } from '@renderer/stores/useCardStore'
 import { storeToRefs } from 'pinia'
 import type { CardRead } from '@renderer/api/cards'
+
+const { t } = useI18n()
 
 const props = defineProps<{ 
   outline?: any | null
@@ -245,4 +248,4 @@ const hasAny = computed(() => !!chapterOutline.value || !!stageNow.value || !!ha
 /* 高对比度调试样式 */
 .debug-box { background: #1e1e1e; border-radius: 6px; padding: 8px; max-height: 260px; overflow: auto; }
 .debug-pre { color: #e6e6e6; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.6; margin: 0; white-space: pre; }
-</style> 
+</style>

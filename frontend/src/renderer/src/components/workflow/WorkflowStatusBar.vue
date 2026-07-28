@@ -3,8 +3,10 @@ import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWorkflowStore } from '@/stores/useWorkflowStore'
 import { Loading, Check, Close, Timer, Connection } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 
 const store = useWorkflowStore()
+const { t } = useI18n()
 const { activeRunCount, completedRuns, activeRuns, totalRunCount } = storeToRefs(store)
 
 const visible = ref(false)
@@ -153,7 +155,7 @@ watch(() => activeRunCount.value, (count) => {
       <el-popover
         v-model:visible="visible"
         placement="top-end"
-        title="工作流执行状态"
+        :title="t('workflow.statusTitle')"
         :width="360"
         trigger="click"
       >
@@ -168,10 +170,10 @@ watch(() => activeRunCount.value, (count) => {
            <div class="status-content">
              <span class="status-text">
                <template v-if="activeRunCount > 0">
-                  {{ activeRunCount }} 运行中 / {{ completedRuns.length }} 已完成
+                  {{ t('workflow.activeCompleted', { active: activeRunCount, completed: completedRuns.length }) }}
                </template>
                <template v-else>
-                  工作流就绪
+                  {{ t('workflow.ready') }}
                </template>
              </span>
            </div>
@@ -180,7 +182,7 @@ watch(() => activeRunCount.value, (count) => {
       
       <div class="run-list">
         <template v-if="activeRuns.length > 0">
-            <div class="list-header">运行中</div>
+            <div class="list-header">{{ t('workflow.running') }}</div>
             <div v-for="run in activeRuns" :key="run.id" class="run-item running">
                 <el-icon class="is-loading"><Loading /></el-icon>
                 <div class="run-info">
@@ -193,7 +195,7 @@ watch(() => activeRunCount.value, (count) => {
                     <!-- 当前节点 -->
                     <div v-if="run.current_node" class="run-node">
                         <el-icon><Connection /></el-icon>
-                        <span>当前节点: {{ run.current_node }}</span>
+                        <span>{{ t('workflow.currentNode', { node: run.current_node }) }}</span>
                     </div>
                     
                     <!-- 进度条 -->
@@ -211,13 +213,13 @@ watch(() => activeRunCount.value, (count) => {
         
         <template v-if="completedRuns.length > 0">
             <div class="list-header">
-                <span>已完成</span>
+                <span>{{ t('workflow.completed') }}</span>
                 <el-button
                   text
                   size="small"
                   @click="clearCompleted"
                 >
-                  清空
+                  {{ t('workflow.clear') }}
                 </el-button>
             </div>
             <div v-for="run in completedRuns" :key="run.id" class="run-item">
@@ -236,7 +238,7 @@ watch(() => activeRunCount.value, (count) => {
         </template>
         
         <div v-if="activeRuns.length === 0 && completedRuns.length === 0" class="empty-tip">
-            暂无运行记录
+            {{ t('workflow.noRuns') }}
         </div>
       </div>
     </el-popover>

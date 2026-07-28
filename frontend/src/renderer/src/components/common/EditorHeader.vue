@@ -4,19 +4,24 @@
       <div class="left">
         <el-breadcrumb separator="/">
           <el-breadcrumb-item>{{ projectName }}</el-breadcrumb-item>
-          <el-breadcrumb-item>{{ cardType }}</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ getCardTypeDisplayName(cardType) }}</el-breadcrumb-item>
           <el-breadcrumb-item>
-            <el-input v-model="titleProxy" size="small" class="title-input" />
+            <el-input
+              :model-value="getCardDisplayTitle(title)"
+              size="small"
+              class="title-input"
+              @update:model-value="emit('update:title', $event)"
+            />
           </el-breadcrumb-item>
         </el-breadcrumb>
         <el-tag :type="statusTag.type" size="small">{{ statusTag.label }}</el-tag>
-        <span v-if="lastSavedAt" class="last-saved">上次保存：{{ lastSavedAt }}</span>
+        <span v-if="lastSavedAt" class="last-saved">{{ t('editor.lastSaved', { time: lastSavedAt }) }}</span>
       </div>
       <div class="right">
         <div class="context-action-combo">
-          <el-tooltip content="打开上下文抽屉（Alt+K）">
+          <el-tooltip :content="t('editor.openContextDrawer')">
             <el-button type="primary" plain class="context-main-button" @click="$emit('open-context')">
-              上下文注入
+              {{ t('editor.contextInjection') }}
               <el-tag size="small" class="context-slot-tag" :type="getSlotTagType(activeContextTemplateKind)">
                 {{ contextTemplateLabels[activeContextTemplateKind] }}
               </el-tag>
@@ -24,7 +29,7 @@
           </el-tooltip>
           <el-popover v-model:visible="slotPickerVisible" trigger="click" width="220" popper-class="context-slot-popper">
             <template #reference>
-              <el-button type="primary" plain class="context-trigger-button" title="切换上下文槽位">
+              <el-button type="primary" plain class="context-trigger-button" :title="t('editor.switchContextSlot')">
                 <el-icon><ArrowDown /></el-icon>
               </el-button>
             </template>
@@ -43,7 +48,7 @@
             </div>
           </el-popover>
         </div>
-        <el-button v-if="!isChapterContent" type="success" plain @click="$emit('generate')">AI 生成</el-button>
+        <el-button v-if="!isChapterContent" type="success" plain @click="$emit('generate')">{{ t('editor.aiGenerate') }}</el-button>
         <el-button 
           :type="canSaveComputed ? 'primary' : 'info'" 
           :disabled="!canSaveComputed" 
@@ -51,14 +56,14 @@
           :class="{ 'needs-confirmation-btn': needsConfirmation }"
           @click="$emit('save')"
         >
-          {{ needsConfirmation ? '确认并保存' : '保存' }}
+          {{ needsConfirmation ? t('editor.confirmAndSave') : t('common.save') }}
         </el-button>
         <el-dropdown>
-          <el-button text>更多</el-button>
+          <el-button text>{{ t('editor.more') }}</el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item @click="$emit('open-versions')">历史版本</el-dropdown-item>
-              <el-dropdown-item divided type="danger" @click="$emit('delete')">删除</el-dropdown-item>
+              <el-dropdown-item @click="$emit('open-versions')">{{ t('editor.versionHistory') }}</el-dropdown-item>
+              <el-dropdown-item divided type="danger" @click="$emit('delete')">{{ t('common.delete') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -68,9 +73,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ArrowDown, Select } from '@element-plus/icons-vue'
 import { CONTEXT_TEMPLATE_LABELS, type ContextTemplateKind } from '@renderer/services/contextSlots'
+import { useI18n } from 'vue-i18n'
+import { getCardDisplayTitle, getCardTypeDisplayName } from '@renderer/i18n'
 
 const props = defineProps<{
   projectName?: string
@@ -84,6 +91,7 @@ const props = defineProps<{
   needsConfirmation?: boolean  // AI 修改需要确认
   activeContextTemplateKind?: ContextTemplateKind
 }>()
+const { t } = useI18n()
 
 // 计算是否可以保存：如果需要确认，即使没有修改也可以保存
 const canSaveComputed = computed(() => {
@@ -97,15 +105,11 @@ const contextTemplateKinds: ContextTemplateKind[] = ['generation', 'review']
 const contextTemplateLabels = CONTEXT_TEMPLATE_LABELS
 const activeContextTemplateKind = computed<ContextTemplateKind>(() => props.activeContextTemplateKind || 'generation')
 
-const titleProxy = ref(props.title)
-watch(() => props.title, v => titleProxy.value = v)
-watch(titleProxy, v => emit('update:title', v))
-
 const statusTag = computed(() => {
-  if (props.needsConfirmation) return { type: 'warning', label: 'AI 已修改' }
-  if (props.saving) return { type: 'warning', label: '保存中' }
-  if (props.dirty) return { type: 'info', label: '未保存' }
-  return { type: 'success', label: '已保存' }
+  if (props.needsConfirmation) return { type: 'warning', label: t('editor.statusAiModified') }
+  if (props.saving) return { type: 'warning', label: t('editor.statusSaving') }
+  if (props.dirty) return { type: 'info', label: t('editor.statusUnsaved') }
+  return { type: 'success', label: t('editor.statusSaved') }
 })
 
 function selectContextTemplateKind(kind: ContextTemplateKind) {

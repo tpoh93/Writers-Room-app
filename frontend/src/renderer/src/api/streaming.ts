@@ -1,4 +1,6 @@
-﻿export interface SSERequestParams {
+﻿import i18n from '@renderer/i18n'
+
+export interface SSERequestParams {
   endpoint: string
   body: any
   onMessage: (payload: any) => void
@@ -40,12 +42,15 @@ export function createSSEStreamingRequest(params: SSERequestParams) {
     signal,
   }).then(async response => {
     if (!response.ok) {
-      const message = await extractErrorMessage(response, `请求失败：${response.status}`)
+      const message = await extractErrorMessage(
+        response,
+        i18n.global.t('errors.requestStatus', { status: response.status })
+      )
       throw new Error(message)
     }
 
     if (!response.body) {
-      throw new Error('Response body is null')
+      throw new Error(i18n.global.t('errors.responseBodyMissing'))
     }
 
     const reader = response.body.getReader()

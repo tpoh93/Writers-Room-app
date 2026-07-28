@@ -24,7 +24,7 @@ export function mergeSections(sources: LayoutSources): SectionConfig[] | undefin
 
 function normalizeSections(sections: any[], schemaLike?: any): SectionConfig[] {
   return sections.map(s => ({
-    title: normalizeSectionTitle(String(s.title ?? '分区'), s.include, schemaLike),
+    title: normalizeSectionTitle(String(s.title ?? i18n.global.t('common.section')), s.include, schemaLike),
     include: s.include ? [...s.include] : undefined,
     exclude: s.exclude ? [...s.exclude] : undefined,
     description: s.description,
@@ -35,10 +35,10 @@ function normalizeSections(sections: any[], schemaLike?: any): SectionConfig[] {
 function normalizeSectionTitle(rawTitle: string, include: any, schemaLike?: any): string {
   const title = (rawTitle || '').trim()
   const includeKeys = Array.isArray(include) ? include : []
-  if (includeKeys.length !== 1) return title || '分区'
+  if (includeKeys.length !== 1) return title || i18n.global.t('common.section')
 
   const key = String(includeKeys[0] || '').trim()
-  if (!key) return title || '分区'
+  if (!key) return title || i18n.global.t('common.section')
 
   const resolved = resolveSectionTitle(schemaLike, key)
   if (!title || title === key || title.toLowerCase() === key.toLowerCase()) {
@@ -55,7 +55,7 @@ export function autoGroup(schema: any): SectionConfig[] {
   const scalarKeys = keys.filter(k => !['object','array'].includes(resolveType(props[k])))
 
   const sections: SectionConfig[] = []
-  if (scalarKeys.length) sections.push({ title: '基础信息', include: scalarKeys })
+  if (scalarKeys.length) sections.push({ title: i18n.global.t('common.basicInformation'), include: scalarKeys })
   for (const k of objectKeys) sections.push({ title: resolveSectionTitle(schema, k), include: [k] })
   for (const k of arrayKeys) sections.push({ title: resolveSectionTitle(schema, k), include: [k], collapsed: true })
   return sections
@@ -87,3 +87,4 @@ function resolveType(s: any): string {
   if (s.$ref) return 'object'
   return s.type || 'object'
 } 
+import i18n from '@renderer/i18n'
