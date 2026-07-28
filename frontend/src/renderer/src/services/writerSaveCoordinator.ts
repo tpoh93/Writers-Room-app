@@ -14,6 +14,7 @@ export interface WriterSaveResult {
   ok: boolean
   snapshot?: WriterSnapshot
   error?: Error
+  current?: boolean
 }
 
 export function asError(error: unknown): Error {
@@ -117,6 +118,12 @@ export class WriterSaveCoordinator {
 
   private async saveLatest(attempt: WriterSaveAttempt): Promise<WriterSaveResult> {
     if (this.disposed || this.inFlight) return { ok: false, error: new Error('Writer save already in flight') }
+    if (snapshotsEqual(this.current, this.confirmed)) {
+      this.clearRecoveryTimers()
+      this.clearAutosaveTimer()
+      this.setState('saved', null)
+      return { ok: true, snapshot: this.confirmed, current: true }
+    }
     const save = this.options.save
     if (!save) return { ok: false, error: new Error('Writer save is not configured') }
 
@@ -131,7 +138,8 @@ export class WriterSaveCoordinator {
       if (attempt.historyReason !== 'autosave' && attempt.historyReason !== 'technical-flush') {
         this.options.onHistoryEligible?.(confirmed, attempt.historyReason)
       }
-      if (snapshotsEqual(this.current, confirmed)) {
+      const confirmsCurrent = snapshotsEqual(this.current, confirmed)
+      if (confirmsCurrent) {
         this.options.drafts.remove(this.current.projectId, this.current.cardId)
         this.clearRecoveryTimers()
         this.clearAutosaveTimer()
@@ -141,7 +149,7 @@ export class WriterSaveCoordinator {
         this.setState('dirty', null)
         this.scheduleAutosave()
       }
-      return { ok: true, snapshot: confirmed }
+      return { ok: true, snapshot: confirmed, current: confirmsCurrent }
     } catch (error) {
       if (this.disposed) return { ok: false, error: new Error('Writer session is disposed') }
       const saveError = asError(error)

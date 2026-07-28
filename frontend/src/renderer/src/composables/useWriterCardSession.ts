@@ -9,6 +9,7 @@ import {
   WriterSaveCoordinator,
 } from '@renderer/services/writerSaveCoordinator'
 import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
+import { snapshotsEqual } from '@renderer/services/writerSnapshot'
 import { recordVersionIfEligible } from '@renderer/services/versionService'
 import { useEditorStore } from '@renderer/stores/useEditorStore'
 import { compareRecoveryDraft, type RecoveryComparison } from '@renderer/services/writerRecovery'
@@ -47,8 +48,8 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
   const handleBeforeUnload = () => persistRecoveryDraft('force-close')
 
   function createCoordinator(): WriterSaveCoordinator | null {
+    teardownCoordinator()
     if (!adapter.value) return null
-    coordinator?.dispose()
     disposed = false
     const token = ++generation
     activeToken = token
@@ -92,6 +93,19 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
     return coordinator
   }
 
+  function teardownCoordinator(): void {
+    disposed = true
+    activeToken = ++generation
+    coordinator?.dispose()
+    coordinator = null
+    window.removeEventListener('beforeunload', handleBeforeUnload)
+    editorStore.clearActiveWriterFlush(registeredFlush)
+    registeredFlush = null
+    recovery = null
+    state.value = 'saved'
+    error.value = null
+  }
+
   watch([() => card.value.id, adapter], () => { createCoordinator() }, { immediate: true })
 
   function requireCoordinator(): WriterSaveCoordinator | null {
@@ -108,7 +122,7 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
     onEditorChange()
     const active = requireCoordinator()
     const result = active ? await active.manualSave() : { ok: false, error: new Error('Writer session is unavailable') }
-    if (!disposed && activeToken === token && result.ok && result.snapshot && adapter.value) adapter.value.setSavedBaseline(result.snapshot)
+    applyConfirmedBaseline(token, result)
     return result
   }
 
@@ -116,7 +130,7 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
     const token = activeToken
     onEditorChange()
     const result = await (requireCoordinator()?.retry() ?? Promise.resolve({ ok: false, error: new Error('Writer session is unavailable') }))
-    if (!disposed && activeToken === token && result.ok && result.snapshot && adapter.value) adapter.value.setSavedBaseline(result.snapshot)
+    applyConfirmedBaseline(token, result)
     return result
   }
 
@@ -124,13 +138,19 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
     const token = activeToken
     onEditorChange()
     const result = await (requireCoordinator()?.flush(reason) ?? Promise.resolve({ ok: false, error: new Error('Writer session is unavailable') }))
-    if (!disposed && activeToken === token && result.ok && result.snapshot && adapter.value) adapter.value.setSavedBaseline(result.snapshot)
+    applyConfirmedBaseline(token, result)
     return result
   }
 
   function persistRecoveryDraft(reason: RecoveryDraftReason): void {
     onEditorChange()
     requireCoordinator()?.persistRecoveryDraft(reason)
+  }
+
+  function applyConfirmedBaseline(token: number, result: WriterSaveResult): void {
+    if (disposed || activeToken !== token || !result.ok || result.current === false || !result.snapshot || !adapter.value) return
+    if (!snapshotsEqual(adapter.value.getSnapshot(), result.snapshot)) return
+    adapter.value.setSavedBaseline(result.snapshot)
   }
 
   function checkRecovery(canonical: WriterSnapshot): RecoveryComparison | null {
@@ -160,13 +180,7 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
   function cancelRecovery(): void {}
 
   function dispose(): void {
-    disposed = true
-    activeToken = ++generation
-    coordinator?.dispose()
-    coordinator = null
-    window.removeEventListener('beforeunload', handleBeforeUnload)
-    editorStore.clearActiveWriterFlush(registeredFlush)
-    registeredFlush = null
+    teardownCoordinator()
   }
 
   if (getCurrentInstance()) onBeforeUnmount(dispose)

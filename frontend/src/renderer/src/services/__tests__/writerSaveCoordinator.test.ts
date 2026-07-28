@@ -65,6 +65,20 @@ describe('WriterSaveCoordinator atomic canonical save', () => {
     })
   })
 
+  it.each(['card-change', 'project-change', 'export', 'controlled-close'] as const)(
+    'does not submit an already confirmed snapshot for %s',
+    async (reason) => {
+      const { coordinator, save, history, drafts, states } = createCoordinator()
+
+      await expect(coordinator.flush(reason)).resolves.toEqual({ ok: true, snapshot: initial, current: true })
+
+      expect(save).not.toHaveBeenCalled()
+      expect(history).toEqual([])
+      expect(drafts.read(1, 2)).toBeNull()
+      expect(states).toEqual([])
+    }
+  )
+
   it.each([
     ['manual', (coordinator: WriterSaveCoordinator) => coordinator.manualSave(), 'manual', true],
     ['recovered draft', (coordinator: WriterSaveCoordinator) => coordinator.flush('recovered-draft'), 'recovered-draft', true],

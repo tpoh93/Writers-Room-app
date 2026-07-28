@@ -195,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount, defineAsyncComponent, toRef } from 'vue'
+import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getCardDisplayTitle, getCardTypeDisplayName } from '@renderer/i18n'
 import { storeToRefs } from 'pinia'
@@ -253,6 +253,7 @@ import InitialPromptDialog from '../generation/InitialPromptDialog.vue'
 import { InstructionExecutor } from '@renderer/services/instructionExecutor'
 import { generateWithInstructionStream } from '@renderer/api/generation'
 import type { Instruction, ConversationMessage } from '@renderer/types/instruction'
+import { resolveContentEditor } from '@renderer/components/editors/contentEditorRegistry'
 
 const { t } = useI18n()
 
@@ -294,24 +295,8 @@ const instructionExecutor = ref<InstructionExecutor | null>(null)
 const currentAbortController = ref<AbortController | null>(null)
 const conversationHistory = ref<ConversationMessage[]>([])
 
-// --- 内容编辑器动态映射 ---
-// 类似 CardEditorHost 的 editorMap，但这里是内容编辑器（共享外壳）
-const contentEditorMap: Record<string, any> = {
-  CodeMirrorEditor: defineAsyncComponent(() => import('../editors/CodeMirrorEditor.vue')),
-  MarkdownTextEditor: defineAsyncComponent(() => import('../editors/MarkdownTextEditor.vue')),
-  // 未来可以添加更多内容编辑器，例如：
-  // RichTextEditor: defineAsyncComponent(() => import('../editors/RichTextEditor.vue')),
-  // MarkdownEditor: defineAsyncComponent(() => import('../editors/MarkdownEditor.vue')),
-}
-
 // 根据 card_type.editor_component 选择内容编辑器
-const activeContentEditor = computed(() => {
-  const editorName = props.card?.card_type?.editor_component
-  if (editorName && contentEditorMap[editorName]) {
-    return contentEditorMap[editorName]
-  }
-  return null // null 表示使用默认的表单编辑器
-})
+const activeContentEditor = computed(() => resolveContentEditor(props.card?.card_type?.editor_component))
 
 const isStageOutlineCard = computed(() => props.card.card_type?.name === '阶段大纲')
 
@@ -349,7 +334,12 @@ const writerRecoveryCanonical = ref<WriterSnapshot | null>(null)
 const writerRecoveryVisible = ref(false)
 
 function evaluateWriterRecovery(): void {
-  if (!writerCard.value || !writerAdapter.value) return
+  if (!writerCard.value || !writerAdapter.value) {
+    writerRecoveryCanonical.value = null
+    writerRecoveryComparison.value = null
+    writerRecoveryVisible.value = false
+    return
+  }
   const canonical = writerAdapter.value.getSnapshot()
   const comparison = writerSession.checkRecovery(canonical)
   writerRecoveryCanonical.value = canonical
@@ -1011,14 +1001,14 @@ async function handleSave() {
 
 async function handleWriterManualSave() {
   const result = await writerSession.manualSave()
-  if (result.ok) ElMessage.success(t('settings.saveSuccess'))
-  else ElMessage.error(result.error?.message || t('settings.saveError'))
+  if (result.ok && result.current !== false) ElMessage.success(t('settings.saveSuccess'))
+  else if (!result.ok) ElMessage.error(result.error?.message || t('settings.saveError'))
 }
 
 async function handleWriterRetry() {
   const result = await writerSession.retry()
-  if (result.ok) ElMessage.success(t('settings.saveSuccess'))
-  else ElMessage.error(result.error?.message || t('settings.saveError'))
+  if (result.ok && result.current !== false) ElMessage.success(t('settings.saveSuccess'))
+  else if (!result.ok) ElMessage.error(result.error?.message || t('settings.saveError'))
 }
 
 async function executeReview() {
@@ -1443,6 +1433,36 @@ async function handleGenerate() {
 
 async function handleRestoreVersion(v: any) {
   showVersions.value = false
+
+  if (writerCard.value && writerAdapter.value) {
+    const restoredSnapshot: WriterSnapshot = {
+      projectId: props.card.project_id,
+      cardId: props.card.id,
+      title: v.title ?? titleProxy.value,
+      content: cloneDeep(v.content),
+      contextTemplates: {
+        generation: v.ai_context_template ?? localAiContextTemplates.value.generation,
+        review: v.ai_context_template_review ?? localAiContextTemplates.value.review,
+      },
+    }
+    try {
+      ElMessage.success(t('genericCard.restoringVersion'))
+      writerAdapter.value.setSnapshot(restoredSnapshot)
+      contentEditorDirty.value = true
+      writerSession.onEditorChange()
+      const result = await writerSession.flush('restored-version')
+      if (!result.ok) {
+        ElMessage.error(result.error?.message || t('genericCard.versionRestoreError'))
+        return
+      }
+      await cardStore.fetchCards(projectStore.currentProject?.id ?? props.card.project_id)
+      ElMessage.success(t('genericCard.versionRestored'))
+    } catch (e) {
+      console.error('Failed to restore writer version:', e)
+      ElMessage.error(t('genericCard.versionRestoreError'))
+    }
+    return
+  }
 
   // 自定义内容编辑器的恢复逻辑（如 CodeMirrorEditor）
   if (activeContentEditor.value && contentEditorRef.value) {

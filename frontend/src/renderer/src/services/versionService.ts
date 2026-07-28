@@ -55,8 +55,8 @@ export function fingerprintVersionSnapshot(snapshot: Pick<CardVersionSnapshot, '
 export function recordVersionIfEligible(projectId: number, snapshot: Omit<CardVersionSnapshot, 'id' | 'createdAt' | 'fingerprint'>, reason: WriterHistoryReason): boolean {
   if (reason === 'autosave' || reason === 'technical-flush') return false
   const fingerprint = fingerprintVersionSnapshot(snapshot)
-  const latest = latestVersion(projectId, snapshot.cardId)
-  if (latest && (latest.fingerprint ?? fingerprintVersionSnapshot(latest)) === fingerprint) return false
+  const existing = listVersions(projectId, snapshot.cardId)
+  if (existing.some((entry) => (entry.fingerprint ?? fingerprintVersionSnapshot(entry)) === fingerprint)) return false
   addVersion(projectId, { ...snapshot, fingerprint })
   return true
 }
