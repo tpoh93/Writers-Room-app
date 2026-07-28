@@ -49,6 +49,49 @@ suite.
 Every wave runs, at minimum:
 
 ```bash
+set -euo pipefail
+
+VL_REPO_ROOT="$(pwd -P)"
+VL_BACKEND_ENV_ROOT=""
+VL_BACKEND_DB_ROOT=""
+VL_BACKEND_VENV=""
+
+cleanup_vl_gate() {
+  local gate_status=$?
+  local db_root="${VL_BACKEND_DB_ROOT:-}"
+  local env_root="${VL_BACKEND_ENV_ROOT:-}"
+
+  trap - EXIT
+  trap '' INT TERM HUP
+  cd "$VL_REPO_ROOT" >/dev/null 2>&1 || true
+  if type deactivate >/dev/null 2>&1; then
+    deactivate || true
+  fi
+  unset NOVELFORGE_DB_PATH || true
+  unset BOOTSTRAP_OVERWRITE || true
+  if [ -n "$db_root" ]; then
+    rm -rf -- "$db_root" || true
+  fi
+  if [ -n "$env_root" ]; then
+    rm -rf -- "$env_root" || true
+  fi
+  unset VL_BACKEND_VENV || true
+  unset VL_BACKEND_DB_ROOT || true
+  unset VL_BACKEND_ENV_ROOT || true
+  exit "$gate_status"
+}
+
+abort_vl_gate() {
+  local signal_status="$1"
+  trap - INT TERM HUP
+  exit "$signal_status"
+}
+
+trap cleanup_vl_gate EXIT
+trap 'abort_vl_gate 130' INT
+trap 'abort_vl_gate 143' TERM
+trap 'abort_vl_gate 129' HUP
+
 cd frontend
 npm test -- --run
 npm run typecheck
@@ -70,17 +113,21 @@ VL_BACKEND_DB_ROOT="$(mktemp -d /tmp/writers-room-vl-db.XXXXXX)"
 export NOVELFORGE_DB_PATH="$VL_BACKEND_DB_ROOT/writers-room-vl.db"
 export BOOTSTRAP_OVERWRITE=false
 test -d "$VL_BACKEND_DB_ROOT"
+case "$VL_BACKEND_DB_ROOT" in
+  /tmp/*) ;;
+  *) exit 1 ;;
+esac
+case "$NOVELFORGE_DB_PATH" in
+  "$VL_BACKEND_DB_ROOT"/*) ;;
+  *) exit 1 ;;
+esac
 test "$NOVELFORGE_DB_PATH" != "/data/novelforge.db"
 
-PYTHONPATH=backend pytest -q backend/tests \
+# Run outside the repository root so BaseSettings cannot discover its `.env`.
+cd "$VL_BACKEND_DB_ROOT"
+PYTHONPATH="$VL_REPO_ROOT/backend" pytest -q "$VL_REPO_ROOT/backend/tests" \
   -W error::pydantic.warnings.PydanticDeprecatedSince20
-
-rm -rf "$VL_BACKEND_DB_ROOT"
-unset NOVELFORGE_DB_PATH
-unset BOOTSTRAP_OVERWRITE
-deactivate
-rm -rf "$VL_BACKEND_ENV_ROOT"
-
+cd "$VL_REPO_ROOT"
 bash scripts/verify-upstream.sh
 git diff --check
 ```
@@ -92,6 +139,10 @@ through `NOVELFORGE_DB_PATH`. Do not source, read, modify, or use the root
 `.env` as the database configuration for a mandatory gate. Cleanup of the
 temporary database and environment remains mandatory after either PASS or
 terminal failure.
+
+Every non-zero mandatory-command result is the result of the entire wave.
+Cleanup must not turn `FAIL` into `PASS`, and the agent must not continue to a
+commit after any mandatory gate fails.
 
 If a controlled backend run resolves `NOVELFORGE_DB_PATH` to
 `/data/novelforge.db` or another non-portable path, stop the wave as `BLOCKED`

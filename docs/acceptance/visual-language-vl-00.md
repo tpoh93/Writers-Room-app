@@ -315,6 +315,24 @@ Visual Language decisions changed: `NO`.
 
 Status after correction: `READY FOR REVIEW`.
 
+### Fail-closed gate follow-up
+
+The follow-up review found that the controlled Python 3.11 runtime and
+temporary SQLite isolation were correct, but the shared block did not guarantee
+termination on the first mandatory `FAIL`.
+
+- The shared gate now starts with `set -euo pipefail`.
+- Cleanup now runs through an `EXIT` trap after PASS or FAIL; narrow
+  `INT`/`TERM`/`HUP` handlers route interruptions through the same cleanup.
+- Cleanup preserves and returns the original exit code.
+- A frontend or backend failure cannot be hidden by a later successful command.
+
+Application implementation started: `NO`.
+
+Visual Language decisions changed: `NO`.
+
+Status: `READY FOR REVIEW`.
+
 ## Decision
 
 VL-00 is `READY FOR REVIEW`.
