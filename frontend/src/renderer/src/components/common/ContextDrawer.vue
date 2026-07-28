@@ -2,13 +2,13 @@
   <el-drawer v-model="visible" :with-header="false" size="36%" append-to-body>
     <div class="drawer-wrapper">
       <div class="drawer-header">
-        <h3>上下文注入</h3>
-        <el-button text @click="visible=false">关闭</el-button>
+        <h3>{{ t('editor.contextInjection') }}</h3>
+        <el-button text @click="visible=false">{{ t('common.close') }}</el-button>
       </div>
 
       <div class="section">
         <div class="slot-toolbar">
-          <h4>上下文模板</h4>
+          <h4>{{ t('editor.contextTemplate') }}</h4>
           <div class="slot-buttons">
             <el-button
               v-for="kind in contextTemplateKinds"
@@ -22,13 +22,13 @@
             </el-button>
           </div>
         </div>
-        <el-input v-model="aiContext" type="textarea" :rows="8" placeholder="在此编辑上下文模板，支持 @ 引用" class="context-area" :spellcheck="false" />
+        <el-input v-model="aiContext" type="textarea" :rows="8" :placeholder="t('editor.contextTemplatePlaceholder')" class="context-area" :spellcheck="false" />
         <div class="chips">
           <el-tag v-for="(t, i) in tokens" :key="i" closable @close="removeToken(t)">@{{ t }}</el-tag>
         </div>
         <div class="actions">
-          <el-button size="small" @click="$emit('open-selector', { kind: activeContextTemplateKind, text: aiContext })">插入引用 @</el-button>
-          <el-button size="small" type="primary" @click="apply">应用到卡片</el-button>
+          <el-button size="small" @click="$emit('open-selector', { kind: activeContextTemplateKind, text: aiContext })">{{ t('editor.insertReference') }} @</el-button>
+          <el-button size="small" type="primary" @click="apply">{{ t('editor.applyToCard') }}</el-button>
         </div>
       </div>
     </div>
@@ -37,7 +37,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { CONTEXT_TEMPLATE_LABELS, type ContextTemplateKind, type ContextTemplates } from '@renderer/services/contextSlots'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   modelValue: boolean

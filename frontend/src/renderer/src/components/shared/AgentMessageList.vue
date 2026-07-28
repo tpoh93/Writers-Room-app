@@ -19,7 +19,7 @@
                           <template v-else>✓</template>
                         </span>
                         <span class="thinking-title">
-                          {{ isThinkingInProgress(idx, timelineIndex) ? '思考中…' : (isThinkingItemOpen(idx, timelineIndex) ? '思考过程' : '思考完成') }}
+                          {{ isThinkingInProgress(idx, timelineIndex) ? t('assistant.thinking') : (isThinkingItemOpen(idx, timelineIndex) ? t('assistant.thinkingProcess') : t('assistant.thinkingComplete')) }}
                         </span>
                         <el-icon class="thinking-arrow">
                           <ArrowUp v-if="isThinkingItemOpen(idx, timelineIndex)" />
@@ -46,13 +46,13 @@
 
                     <div v-if="showJumpLink(timelineItem.tool)" class="tool-jump-row">
                       <el-link type="primary" size="small" @click="emitJumpToCard(timelineItem.tool)">
-                        跳转到卡片 →
+                        {{ t('assistant.jumpToCard') }} →
                       </el-link>
                     </div>
 
                     <div v-if="timelineItem.tool.result !== undefined" class="tool-result-toggle-row">
                       <el-button text size="small" @click="toggleToolResult(idx, timelineIndex)">
-                        {{ isToolResultOpen(idx, timelineIndex) ? '收起结果' : '展开结果' }}
+                        {{ isToolResultOpen(idx, timelineIndex) ? t('assistant.collapseResult') : t('assistant.expandResult') }}
                       </el-button>
                     </div>
                     <pre
@@ -95,7 +95,7 @@
           v-if="msg.role === 'assistant' && shouldShowAssistantActions(msg, idx)"
           class="assistant-actions"
         >
-          <el-tooltip content="复制回复" placement="top">
+          <el-tooltip :content="t('assistant.copyReply')" placement="top">
             <el-button
               circle
               size="small"
@@ -103,7 +103,7 @@
               @click="emitCopyAssistant(idx)"
             />
           </el-tooltip>
-          <el-tooltip content="重新生成" placement="top">
+          <el-tooltip :content="t('assistant.regenerate')" placement="top">
             <el-button
               circle
               size="small"
@@ -111,7 +111,7 @@
               @click="emitRegenerateAssistant(idx)"
             />
           </el-tooltip>
-          <el-tooltip content="删除回复" placement="top">
+          <el-tooltip :content="t('assistant.deleteReply')" placement="top">
             <el-button
               circle
               size="small"
@@ -125,7 +125,7 @@
           v-if="msg.role === 'user' && shouldShowUserActions(msg, idx)"
           class="assistant-actions"
         >
-          <el-tooltip content="复制消息" placement="top">
+          <el-tooltip :content="t('assistant.copyMessage')" placement="top">
             <el-button
               circle
               size="small"
@@ -133,7 +133,7 @@
               @click="emitCopyUser(idx)"
             />
           </el-tooltip>
-          <el-tooltip content="删除消息" placement="top">
+          <el-tooltip :content="t('assistant.deleteMessage')" placement="top">
             <el-button
               circle
               size="small"
@@ -145,17 +145,20 @@
       </div>
     </div>
 
-    <el-empty v-if="!props.messages.length" :description="props.emptyDescription" />
+    <el-empty v-if="!props.messages.length" :description="resolvedEmptyDescription" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { XMarkdown } from 'vue-element-plus-x'
 import { Loading, CopyDocument, RefreshRight, ArrowUp, ArrowDown, Delete } from '@element-plus/icons-vue'
 
 import { useAppStore } from '@renderer/stores/useAppStore'
 import type { AgentChatMessage } from '@/types/agentChat'
+
+const { t } = useI18n()
 
 const props = withDefaults(
   defineProps<{
@@ -168,7 +171,6 @@ const props = withDefaults(
     showUserActions?: boolean
   }>(),
   {
-    emptyDescription: '请输入需求，我会先给出可审阅的结果。',
     streaming: false,
     jumpProjectId: null,
     showAssistantActions: false,
@@ -176,6 +178,8 @@ const props = withDefaults(
     showUserActions: false,
   },
 )
+
+const resolvedEmptyDescription = computed(() => props.emptyDescription || t('assistant.emptyDescription'))
 
 const emit = defineEmits<{
   (e: 'jump-to-card', payload: { projectId: number; cardId: number }): void
@@ -288,9 +292,9 @@ function formatToolValue(value: unknown): string {
 
 function formatToolStatus(toolItem: any): string {
   const success = toolItem?.result?.success
-  if (success === true) return '✅ 成功'
-  if (success === false) return '❌ 失败'
-  return '已执行'
+  if (success === true) return t('assistant.toolSuccess')
+  if (success === false) return t('assistant.toolFailed')
+  return t('assistant.toolExecuted')
 }
 
 function showJumpLink(toolItem: any): boolean {

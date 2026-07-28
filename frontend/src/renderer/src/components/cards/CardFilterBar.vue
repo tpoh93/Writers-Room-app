@@ -1,20 +1,20 @@
 <template>
   <div class="card-filter-bar">
     <div class="left">
-      <el-input v-model="keyword" placeholder="搜索卡片标题..." clearable class="search-input" @clear="emitChange" @input="emitChange">
+      <el-input v-model="keyword" :placeholder="t('cardLibrary.searchPlaceholder')" clearable class="search-input" @clear="emitChange" @input="emitChange">
         <template #prefix>
           <el-icon><Search /></el-icon>
         </template>
       </el-input>
-      <el-select v-model="selectedTypes" multiple collapse-tags placeholder="类型筛选" class="type-select" @change="emitChange">
+      <el-select v-model="selectedTypes" multiple collapse-tags :placeholder="t('cardLibrary.typeFilter')" class="type-select" @change="emitChange">
         <el-option v-for="t in typeOptions" :key="t.value" :label="t.label" :value="t.value" />
       </el-select>
     </div>
     <div class="right">
       <el-select v-model="sortKey" class="sort-select" @change="emitChange">
-        <el-option label="按最近创建" value="recent" />
-        <el-option label="按标题" value="title" />
-        <el-option label="按类型" value="type" />
+        <el-option :label="t('cardLibrary.sortRecent')" value="recent" />
+        <el-option :label="t('cardLibrary.sortTitle')" value="title" />
+        <el-option :label="t('cardLibrary.sortType')" value="type" />
       </el-select>
       <el-segmented v-model="density" :options="densityOptions" @change="emitChange" class="density-seg" />
       <el-segmented v-model="viewMode" :options="viewOptions" @change="emitChange" class="view-seg" />
@@ -27,8 +27,11 @@ import { ref, watch, computed } from 'vue'
 import { ElInput, ElSelect, ElOption, ElSegmented, ElIcon } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import type { components } from '@renderer/types/generated'
+import { useI18n } from 'vue-i18n'
+import { getCardTypeDisplayName } from '@renderer/i18n'
 
 const props = defineProps<{ cardTypes: components['schemas']['CardTypeRead'][] }>()
+const { t } = useI18n()
 const emit = defineEmits<{
   (e: 'change', payload: { keyword: string; types: number[]; sortKey: 'recent'|'title'|'type'; density: '舒适'|'紧凑'; view: '卡片'|'列表' }): void
 }>()
@@ -39,10 +42,19 @@ const sortKey = ref<'recent'|'title'|'type'>('recent')
 const density = ref<'舒适'|'紧凑'>('舒适')
 const viewMode = ref<'卡片'|'列表'>('卡片')
 
-const densityOptions = [ '舒适', '紧凑' ]
-const viewOptions = [ '卡片', '列表' ]
+const densityOptions = [
+  { label: t('cardLibrary.densityComfortable'), value: '舒适' },
+  { label: t('cardLibrary.densityCompact'), value: '紧凑' },
+]
+const viewOptions = [
+  { label: t('cardLibrary.viewCards'), value: '卡片' },
+  { label: t('cardLibrary.viewList'), value: '列表' },
+]
 
-const typeOptions = computed(() => (props.cardTypes || []).map(t => ({ label: t.name, value: t.id! })))
+const typeOptions = computed(() => (props.cardTypes || []).map(t => ({
+  label: getCardTypeDisplayName(t.name),
+  value: t.id!,
+})))
 
 function emitChange() {
   emit('change', { keyword: keyword.value, types: selectedTypes.value, sortKey: sortKey.value, density: density.value, view: viewMode.value })
@@ -64,4 +76,4 @@ function emitChange() {
 .type-select { min-width: 220px; }
 .sort-select { width: 140px; }
 .density-seg, .view-seg { --el-segmented-padding: 2px; }
-</style> 
+</style>

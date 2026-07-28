@@ -5,7 +5,7 @@
         <el-segmented v-model="mode" :options="modeOptions" size="small" />
       </div>
       <div class="toolbar-right">
-        <span class="char-count">字数：{{ charCount }}</span>
+        <span class="char-count">{{ t('editor.characterCount', { count: charCount }) }}</span>
       </div>
     </div>
 
@@ -15,14 +15,14 @@
         type="textarea"
         :rows="24"
         resize="none"
-        placeholder="输入 Markdown 文本..."
+        :placeholder="t('editor.markdownPlaceholder')"
         class="markdown-textarea"
       />
     </div>
 
     <div class="preview-body" v-else>
       <XMarkdown
-        :markdown="textContent || '（暂无内容）'"
+        :markdown="textContent || t('editor.noContent')"
         :default-theme-mode="isDarkMode ? 'dark' : 'light'"
         class="markdown-preview"
       />
@@ -32,10 +32,13 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { XMarkdown } from 'vue-element-plus-x'
 import type { CardRead, CardUpdate } from '@renderer/api/cards'
 import { useCardStore } from '@renderer/stores/useCardStore'
 import { useAppStore } from '@renderer/stores/useAppStore'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   card: CardRead
@@ -51,8 +54,8 @@ const isDarkMode = computed(() => appStore.isDarkMode)
 
 const mode = ref<'edit' | 'preview'>('preview')
 const modeOptions = [
-  { label: '编辑', value: 'edit' },
-  { label: '预览', value: 'preview' },
+  { label: t('common.edit'), value: 'edit' },
+  { label: t('editor.preview'), value: 'preview' },
 ]
 
 const textContent = ref('')

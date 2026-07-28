@@ -191,7 +191,7 @@ export function notifyTaskDone(options: TaskDoneNotifyOptions = {}): void {
   try {
     const {
       taskId,
-      title = '任务已完成',
+      title = i18n.global.t('notifications.taskDone'),
       body,
       enableSound,
       enableDesktopNotification,
@@ -213,3 +213,4 @@ export function notifyTaskDone(options: TaskDoneNotifyOptions = {}): void {
     /* noop */
   }
 }
+import i18n from '@renderer/i18n'

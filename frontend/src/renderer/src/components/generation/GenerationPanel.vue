@@ -10,7 +10,7 @@
     <div class="panel-header" @mousedown="handleDragStart">
       <div class="header-title">
         <el-icon class="title-icon"><MagicStick /></el-icon>
-        <span>AI 生成</span>
+        <span>{{ t('generation.title') }}</span>
       </div>
       <div class="header-actions">
         <el-button
@@ -77,7 +77,7 @@
       <!-- 生成中指示器 -->
       <div v-if="isGenerating && !isPaused" class="generating-indicator">
         <el-icon class="is-loading"><Loading /></el-icon>
-        <span>正在生成...</span>
+        <span>{{ t('generation.generating') }}</span>
       </div>
     </div>
 
@@ -86,7 +86,7 @@
       <!-- 进度信息 -->
       <div v-if="completedFields > 0" class="progress-info">
         <el-icon><Check /></el-icon>
-        <span>已生成 {{ completedFields }} 个字段</span>
+        <span>{{ t('generation.completedFields', { count: completedFields }) }}</span>
       </div>
 
       <!-- 用户输入框 -->
@@ -94,7 +94,7 @@
         <div class="custom-input-wrapper">
           <el-input
             v-model="userInput"
-            :placeholder="isFinished ? '输入反馈以继续生成...' : (isPaused ? '输入反馈并继续...' : '输入指导意见...')"
+            :placeholder="isFinished ? t('generation.feedbackContinue') : (isPaused ? t('generation.feedbackResume') : t('generation.instructions'))"
             size="default"
             @keyup.enter="handleSendMessage"
           >
@@ -121,7 +121,7 @@
             round
             @click="handlePause"
           >
-            暂停
+            {{ t('workflow.pause') }}
           </el-button>
 
           <el-button
@@ -131,7 +131,7 @@
             round
             @click="handleContinue"
           >
-            继续生成
+            {{ t('generation.continue') }}
           </el-button>
 
           <el-button
@@ -142,7 +142,7 @@
             type="danger"
             @click="handleStop"
           >
-            终止
+            {{ t('generation.stop') }}
           </el-button>
         </template>
 
@@ -154,7 +154,7 @@
             round
             @click="handleClose"
           >
-            完成
+            {{ t('generation.finish') }}
           </el-button>
 
            <el-button
@@ -164,7 +164,7 @@
             round
             @click="handleRestart"
           >
-            重新开始
+            {{ t('generation.restart') }}
           </el-button>
         </template>
       </div>
@@ -174,6 +174,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   MagicStick,
   Close,
@@ -193,6 +194,8 @@ import {
   ArrowDown
 } from '@element-plus/icons-vue'
 import type { GenerationMessage } from '@renderer/types/instruction'
+
+const { t } = useI18n()
 
 // ==================== Props & Emits ====================
 
@@ -369,7 +372,7 @@ function handleClose() {
 function handlePause() {
   isPaused.value = true
   isGenerating.value = false // 暂停时不视为生成中
-  addMessage('system', '已暂停')
+  addMessage('system', t('generation.paused'))
   emit('pause')
 }
 
@@ -384,14 +387,14 @@ function handleContinue() {
   isFinishedState.value = false
   isGenerating.value = true
   
-  emit('continue', message || '请继续')
+  emit('continue', message || t('generation.continuePrompt'))
 }
 
 function handleStop() {
   isGenerating.value = false
   isPaused.value = false
   isFinishedState.value = true // 终止也算一种结束状态
-  addMessage('system', '生成已终止')
+  addMessage('system', t('generation.stopped'))
   emit('stop')
 }
 
@@ -417,7 +420,7 @@ function handleSendMessage() {
 function startGeneration() {
   reset()
   isGenerating.value = true
-  addMessage('system', '开始生成...')
+  addMessage('system', t('generation.started'))
 }
 
 function finishGeneration(success: boolean, message?: string) {
@@ -426,9 +429,9 @@ function finishGeneration(success: boolean, message?: string) {
   isFinishedState.value = true // 标记为完成
   
   if (success) {
-    addMessage('system', (message || '✓ 生成完成'))
+    addMessage('system', (message || t('generation.complete')))
   } else {
-    addMessage('error', message || '生成失败')
+    addMessage('error', message || t('generation.failed'))
   }
 }
 

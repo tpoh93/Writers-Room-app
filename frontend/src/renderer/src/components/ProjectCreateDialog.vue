@@ -2,15 +2,15 @@
 <template>
   <el-dialog v-model="visible" :title="dialogTitle" width="500" >
     <el-form :model="form" ref="formRef" :rules="rules" label-width="80px" @submit.prevent="handleConfirm">
-      <el-form-item label="项目名称" prop="name">
+      <el-form-item :label="t('project.nameLabel')" prop="name">
         <el-input v-model="form.name" />
       </el-form-item>
-      <el-form-item label="项目描述" prop="description">
+      <el-form-item :label="t('project.descriptionLabel')" prop="description">
         <el-input v-model="form.description" type="textarea" />
       </el-form-item>
-      <el-form-item v-if="!isEditMode" label="项目模板">
-        <el-select v-model="selectedTemplate" placeholder="选择项目模板（可选）" filterable clearable :loading="loadingTemplates" style="width:100%">
-          <el-option label="空白项目" :value="null" />
+      <el-form-item v-if="!isEditMode" :label="t('project.templateLabel')">
+        <el-select v-model="selectedTemplate" :placeholder="t('project.templatePlaceholder')" filterable clearable :loading="loadingTemplates" style="width:100%">
+          <el-option :label="t('project.blankTemplate')" :value="null" />
           <el-option v-for="tpl in projectTemplates" :key="tpl.template" :label="tpl.workflow_name" :value="tpl.template" />
         </el-select>
       </el-form-item>
@@ -19,8 +19,8 @@
     </el-form>
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="visible = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirm">确定</el-button>
+        <el-button @click="visible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="handleConfirm">{{ t('common.confirm') }}</el-button>
       </div>
     </template>
   </el-dialog>
@@ -29,6 +29,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { components } from '@renderer/types/generated'
 import { getProjectTemplates } from '@renderer/api/workflows'
@@ -45,6 +46,7 @@ interface ProjectTemplate {
 }
 
 const visible = ref(false)
+const { t } = useI18n()
 const formRef = ref<FormInstance>()
 const form = reactive<ProjectCreate | ProjectUpdate>({
   name: '',
@@ -58,10 +60,10 @@ const projectTemplates = ref<ProjectTemplate[]>([])
 const loadingTemplates = ref(false)
 
 const isEditMode = computed(() => !!editingProject.value)
-const dialogTitle = computed(() => isEditMode.value ? '编辑项目' : '新建项目')
+const dialogTitle = computed(() => isEditMode.value ? t('project.editTitle') : t('project.createTitle'))
 
 const rules = reactive<FormRules>({
-  name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }]
+  name: [{ required: true, message: t('project.nameRequired'), trigger: 'blur' }]
 })
 
 const emit = defineEmits(['create', 'update'])
@@ -78,7 +80,7 @@ async function loadProjectTemplates() {
     }
   } catch (error) {
     console.error('加载项目模板失败:', error)
-    ElMessage.error('加载项目模板失败')
+    ElMessage.error(t('project.templateLoadError'))
   } finally {
     loadingTemplates.value = false
   }
@@ -116,7 +118,7 @@ function handleConfirm() {
       }
       visible.value = false
     } else {
-      ElMessage.error('请填写必要的表单项')
+      ElMessage.error(t('project.requiredFields'))
     }
   })
 }

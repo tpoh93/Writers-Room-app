@@ -8,8 +8,8 @@ export interface ContextTemplates {
 }
 
 export const CONTEXT_TEMPLATE_LABELS: Record<ContextTemplateKind, string> = {
-  generation: '内容生成',
-  review: '内容审核',
+  generation: i18n.global.t('editor.contextGeneration'),
+  review: i18n.global.t('editor.contextReview'),
 }
 
 export function normalizeContextTemplateKind(
@@ -53,3 +53,4 @@ export function buildContextTemplateUpdatePayload(templates: ContextTemplates): 
     ai_context_template_review: templates.review,
   }
 }
+import i18n from '@renderer/i18n'

@@ -1,5 +1,6 @@
 import request from './request'
 import { ref } from 'vue'
+import i18n from '@renderer/i18n'
 
 // --- 类型定义 ---
 // 基础的 JSON Schema 类型定义。可以根据需要进行扩展。
@@ -77,7 +78,7 @@ function dereferenceSchema(
   if (schema.$ref) {
     if (visited.has(schema.$ref)) {
       console.warn('检测到循环引用:', schema.$ref)
-      return { type: 'object', title: 'Circular Reference' }
+      return { type: 'object', title: i18n.global.t('dynamicForm.circularReference') }
     }
     visited.add(schema.$ref)
     const resolved = resolveRef(schema.$ref, allSchemas)
@@ -85,7 +86,10 @@ function dereferenceSchema(
       // 递归地解析解析后的 schema
       return dereferenceSchema(resolved, allSchemas, visited)
     } else {
-      return { type: 'string', title: `Unresolved Reference: ${schema.$ref}` }
+      return {
+        type: 'string',
+        title: i18n.global.t('dynamicForm.unresolvedReference', { reference: schema.$ref }),
+      }
     }
   }
 

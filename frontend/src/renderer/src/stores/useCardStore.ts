@@ -15,6 +15,7 @@ import {
 import { useProjectStore } from './useProjectStore'
 import { ElMessage } from 'element-plus'
 import { BASE_URL } from '@renderer/api/request'
+import i18n from '@renderer/i18n'
 
 // Helper function to build a tree from a flat list of cards
 // 为了避免直接在 CardRead 上添加 children 属性，这里定义本地扩展类型
@@ -108,7 +109,7 @@ export const useCardStore = defineStore('card', () => {
       const fetchedCards = await getCardsForProject(projectId)
       cards.value = fetchedCards
     } catch (error) {
-      ElMessage.error('Failed to fetch cards.')
+      ElMessage.error(i18n.global.t('editor.cardsFetchError'))
       console.error(error)
     } finally {
       isLoading.value = false
@@ -125,11 +126,11 @@ export const useCardStore = defineStore('card', () => {
         cards.value = [...cards.value, newCard as unknown as CardRead]
       } else {
         await fetchCards(currentProject.value.id)
-        ElMessage.success(`Card "${newCard.title}" created.`)
+        ElMessage.success(i18n.global.t('editor.cardCreated', { title: newCard.title }))
       }
       return newCard
     } catch (error) {
-      if (!options?.silent) ElMessage.error('Failed to create card.')
+      if (!options?.silent) ElMessage.error(i18n.global.t('editor.cardCreateError'))
       console.error(error)
       return
     }
@@ -153,7 +154,7 @@ export const useCardStore = defineStore('card', () => {
           cards.value[index] = { ...existingCard, ...updatedCard, content: newContent }
         }
       }
-      ElMessage.success(`Card "${updatedCard.title}" updated.`)
+      ElMessage.success(i18n.global.t('editor.cardUpdated', { title: updatedCard.title }))
 
       // 读取工作流运行回执并订阅事件，完成后刷新
       const hdr = axiosResp.headers || {}
@@ -233,7 +234,7 @@ export const useCardStore = defineStore('card', () => {
         }
       }
     } catch (error) {
-      ElMessage.error('Failed to update card.')
+      ElMessage.error(i18n.global.t('editor.cardUpdateError'))
       console.error(error)
     }
   }
@@ -249,7 +250,7 @@ export const useCardStore = defineStore('card', () => {
     try {
       cardTypes.value = await getCardTypes()
     } catch (error) {
-      ElMessage.error('Failed to fetch card types.')
+      ElMessage.error(i18n.global.t('editor.cardTypesFetchError'))
       console.error(error)
     }
   }
@@ -259,7 +260,7 @@ export const useCardStore = defineStore('card', () => {
     try {
       availableModels.value = await getContentModels()
     } catch (error) {
-      ElMessage.error('Failed to fetch available content models.')
+      ElMessage.error(i18n.global.t('editor.contentModelsFetchError'))
       console.error(error)
     }
   }
@@ -289,4 +290,4 @@ export const useCardStore = defineStore('card', () => {
     fetchAvailableModels,
     setActiveCard,
   }
-}) 
+})

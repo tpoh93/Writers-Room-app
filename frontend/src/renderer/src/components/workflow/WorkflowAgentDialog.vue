@@ -2,21 +2,21 @@
   <div class="workflow-agent-widget" :style="widgetStyle" ref="widgetRef">
     <div v-if="!visible" class="agent-trigger" @mousedown="handleMouseDown" @click="handleTriggerClick">
       <el-icon class="trigger-icon"><MagicStick /></el-icon>
-      <span class="trigger-label">工作流智能体</span>
+      <span class="trigger-label">{{ t('workflow.agent') }}</span>
       <el-badge v-if="pendingPatchOps.length" :value="pendingPatchOps.length" class="trigger-badge" />
     </div>
 
     <div v-if="visible" class="agent-window" :class="{ 'is-collapsed': collapsed }" :style="windowStyle" @mousedown.stop>
       <div class="window-header" @mousedown.stop="handleWindowMouseDown">
         <div class="window-title">
-          <span>{{ collapsed ? '工作流Agent' : '工作流智能体' }}</span>
-          <el-tag v-if="!collapsed" size="small" type="info">工作流 #{{ props.workflowId || '-' }}</el-tag>
+          <span>{{ collapsed ? t('workflow.agentShort') : t('workflow.agent') }}</span>
+          <el-tag v-if="!collapsed" size="small" type="info">{{ t('workflow.unnamedWithId', { id: props.workflowId || '-' }) }}</el-tag>
         </div>
         <div class="window-actions" @mousedown.stop>
           <el-button size="small" text @click="toggleCollapsed">
-            {{ collapsed ? '展开' : '折叠' }}
+            {{ collapsed ? t('workflow.expand') : t('workflow.collapse') }}
           </el-button>
-          <el-button size="small" text @click="handleCloseWindow">关闭</el-button>
+          <el-button size="small" text @click="handleCloseWindow">{{ t('common.close') }}</el-button>
         </div>
       </div>
 
@@ -24,7 +24,7 @@
         <el-select
           v-model="selectedLlmId"
           filterable
-          placeholder="选择模型"
+          :placeholder="t('workflow.selectModel')"
           size="small"
           style="width: 220px"
           popper-class="workflow-agent-popper"
@@ -38,7 +38,7 @@
             :label="item.display_name || item.model_name"
             :value="item.id"
           />
-          <el-option v-if="!llmLoading && !llmOptions.length" label="暂无可用模型" :value="-1" disabled />
+          <el-option v-if="!llmLoading && !llmOptions.length" :label="t('workflow.noModels')" :value="-1" disabled />
         </el-select>
 
         <el-select
@@ -48,18 +48,18 @@
           popper-class="workflow-agent-popper"
           :teleported="true"
         >
-          <el-option label="建议模式" value="suggest" />
+          <el-option :label="t('workflow.suggestMode')" value="suggest" />
         </el-select>
 
         <el-switch
           v-model="thinkingEnabled"
           size="small"
           inline-prompt
-          active-text="思考"
-          inactive-text="思考"
+          :active-text="t('workflow.thinking')"
+          :inactive-text="t('workflow.thinking')"
         />
 
-        <el-tag v-if="pendingPatchOps.length" size="small" type="success">{{ pendingPatchOps.length }} 个操作</el-tag>
+        <el-tag v-if="pendingPatchOps.length" size="small" type="success">{{ t('workflow.operationCount', { count: pendingPatchOps.length }) }}</el-tag>
       </div>
 
       <div v-show="!collapsed" class="window-body">
@@ -67,17 +67,17 @@
           ref="messageListRef"
           :messages="messages"
           :streaming="streaming"
-          empty-description="请描述你希望的工作流改动目标，我会先给出补丁预览。"
+          :empty-description="t('workflow.agentEmpty')"
         />
 
         <div class="patch-panel" v-if="pendingPatchOps.length || pendingDiff">
           <div class="patch-title-row">
             <div class="patch-title-meta">
-              <span class="patch-title">补丁预览</span>
-              <el-tag size="small" type="success">{{ pendingPatchOps.length }} 个操作</el-tag>
+              <span class="patch-title">{{ t('workflow.patchPreview') }}</span>
+              <el-tag size="small" type="success">{{ t('workflow.operationCount', { count: pendingPatchOps.length }) }}</el-tag>
             </div>
             <el-button size="small" text @click="patchPreviewExpanded = !patchPreviewExpanded">
-              {{ patchPreviewExpanded ? '收起预览' : '展开预览' }}
+              {{ patchPreviewExpanded ? t('workflow.collapsePreview') : t('workflow.expandPreview') }}
             </el-button>
           </div>
 
@@ -93,7 +93,7 @@
             type="textarea"
             :rows="8"
             readonly
-            placeholder="暂无 diff 预览"
+            :placeholder="t('workflow.noDiffPreview')"
           />
 
           <div class="patch-actions" v-show="patchPreviewExpanded">
@@ -103,8 +103,8 @@
               :disabled="!canApplyPatch"
               :loading="applyingPatch"
               @click="confirmApplyPatch"
-            >应用补丁</el-button>
-            <el-button size="small" @click="clearPendingPatch">清空补丁</el-button>
+            >{{ t('workflow.applyPatch') }}</el-button>
+            <el-button size="small" @click="clearPendingPatch">{{ t('workflow.clearPatch') }}</el-button>
           </div>
 
           <div v-if="lastPatchError" class="patch-error">{{ lastPatchError }}</div>
@@ -115,20 +115,20 @@
             v-model="draft"
             :rows="3"
             resize="none"
-            placeholder="例如：在大纲节点后新增结构化节点，并输出到项目A"
+            :placeholder="t('workflow.agentPlaceholder')"
             :disabled="streaming"
             @keydown="handleEnterSend"
           >
             <template #actions>
               <div class="footer-actions">
                 <el-button size="small" @click="suggestFixForValidation" :disabled="!lastValidationFailed">
-                  让智能体修复校验问题
+                  {{ t('workflow.repairValidation') }}
                 </el-button>
                 <el-button v-if="!streaming" type="primary" size="small" :disabled="!canSend" @click="sendMessage">
-                  发送
+                  {{ t('workflow.send') }}
                 </el-button>
                 <el-button v-else type="danger" size="small" :icon="VideoPause" @click="handleStopStreaming">
-                  中止
+                  {{ t('workflow.stop') }}
                 </el-button>
               </div>
             </template>
@@ -141,6 +141,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { MagicStick, VideoPause } from '@element-plus/icons-vue'
 
@@ -158,6 +159,8 @@ import {
   type WorkflowAgentMode,
   type WorkflowPatchOp,
 } from '@/api/workflowAgent'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   workflowId: number | null
@@ -379,9 +382,9 @@ async function previewPatchDryRun() {
         return
       }
       if (result.error === 'revision_mismatch') {
-        lastPatchError.value = '代码已在后台更新，已为你同步到最新版本，请重试。'
+        lastPatchError.value = t('workflow.revisionSyncedRetry')
       } else {
-        lastPatchError.value = result.error || (result.validation?.is_valid ? '' : '校验未通过')
+        lastPatchError.value = result.error || (result.validation?.is_valid ? '' : t('workflow.validationFailed'))
       }
     } else {
       lastPatchError.value = ''
@@ -397,9 +400,9 @@ async function previewPatchDryRun() {
         await previewPatchDryRunOnce()
         return
       }
-      lastPatchError.value = '代码已在后台更新，已为你同步到最新版本，请重试。'
+      lastPatchError.value = t('workflow.revisionSyncedRetry')
     } else {
-      lastPatchError.value = detail?.message || detail || error?.message || '补丁预览失败'
+      lastPatchError.value = detail?.message || detail || error?.message || t('workflow.patchPreviewError')
     }
   }
 }
@@ -421,8 +424,8 @@ async function previewPatchDryRunOnce() {
     lastValidationFailed.value = !Boolean(result.validation?.is_valid)
     if (!result.success) {
       lastPatchError.value = result.error === 'revision_mismatch'
-        ? '代码刚刚又被修改，请再试一次。'
-        : (result.error || (result.validation?.is_valid ? '' : '校验未通过'))
+        ? t('workflow.revisionChangedRetry')
+        : (result.error || (result.validation?.is_valid ? '' : t('workflow.validationFailed')))
     } else {
       lastPatchError.value = ''
     }
@@ -430,9 +433,9 @@ async function previewPatchDryRunOnce() {
     if (seq !== previewSeq.value) return
     const detail = error?.response?.data?.detail
     if (detail?.code === 'revision_mismatch') {
-      lastPatchError.value = '代码刚刚又被修改，请再试一次。'
+      lastPatchError.value = t('workflow.revisionChangedRetry')
     } else {
-      lastPatchError.value = detail?.message || detail || error?.message || '补丁预览失败'
+      lastPatchError.value = detail?.message || detail || error?.message || t('workflow.patchPreviewError')
     }
   }
 }
@@ -442,10 +445,10 @@ async function confirmApplyPatch() {
   if (!workflowId || !pendingPatchOps.value.length || !revisionRef.value) return
 
   try {
-    await ElMessageBox.confirm('确认将当前补丁应用到工作流代码吗？', '应用补丁', {
+    await ElMessageBox.confirm(t('workflow.applyPatchConfirm'), t('workflow.applyPatchTitle'), {
       type: 'warning',
-      confirmButtonText: '确认应用',
-      cancelButtonText: '取消',
+      confirmButtonText: t('workflow.applyPatchAction'),
+      cancelButtonText: t('common.cancel'),
     })
   } catch {
     return
@@ -461,14 +464,14 @@ async function confirmApplyPatch() {
 
     if (!result.success) {
       lastValidationFailed.value = !Boolean(result.validation?.is_valid)
-      lastPatchError.value = result.error || '补丁应用失败'
+      lastPatchError.value = result.error || t('workflow.patchApplyError')
       ElMessage.error(lastPatchError.value)
       return
     }
 
     revisionRef.value = result.new_revision || revisionRef.value
     emit('applied', { newCode: result.new_code, newRevision: result.new_revision ?? undefined })
-    ElMessage.success('补丁应用成功，且校验通过')
+    ElMessage.success(t('workflow.patchSuccess'))
     clearPendingPatch()
   } catch (error: any) {
     const detail = error?.response?.data?.detail
@@ -476,10 +479,10 @@ async function confirmApplyPatch() {
       if (typeof detail?.current_revision === 'string' && detail.current_revision.trim()) {
         revisionRef.value = detail.current_revision
       }
-      lastPatchError.value = '代码已更新，补丁基线已自动同步，请再次点击“应用补丁”。'
+      lastPatchError.value = t('workflow.patchBaselineSynced')
       void previewPatchDryRunOnce()
     } else {
-      lastPatchError.value = detail?.message || detail || error?.message || '应用补丁失败'
+      lastPatchError.value = detail?.message || detail || error?.message || t('workflow.patchApplyError')
     }
     ElMessage.error(lastPatchError.value)
   } finally {
@@ -553,7 +556,7 @@ function sendMessage() {
             if (ops.length && hasValidReplaceCode) {
               void setPendingPatchOps(ops, { preview: patchResult.error === 'revision_mismatch' })
             } else if ((patchResult?.patch_ops?.length || Array.isArray(patchResult) || patchResult?.op === 'replace_code')) {
-              lastPatchError.value = patchResult?.message || '模型返回了无效补丁（replace_code 缺少 new_code），请重试。'
+              lastPatchError.value = patchResult?.message || t('workflow.invalidReplacePatch')
             }
             if (typeof patchResult.diff === 'string') {
               pendingDiff.value = patchResult.diff
@@ -563,7 +566,7 @@ function sendMessage() {
             }
             if (patchResult.error) {
               lastPatchError.value = patchResult.error === 'revision_mismatch'
-                ? '代码版本已变化，已自动同步最新版本并重新预览。'
+                ? t('workflow.revisionSyncedPreview')
                 : String(patchResult.error)
             } else if (patchResult.success) {
               lastPatchError.value = ''
@@ -588,7 +591,7 @@ function sendMessage() {
                 } as WorkflowPatchOp,
               ], { preview: false })
             } else {
-              lastPatchError.value = replaceResult?.message || 'replace_code 缺少 new_code，请重试。'
+              lastPatchError.value = replaceResult?.message || t('workflow.missingReplaceCode')
             }
 
             if (typeof replaceResult.diff === 'string') {
@@ -599,7 +602,7 @@ function sendMessage() {
             }
             if (replaceResult.error) {
               lastPatchError.value = replaceResult.error === 'revision_mismatch'
-                ? '代码版本已变化，已自动同步最新版本并重新预览。'
+                ? t('workflow.revisionSyncedPreview')
                 : String(replaceResult.error)
             } else if (replaceResult.success) {
               lastPatchError.value = ''
@@ -618,7 +621,7 @@ function sendMessage() {
     err => {
       streaming.value = false
       streamCancelRef.value = null
-      ElMessage.error(err?.message || '工作流智能体请求失败')
+      ElMessage.error(err?.message || t('workflow.agentRequestError'))
     },
   )
 
@@ -751,14 +754,14 @@ async function loadLlmOptions() {
   try {
     llmOptions.value = await listLLMConfigs()
     if (!llmOptions.value.length) {
-      ElMessage.warning('当前没有可用模型，请先在设置中配置 LLM。')
+      ElMessage.warning(t('workflow.configureModelFirst'))
     }
     if (!selectedLlmId.value && llmOptions.value.length) {
       selectedLlmId.value = llmOptions.value[0].id
     }
   } catch (error: any) {
     llmOptions.value = []
-    ElMessage.error(error?.message || '加载模型列表失败')
+    ElMessage.error(error?.message || t('workflow.modelsLoadError'))
   } finally {
     llmLoading.value = false
   }

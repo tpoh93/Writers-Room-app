@@ -1,10 +1,10 @@
 <template>
   <div class="node-library">
     <div class="library-header">
-      <h3>节点库</h3>
+      <h3>{{ t('workflow.nodeLibrary') }}</h3>
       <el-input
         v-model="searchQuery"
-        placeholder="搜索节点..."
+        :placeholder="t('workflow.searchNodes')"
         clearable
         :prefix-icon="Search"
         size="small"
@@ -40,7 +40,7 @@
                 </el-icon>
                 <div class="node-info">
                   <div class="node-name">{{ node.label }}</div>
-                  <div class="node-desc">{{ node.description || '无描述' }}</div>
+                  <div class="node-desc">{{ node.description || t('workflow.noDescription') }}</div>
                 </div>
               </div>
             </div>
@@ -65,8 +65,11 @@ import {
   Document
 } from '@element-plus/icons-vue'
 import request from '@/api/request'
+import { useI18n } from 'vue-i18n'
+import { getWorkflowNodeDisplay } from '@renderer/i18n'
 
 const emit = defineEmits(['add-node'])
+const { t } = useI18n()
 
 const searchQuery = ref('')
 const activeCategories = ref(['logic', 'novel', 'card', 'example'])
@@ -76,7 +79,8 @@ const loading = ref(false)
 // 按分类组织节点
 const nodesByCategory = computed(() => {
   const grouped = {}
-  nodeTypes.value.forEach(node => {
+  nodeTypes.value.forEach(rawNode => {
+    const node = getWorkflowNodeDisplay(rawNode, t)
     if (!grouped[node.category]) {
       grouped[node.category] = []
     }
@@ -125,15 +129,15 @@ const getCategoryIcon = (category) => {
 // 分类名称映射
 const getCategoryLabel = (category) => {
   const map = {
-    'trigger': '触发器',
-    'logic': '逻辑控制',
-    'card': '卡片操作',
-    'data': '数据处理',
-    'ai': 'AI 生成',
-    'novel': '小说处理',
-    'prompt': '提示词',
-    'example': '示例节点',
-    'context': '上下文'
+    'trigger': t('workflow.categoryTrigger'),
+    'logic': t('workflow.categoryLogic'),
+    'card': t('workflow.categoryCard'),
+    'data': t('workflow.categoryData'),
+    'ai': t('workflow.categoryAi'),
+    'novel': t('workflow.categoryNovel'),
+    'prompt': t('workflow.categoryPrompt'),
+    'example': t('workflow.categoryExample'),
+    'context': t('workflow.categoryContext')
   }
   return map[category] || category
 }

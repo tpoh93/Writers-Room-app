@@ -20,8 +20,8 @@ export function showInterruptOverlay(text: string, onCancel: () => void) {
   overlayEl.innerHTML = `
     <div class="nf-interrupt-backdrop"></div>
     <div class="nf-interrupt-box">
-      <div class="nf-interrupt-text">${text || 'AI 生成中…'}</div>
-      <button class="nf-interrupt-btn" id="nf-interrupt-btn">中断生成</button>
+      <div class="nf-interrupt-text">${text || i18n.global.t('chapterEditor.generating')}</div>
+      <button class="nf-interrupt-btn" id="nf-interrupt-btn">${i18n.global.t('chapterEditor.interruptGeneration')}</button>
     </div>
   `
   document.body.appendChild(overlayEl)
@@ -34,4 +34,5 @@ export function hideInterruptOverlay() {
   overlayEl = null
 }
 
+import i18n from '@renderer/i18n'
 

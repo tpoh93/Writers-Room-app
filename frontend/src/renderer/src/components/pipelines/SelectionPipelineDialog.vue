@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     :model-value="visible"
-    title="Thinking p*rn"
+    :title="t('selectionPipeline.title')"
     width="min(960px, 94vw)"
     destroy-on-close
     @update:model-value="handleVisibility"
@@ -13,7 +13,7 @@
         type="error"
         :closable="false"
         show-icon
-        title="Dokument zmienił się od chwili uruchomienia pipeline’u. Zastosowanie zostało zablokowane."
+        :title="t('selectionPipeline.conflictTitle')"
         :description="conflict"
       />
       <el-alert
@@ -22,19 +22,19 @@
         type="error"
         :closable="false"
         show-icon
-        title="Pipeline zatrzymał się"
+        :title="t('selectionPipeline.stoppedTitle')"
         :description="runError"
       />
 
       <section class="pipeline-setup">
-        <label class="field-label" for="pipeline-brief">Brief</label>
+        <label class="field-label" for="pipeline-brief">{{ t('selectionPipeline.brief') }}</label>
         <el-input
           id="pipeline-brief"
           v-model="brief"
           data-test="brief-input"
           type="textarea"
           :autosize="{ minRows: 2, maxRows: 5 }"
-          placeholder="Co dokładnie mają poprawić Kimi, Grok i Aion?"
+          :placeholder="t('selectionPipeline.briefPlaceholder')"
           :disabled="running"
         />
 
@@ -45,7 +45,7 @@
               v-model="selectedModels[step.key]"
               :data-test="`${step.key}-model`"
               :disabled="running"
-              placeholder="Wybierz konfigurację"
+              :placeholder="t('selectionPipeline.selectConfiguration')"
             >
               <el-option
                 v-for="option in modelOptions"
@@ -64,11 +64,11 @@
           :disabled="running || !canStart"
           @click="start"
         >
-          Uruchom pipeline
+          {{ t('selectionPipeline.start') }}
         </el-button>
       </section>
 
-      <section class="pipeline-status" aria-label="Etapy pipeline’u">
+      <section class="pipeline-status" :aria-label="t('selectionPipeline.stages')">
         <div
           v-for="step in orderedSteps"
           :key="step.key"
@@ -86,28 +86,28 @@
         <el-collapse-item
           v-for="step in orderedSteps"
           :key="step.key"
-          :title="`${step.label} · wynik`"
+          :title="t('selectionPipeline.resultTitle', { step: step.label })"
           :name="step.key"
           :disabled="!steps[step.key].output"
         >
-          <pre :data-test="`${step.key}-output`">{{ steps[step.key].output || 'Brak wyniku' }}</pre>
+          <pre :data-test="`${step.key}-output`">{{ steps[step.key].output || t('selectionPipeline.noResult') }}</pre>
         </el-collapse-item>
       </el-collapse>
 
-      <section class="comparison" aria-label="Porównanie tekstu">
+      <section class="comparison" :aria-label="t('selectionPipeline.comparisonAria')">
         <div class="comparison-header">
-          <strong>Porównanie</strong>
+          <strong>{{ t('selectionPipeline.comparison') }}</strong>
           <span data-test="change-summary">
-            {{ changedLineCount }} zmienionych linii · {{ wordDeltaLabel }}
+            {{ changedLineLabel }} · {{ wordDeltaLabel }}
           </span>
         </div>
         <div class="comparison-grid">
           <article>
-            <h4>Oryginał</h4>
+            <h4>{{ t('selectionPipeline.original') }}</h4>
             <pre data-test="source-text" class="word-diff"><template v-for="(segment, index) in sourceWordDiff" :key="index"><mark v-if="segment.changed">{{ segment.text }}</mark><span v-else>{{ segment.text }}</span></template></pre>
           </article>
           <article>
-            <h4>Wersja Aiona</h4>
+            <h4>{{ t('selectionPipeline.aionVersion') }}</h4>
             <pre data-test="final-text" class="word-diff"><template v-for="(segment, index) in finalWordDiff" :key="index"><mark v-if="segment.changed">{{ segment.text }}</mark><span v-else>{{ segment.text }}</span></template></pre>
           </article>
         </div>
@@ -116,15 +116,15 @@
 
     <template #footer>
       <div class="dialog-actions">
-        <el-button data-test="close" @click="closeDialog">Zamknij</el-button>
-        <el-button data-test="reject" @click="reject">Odrzuć</el-button>
+        <el-button data-test="close" @click="closeDialog">{{ t('selectionPipeline.close') }}</el-button>
+        <el-button data-test="reject" @click="reject">{{ t('selectionPipeline.reject') }}</el-button>
         <el-button
           data-test="retry"
           :disabled="!canRetry"
           :loading="running"
           @click="retry"
         >
-          Ponów nieudany krok
+          {{ t('selectionPipeline.retryFailed') }}
         </el-button>
         <el-button
           data-test="accept"
@@ -132,7 +132,7 @@
           :disabled="acceptDisabled"
           @click="accept"
         >
-          Zastosuj
+          {{ t('selectionPipeline.apply') }}
         </el-button>
       </div>
     </template>
@@ -141,6 +141,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   startSelectionPipeline,
@@ -155,6 +156,8 @@ export interface PipelineModelOption {
   id: number
   display_name: string
 }
+
+const { t } = useI18n()
 
 const props = defineProps<{
   visible: boolean
@@ -178,9 +181,9 @@ interface StepViewState {
 }
 
 const orderedSteps: Array<{ key: PipelineStepName; label: string }> = [
-  { key: 'kimi', label: 'Kimi · architektura i psychologia' },
-  { key: 'grok', label: 'Grok · choreografia i ciągłość' },
-  { key: 'aion', label: 'Aion · finalny szlif' },
+  { key: 'kimi', label: t('selectionPipeline.kimiStep') },
+  { key: 'grok', label: t('selectionPipeline.grokStep') },
+  { key: 'aion', label: t('selectionPipeline.aionStep') },
 ]
 
 const brief = ref('')
@@ -323,11 +326,16 @@ const changedLineCount = computed(() => {
   }
   return changed
 })
+const changedLineLabel = computed(() => t('selectionPipeline.changedLines', changedLineCount.value))
 const wordDeltaLabel = computed(() => {
   const sourceWords = props.sourceText.trim() ? props.sourceText.trim().split(/\s+/).length : 0
   const finalWords = finalText.value.trim() ? finalText.value.trim().split(/\s+/).length : 0
   const delta = finalWords - sourceWords
-  return `${delta >= 0 ? '+' : ''}${delta} słów`
+  return t(
+    'selectionPipeline.wordDelta',
+    { count: `${delta >= 0 ? '+' : ''}${delta}` },
+    Math.abs(delta),
+  )
 })
 
 function tagType(status: PipelineStepStatus): 'info' | 'warning' | 'success' | 'danger' {
@@ -339,11 +347,11 @@ function tagType(status: PipelineStepStatus): 'info' | 'warning' | 'success' | '
 
 function statusLabel(status: PipelineStepStatus): string {
   return {
-    idle: 'oczekuje',
-    queued: 'w kolejce',
-    running: 'pracuje',
-    success: 'gotowe',
-    error: 'błąd',
+    idle: t('selectionPipeline.idle'),
+    queued: t('selectionPipeline.queued'),
+    running: t('selectionPipeline.running'),
+    success: t('selectionPipeline.success'),
+    error: t('selectionPipeline.error'),
   }[status]
 }
 
@@ -391,7 +399,7 @@ function openStream(resume: boolean): void {
       onFinished(result) {
         syncNodeStates(result.states)
         if (!result.finalReplacement.trim()) {
-          runError.value = 'Aion nie zwrócił finalnego tekstu.'
+          runError.value = t('selectionPipeline.noFinalText')
         }
       },
       onError(message) {
@@ -427,7 +435,7 @@ async function start(): Promise<void> {
     openStream(false)
   } catch (error) {
     running.value = false
-    runError.value = error instanceof Error ? error.message : 'Nie udało się uruchomić pipeline’u.'
+    runError.value = error instanceof Error ? error.message : t('selectionPipeline.startError')
   }
 }
 

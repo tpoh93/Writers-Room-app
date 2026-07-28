@@ -2,7 +2,7 @@
   <div class="generic-card-editor">
     <EditorHeader
       :project-name="projectName"
-      :card-type="props.card.card_type.name"
+      :card-type="getCardTypeDisplayName(props.card.card_type.name)"
       v-model:title="titleProxy"
       :dirty="isDirty"
       :saving="isSaving"
@@ -53,7 +53,7 @@
             <span class="review-button-label">
               <el-icon v-if="reviewLoading" class="review-loading-icon"><Loading /></el-icon>
               <el-icon v-else><List /></el-icon>
-              {{ reviewLoading ? '审核中...' : '审核' }}
+              {{ reviewLoading ? t('chapterEditor.reviewing') : t('chapterEditor.review') }}
             </span>
             <template #dropdown>
               <el-dropdown-menu>
@@ -71,7 +71,7 @@
             </template>
           </el-dropdown>
           <AIPerCardParams :card-id="props.card.id" :card-type-name="props.card.card_type?.name" />
-          <el-button size="small" type="primary" plain @click="schemaStudioVisible = true">结构</el-button>
+          <el-button size="small" type="primary" plain @click="schemaStudioVisible = true">{{ t('genericCard.structure') }}</el-button>
         </div>
       </div>
 
@@ -88,8 +88,8 @@
             </template>
           </div>
           <div v-else class="loading-or-error-container">
-            <p v-if="schemaIsLoading">正在加载模型...</p>
-            <p v-else>无法加载此卡片内容的编辑模型。</p>
+            <p v-if="schemaIsLoading">{{ t('genericCard.loadingModel') }}</p>
+            <p v-else>{{ t('genericCard.modelLoadError') }}</p>
           </div>
         </div>
       </div>
@@ -104,7 +104,7 @@
       @open-selector="openSelectorFromDrawer"
     >
       <template #params>
-        <div class="param-placeholder">参数设置入口（已改为每卡片本地参数）</div>
+        <div class="param-placeholder">{{ t('genericCard.cardParameters') }}</div>
       </template>
     </ContextDrawer>
 
@@ -119,7 +119,7 @@
       @restore="handleRestoreVersion"
     />
 
-    <SchemaStudio v-model:visible="schemaStudioVisible" :mode="'card'" :target-id="props.card.id" :context-title="props.card.title" @saved="onSchemaSaved" />
+    <SchemaStudio v-model:visible="schemaStudioVisible" :mode="'card'" :target-id="props.card.id" :context-title="getCardDisplayTitle(props.card.title)" @saved="onSchemaSaved" />
 
     <!-- 初始提示对话框 -->
     <InitialPromptDialog
@@ -140,7 +140,7 @@
       @restart="handleRestartGeneration"
     />
 
-    <el-dialog v-model="stageReviewDialogVisible" title="审核结果" width="72%">
+    <el-dialog v-model="stageReviewDialogVisible" :title="t('genericCard.reviewResults')" width="72%">
       <div v-if="stageReviewText" class="stage-review-dialog-body">
         <div class="stage-review-overview">
           <div class="stage-review-overview-main">
@@ -155,26 +155,26 @@
               {{ stageReviewDraft.review_profile }}
             </span>
           </div>
-          <p class="stage-review-summary">这是本次审核草稿。确认后可创建或更新审核结果卡片。</p>
+          <p class="stage-review-summary">{{ t('chapterEditor.reviewDraftHint') }}</p>
         </div>
 
         <div class="stage-review-text-block">
           <SimpleMarkdown
-            :markdown="stageReviewText || '（暂无内容）'"
+            :markdown="stageReviewText || t('editor.noContent')"
             class="review-markdown"
           />
         </div>
       </div>
       <template #footer>
         <div class="stage-review-footer">
-          <el-button @click="stageReviewDialogVisible = false">关闭</el-button>
+          <el-button @click="stageReviewDialogVisible = false">{{ t('common.close') }}</el-button>
           <el-button
             type="primary"
             :loading="reviewCardSaving"
             :disabled="!stageReviewDraft"
             @click="handleCreateOrUpdateReviewCard"
           >
-            {{ stageReviewDraft?.existing_review_card_id ? '更新审核结果卡片' : '创建审核结果卡片' }}
+            {{ stageReviewDraft?.existing_review_card_id ? t('chapterEditor.updateReviewCard') : t('chapterEditor.createReviewCard') }}
           </el-button>
         </div>
       </template>
@@ -184,6 +184,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { getCardDisplayTitle, getCardTypeDisplayName } from '@renderer/i18n'
 import { storeToRefs } from 'pinia'
 import { useCardStore } from '@renderer/stores/useCardStore'
 import { useAIStore } from '@renderer/stores/useAIStore'
@@ -234,6 +236,8 @@ import InitialPromptDialog from '../generation/InitialPromptDialog.vue'
 import { InstructionExecutor } from '@renderer/services/instructionExecutor'
 import { generateWithInstructionStream } from '@renderer/api/generation'
 import type { Instruction, ConversationMessage } from '@renderer/types/instruction'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   card: CardRead
@@ -367,7 +371,7 @@ const innerData = computed({
 const aiOptions = ref<AIConfigOptions | null>(null)
 async function loadAIOptions() { try { aiOptions.value = await getAIConfigOptions() } catch {} }
 
-const projectName = '当前项目'
+const projectName = t('genericCard.currentProject')
 const lastSavedAt = ref<string | undefined>(undefined)
 
 // 顶部标题与表单 Title 字段保持同步
@@ -468,11 +472,11 @@ const selectedModelName = computed(() => {
 
 const paramSummary = computed(() => {
   const p = perCardParams.value || editingParams.value
-  const model = selectedModelName.value ? `模型:${selectedModelName.value}` : '模型:未设'
-  const prompt = p?.prompt_name ? `提示词:${p.prompt_name}` : '提示词:未设'
-  const t = p?.temperature != null ? `温度:${p.temperature}` : ''
+  const model = t('chapterEditor.modelSummary', { value: selectedModelName.value || t('editor.notSet') })
+  const prompt = t('genericCard.promptSummary', { value: p?.prompt_name || t('editor.notSet') })
+  const temperature = p?.temperature != null ? t('chapterEditor.temperatureSummary', { value: p.temperature }) : ''
   const m = p?.max_tokens != null ? `max_tokens:${p.max_tokens}` : ''
-  return [model, prompt, t, m].filter(Boolean).join(' · ')
+  return [model, prompt, temperature, m].filter(Boolean).join(' · ')
 })
 
 const reviewPrompts = computed(() => {
@@ -498,17 +502,17 @@ function syncReviewPrompt(force = false) {
 
 function handleReviewPromptChange(promptName: string) {
   currentReviewPrompt.value = promptName
-  ElMessage.success(`已切换审核提示词为: ${promptName}`)
+  ElMessage.success(t('chapterEditor.reviewPromptChanged', { name: promptName }))
 }
 
 function formatReviewVerdict(verdict?: QualityGate | null | string): string {
   switch (verdict) {
     case 'pass':
-      return '基本通过'
+      return t('editor.reviewPassed')
     case 'block':
-      return '高风险拦截'
+      return t('editor.reviewBlocked')
     default:
-      return '建议修改'
+      return t('editor.reviewChangesSuggested')
   }
 }
 
@@ -526,7 +530,7 @@ function getReviewVerdictTagType(verdict?: QualityGate | null | string): 'succes
 function formatReviewCreatedAt(value?: string | null): string {
   if (!value) return ''
   try {
-    return new Intl.DateTimeFormat('zh-CN', {
+    return new Intl.DateTimeFormat('pl-PL', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -631,18 +635,18 @@ async function applyAndSavePerCardParams() {
   try {
     await updateCardAIParams(props.card.id, { ...editingParams.value })
     perCardStore.setForCard(props.card.id, { ...editingParams.value })
-    ElMessage.success('已保存')
-  } catch { ElMessage.error('保存失败') }
+    ElMessage.success(t('settings.saveSuccess'))
+  } catch { ElMessage.error(t('settings.saveError')) }
 }
 
 async function restoreParamsFollowType() {
   try {
     await updateCardAIParams(props.card.id, null)
-    ElMessage.success('已恢复跟随类型')
+    ElMessage.success(t('editor.followTypeRestored'))
     const resp = await getCardAIParams(props.card.id)
     const eff = resp?.effective_params
     if (eff) editingParams.value = { ...eff }
-  } catch { ElMessage.error('操作失败') }
+  } catch { ElMessage.error(t('editor.operationError')) }
 }
 
 async function applyParamsToType() {
@@ -661,8 +665,8 @@ async function applyParamsToType() {
       editingParams.value = { ...eff }
       perCardStore.setForCard(props.card.id, { ...eff })
     }
-    ElMessage.success('已应用到类型，并恢复本卡片跟随类型')
-  } catch { ElMessage.error('应用失败') }
+    ElMessage.success(t('editor.appliedToType'))
+  } catch { ElMessage.error(t('editor.applyError')) }
 }
 
 function resetToPreset() {
@@ -755,7 +759,7 @@ function handleReferenceConfirm(reference: string) {
       ...localAiContextTemplates.value,
       [kind]: `${currentText}${reference}`,
     }
-    ElMessage.success('已插入引用')
+    ElMessage.success(t('genericCard.referenceInserted'))
     return
   }
   const isAt = currentText.charAt(atIndexForInsertion) === '@'
@@ -766,7 +770,7 @@ function handleReferenceConfirm(reference: string) {
     [kind]: before + reference + after,
   }
   atIndexForInsertion = -1
-  ElMessage.success('已插入引用')
+  ElMessage.success(t('genericCard.referenceInserted'))
 }
 
 function applyContextTemplate(payload: { kind: ContextTemplateKind; text: string }) {
@@ -779,7 +783,7 @@ function applyContextTemplate(payload: { kind: ContextTemplateKind; text: string
 
 async function applyContextTemplateAndSave(payload: { kind: ContextTemplateKind; text: string }) {
   applyContextTemplate(payload)
-  ElMessage.success('上下文模板已应用')
+  ElMessage.success(t('genericCard.contextApplied'))
   openDrawer.value = false
   await handleSave()
 }
@@ -884,9 +888,9 @@ async function handleSave() {
       contentEditorDirty.value = false
       originalAiContextTemplates.value = cloneContextTemplates(templatesBeforeSave)
       lastSavedAt.value = new Date().toLocaleTimeString()
-      ElMessage.success('保存成功')
+      ElMessage.success(t('settings.saveSuccess'))
     } catch (e) {
-      ElMessage.error('保存失败')
+      ElMessage.error(t('settings.saveError'))
     } finally {
       isSaving.value = false
     }
@@ -915,20 +919,20 @@ async function handleSave() {
     originalData.value = cloneDeep(localData.value)
     originalAiContextTemplates.value = cloneContextTemplates(templatesBeforeSave)
     lastSavedAt.value = new Date().toLocaleTimeString()
-    ElMessage.success('保存成功！')
+    ElMessage.success(t('settings.saveSuccess'))
   } finally { isSaving.value = false }
 }
 
 async function executeReview() {
   const currentContent = getCurrentEditingContent()
   if (!hasMeaningfulReviewContent(currentContent)) {
-    ElMessage.warning('请先补充可审核内容后再执行审核')
+    ElMessage.warning(t('genericCard.addReviewContent'))
     return
   }
 
   const p = perCardStore.getByCardId(props.card.id) || editingParams.value
   if (!p?.llm_config_id) {
-    ElMessage.error('请先设置有效的模型ID')
+    ElMessage.error(t('chapterEditor.selectValidModel'))
     return
   }
 
@@ -974,10 +978,10 @@ async function executeReview() {
     stageReviewText.value = result.review_text
     stageReviewDraft.value = result.draft
     stageReviewDialogVisible.value = true
-    ElMessage.success('审核完成')
+    ElMessage.success(t('genericCard.reviewComplete'))
   } catch (e) {
     console.error('审核失败:', e)
-    ElMessage.error('审核失败')
+    ElMessage.error(t('genericCard.reviewError'))
   } finally {
     if (stageReviewAbortController.value === abortController) {
       stageReviewAbortController.value = null
@@ -1008,10 +1012,10 @@ async function handleCreateOrUpdateReviewCard() {
     stageReviewDraft.value.existing_review_card_id = saved.card_id
     await cardStore.fetchCards(projectStore.currentProject?.id || props.card.project_id)
     window.dispatchEvent(new CustomEvent('nf:review-history-refresh'))
-    ElMessage.success('审核结果卡片已更新')
+    ElMessage.success(t('chapterEditor.reviewCardUpdated'))
   } catch (error) {
     console.error('Failed to upsert review result card:', error)
-    ElMessage.error('创建审核结果卡片失败')
+    ElMessage.error(t('chapterEditor.reviewCardCreateError'))
   } finally {
     reviewCardSaving.value = false
   }
@@ -1019,9 +1023,13 @@ async function handleCreateOrUpdateReviewCard() {
 
 async function handleDelete() {
   try {
-    await ElMessageBox.confirm(`确认删除卡片「${props.card.title}」？此操作不可恢复`, '删除确认', { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('editor.deleteConfirm', { title: getCardDisplayTitle(props.card.title) }),
+      t('editor.deleteConfirmTitle'),
+      { type: 'warning' },
+    )
     await cardStore.removeCard(props.card.id)
-    ElMessage.success('卡片已删除')
+    ElMessage.success(t('editor.deleteSuccess'))
     const evt = new CustomEvent('nf:navigate', { detail: { to: 'market' } })
     window.dispatchEvent(evt)
   } catch (e) {
@@ -1044,7 +1052,7 @@ function handleGenerateClick() {
 async function handleStartGeneration(userPrompt: string, useExistingContent: boolean) {
   const p = perCardStore.getByCardId(props.card.id) || editingParams.value
   if (!p?.llm_config_id) {
-    ElMessage.error('请先设置有效的模型ID')
+    ElMessage.error(t('chapterEditor.selectValidModel'))
     return
   }
 
@@ -1054,7 +1062,7 @@ async function handleStartGeneration(userPrompt: string, useExistingContent: boo
     const resp = await getCardSchema(props.card.id)
     const effective = resp?.effective_schema || resp?.json_schema
     if (!effective) {
-      ElMessage.error('未找到此卡片的结构（Schema）。')
+      ElMessage.error(t('genericCard.schemaMissing'))
       return
     }
 
@@ -1097,7 +1105,7 @@ async function handleStartGeneration(userPrompt: string, useExistingContent: boo
     await performGeneration(userPrompt, effective, resolvedContext, p, useExistingContent)
   } catch (e) {
     console.error('启动生成失败:', e)
-    ElMessage.error('启动生成失败')
+    ElMessage.error(t('genericCard.generationStartError'))
   }
 }
 
@@ -1183,7 +1191,7 @@ async function performGeneration(
               }
             }
             generationPanelRef.value?.finishGeneration(true, message)
-            ElMessage.success(message || '生成完成！')
+            ElMessage.success(message || t('generation.complete'))
           } else {
             generationPanelRef.value?.finishGeneration(false, message)
           }
@@ -1194,7 +1202,7 @@ async function performGeneration(
   } catch (error: any) {
     if (error.name !== 'AbortError') {
       console.error('生成失败:', error)
-      generationPanelRef.value?.addMessage('error', error.message || '生成失败')
+      generationPanelRef.value?.addMessage('error', error.message || t('generation.failed'))
       generationPanelRef.value?.finishGeneration(false)
     }
   }
@@ -1206,14 +1214,14 @@ async function performGeneration(
 function formatInstructionAction(instruction: Instruction): string {
   if (instruction.op === 'set') {
     const path = instruction.path.replace(/^\//, '').replace(/\//g, ' > ')
-    return `设置字段: ${path}`
+    return t('genericCard.instructionSet', { path })
   } else if (instruction.op === 'append') {
     const path = instruction.path.replace(/^\//, '').replace(/\//g, ' > ')
-    return `添加元素到: ${path}`
+    return t('genericCard.instructionAppend', { path })
   } else if (instruction.op === 'done') {
-    return '生成完成'
+    return t('genericCard.instructionDone')
   }
-  return '执行指令'
+  return t('genericCard.instructionExecute')
 }
 
 /**
@@ -1254,7 +1262,7 @@ async function handleContinueGeneration(userMessage: string) {
   // 获取参数
   const p = perCardStore.getByCardId(props.card.id) || editingParams.value
   if (!p?.llm_config_id) {
-    ElMessage.error('请先设置有效的模型ID')
+    ElMessage.error(t('chapterEditor.selectValidModel'))
     return
   }
 
@@ -1264,7 +1272,7 @@ async function handleContinueGeneration(userMessage: string) {
     const resp = await getCardSchema(props.card.id)
     const effective = resp?.effective_schema || resp?.json_schema
     if (!effective) {
-      ElMessage.error('未找到此卡片的结构（Schema）。')
+      ElMessage.error(t('genericCard.schemaMissing'))
       return
     }
 
@@ -1274,7 +1282,7 @@ async function handleContinueGeneration(userMessage: string) {
     await performGeneration(userMessage, effective, resolvedContext, p, true)
   } catch (e) {
     console.error('继续生成失败:', e)
-    ElMessage.error('继续生成失败')
+    ElMessage.error(t('genericCard.generationContinueError'))
   }
 }
 
@@ -1305,14 +1313,14 @@ function handleRestartGeneration() {
 
 async function handleGenerate() {
   const p = perCardStore.getByCardId(props.card.id) || editingParams.value
-  if (!p?.llm_config_id) { ElMessage.error('请先设置有效的模型ID'); return }
+  if (!p?.llm_config_id) { ElMessage.error(t('chapterEditor.selectValidModel')); return }
   const resolvedContext = getResolvedContextByKind(generationContextKind.value)
   try {
     // 直接读取有效 Schema 并作为 response_model_schema 发送
     const { getCardSchema } = await import('@renderer/api/setting')
     const resp = await getCardSchema(props.card.id)
     const effective = resp?.effective_schema || resp?.json_schema
-    if (!effective) { ElMessage.error('未找到此卡片的结构（Schema）。'); return }
+    if (!effective) { ElMessage.error(t('genericCard.schemaMissing')); return }
     const sampling = { temperature: p.temperature, max_tokens: p.max_tokens, timeout: p.timeout }
     const result = await aiStore.generateContentWithSchema(effective as any, resolvedContext, p.llm_config_id!, p.prompt_name ?? undefined, sampling)
     if (result) {
@@ -1330,7 +1338,7 @@ async function handleGenerate() {
         const merged = mergeWith({}, localData.value || {}, result, arrayOverwrite)
         localData.value = merged
       }
-      ElMessage.success('内容生成成功！')
+      ElMessage.success(t('genericCard.contentGenerationSuccess'))
     }
   } catch (e) { console.error('AI generation failed:', e) }
 }
@@ -1341,7 +1349,7 @@ async function handleRestoreVersion(v: any) {
   // 自定义内容编辑器的恢复逻辑（如 CodeMirrorEditor）
   if (activeContentEditor.value && contentEditorRef.value) {
     try {
-      ElMessage.success('已恢复版本，自动保存中...')
+      ElMessage.success(t('genericCard.restoringVersion'))
 
       // 通知内容编辑器恢复内容（需要编辑器实现 restoreContent 方法）
       if (typeof contentEditorRef.value.restoreContent === 'function') {
@@ -1360,10 +1368,10 @@ async function handleRestoreVersion(v: any) {
       // 刷新卡片数据
       await cardStore.fetchCards(projectStore.currentProject!.id!)
 
-      ElMessage.success('版本已恢复并保存')
+      ElMessage.success(t('genericCard.versionRestored'))
     } catch (e) {
       console.error('Failed to restore content editor version:', e)
-      ElMessage.error('恢复版本失败')
+      ElMessage.error(t('genericCard.versionRestoreError'))
     }
     return
   }
@@ -1375,7 +1383,7 @@ async function handleRestoreVersion(v: any) {
     generation: v.ai_context_template ?? localAiContextTemplates.value.generation,
     review: v.ai_context_template_review ?? localAiContextTemplates.value.review,
   })
-  ElMessage.success('已恢复版本，自动保存中...')
+  ElMessage.success(t('genericCard.restoringVersion'))
   await handleSave()
 }
 
@@ -1387,7 +1395,7 @@ async function onSchemaSaved() {
 async function handleAssistantFinalize(summary: string) {
   try {
     const p = perCardStore.getByCardId(props.card.id) || editingParams.value
-    if (!p?.llm_config_id) { ElMessage.error('请先设置有效的模型ID'); return }
+    if (!p?.llm_config_id) { ElMessage.error(t('chapterEditor.selectValidModel')); return }
     // 将对话要点与上下文合并，作为输入文本（不再附加卡片提示词模板）
     const resolvedContextText = getResolvedContextByKind(generationContextKind.value)
     const inputText = `${resolvedContextText}\n\n[对话要点]\n${summary}`
@@ -1395,7 +1403,7 @@ async function handleAssistantFinalize(summary: string) {
     const { getCardSchema } = await import('@renderer/api/setting')
     const resp = await getCardSchema(props.card.id)
     const effective = resp?.effective_schema || resp?.json_schema
-    if (!effective) { ElMessage.error('未找到此卡片的结构（Schema）。'); return }
+    if (!effective) { ElMessage.error(t('genericCard.schemaMissing')); return }
     const sampling = { temperature: p.temperature, max_tokens: p.max_tokens, timeout: p.timeout }
     const result = await aiStore.generateContentWithSchema(effective as any, inputText, p.llm_config_id!, p.prompt_name ?? undefined, sampling)
     if (result) {
@@ -1414,7 +1422,7 @@ async function handleAssistantFinalize(summary: string) {
         localData.value = merged
       }
       assistantVisible.value = false
-      ElMessage.success('定稿生成完成！')
+      ElMessage.success(t('genericCard.finalGenerationComplete'))
     }
   } catch (e) { console.error('Finalize generate failed:', e) }
 }

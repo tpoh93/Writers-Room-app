@@ -3,10 +3,10 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <span>作品标签设定</span>
+          <span>{{ t('tags.title') }}</span>
           <div>
-            <el-button type="primary" @click="handleRandomize">一键随机灵感</el-button>
-            <el-button type="success" :loading="isSaving" @click="saveTags">保存更改</el-button>
+            <el-button type="primary" @click="handleRandomize">{{ t('tags.randomizeAll') }}</el-button>
+            <el-button type="success" :loading="isSaving" @click="saveTags">{{ t('tags.saveChanges') }}</el-button>
           </div>
         </div>
       </template>
@@ -14,42 +14,42 @@
         <el-scrollbar>
           <div class="category-block">
             <div class="category-header">
-              <h3>主题标签</h3>
-              <el-button @click="randomizeTheme" type="primary" plain size="small">随机灵感</el-button>
+              <h3>{{ t('tags.theme') }}</h3>
+              <el-button @click="randomizeTheme" type="primary" plain size="small">{{ t('tags.randomize') }}</el-button>
             </div>
             <el-cascader
               :model-value="themeArray"
               @change="handleThemeChange"
               :options="themeOptions"
-              placeholder="请选择小说主题"
+              :placeholder="t('tags.selectTheme')"
               style="width: 100%"
             />
           </div>
 
           <div class="category-block">
             <div class="category-header">
-              <h3>目标读者</h3>
-              <el-button @click="randomizeAudience" type="primary" plain size="small">随机灵感</el-button>
+              <h3>{{ t('tags.audience') }}</h3>
+              <el-button @click="randomizeAudience" type="primary" plain size="small">{{ t('tags.randomize') }}</el-button>
             </div>
             <el-radio-group v-model="localData.audience">
-              <el-radio v-for="opt in audienceOptions" :key="opt" :value="opt" border>{{ opt }}</el-radio>
+              <el-radio v-for="opt in audienceOptions" :key="opt" :value="opt" border>{{ audienceLabel(opt) }}</el-radio>
             </el-radio-group>
           </div>
 
           <div class="category-block">
             <div class="category-header">
-              <h3>写作人称</h3>
-              <el-button @click="randomizePerson" type="primary" plain size="small">随机灵感</el-button>
+              <h3>{{ t('tags.narrativePerson') }}</h3>
+              <el-button @click="randomizePerson" type="primary" plain size="small">{{ t('tags.randomize') }}</el-button>
             </div>
             <el-radio-group v-model="localData.narrative_person">
-              <el-radio v-for="opt in personOptions" :key="opt" :value="opt" border>{{ opt }}</el-radio>
+              <el-radio v-for="opt in personOptions" :key="opt" :value="opt" border>{{ personLabel(opt) }}</el-radio>
             </el-radio-group>
           </div>
 
           <div class="category-block">
             <div class="category-header">
-              <h3>类别标签 (建议选择 3-5 个)</h3>
-              <el-button @click="randomizeStoryTags" type="primary" plain size="small">随机灵感</el-button>
+              <h3>{{ t('tags.categoriesHint') }}</h3>
+              <el-button @click="randomizeStoryTags" type="primary" plain size="small">{{ t('tags.randomize') }}</el-button>
             </div>
             <div class="story-tags-grid">
               <div v-for="full in categoryOptions" :key="full" class="story-tag-item">
@@ -65,9 +65,9 @@
                   @change="(weight) => updateStoryTagWeight(full, weight as WeightLevel)"
                   size="small"
                   class="weight-input"
-                  placeholder="权重"
+                  :placeholder="t('tags.weight')"
                 >
-                  <el-option v-for="w in WEIGHT_LEVELS" :key="w" :label="w" :value="w" />
+                  <el-option v-for="w in WEIGHT_LEVELS" :key="w" :label="weightLabel(w)" :value="w" />
                 </el-select>
               </div>
             </div>
@@ -75,8 +75,8 @@
 
           <div class="category-block">
             <div class="category-header">
-              <h3>情感关系</h3>
-              <el-button @click="randomizeRelationship" type="primary" plain size="small">随机灵感</el-button>
+              <h3>{{ t('tags.relationship') }}</h3>
+              <el-button @click="randomizeRelationship" type="primary" plain size="small">{{ t('tags.randomize') }}</el-button>
             </div>
                           <el-radio-group v-model="localData.affection">
                 <el-radio v-for="tag in relationshipOptions" :key="tag" :value="tag" border>{{ tag }}</el-radio>
@@ -90,6 +90,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElCard, ElButton } from 'element-plus'
 import type { components } from '@renderer/types/generated'
 import { useCardStore } from '@renderer/stores/useCardStore'
@@ -106,6 +107,34 @@ import {
 } from 'element-plus'
 import { onMounted } from 'vue'
 import { listKnowledge } from '@renderer/api/setting'
+
+const { t } = useI18n()
+
+function audienceLabel(value: string): string {
+  const labels: Record<string, string> = {
+    '通用': t('tags.audienceGeneral'),
+    '男生': t('tags.audienceMale'),
+    '女生': t('tags.audienceFemale'),
+  }
+  return labels[value] || value
+}
+
+function personLabel(value: string): string {
+  const labels: Record<string, string> = {
+    '第一人称': t('tags.firstPerson'),
+    '第三人称': t('tags.thirdPerson'),
+  }
+  return labels[value] || value
+}
+
+function weightLabel(value: WeightLevel): string {
+  const labels: Record<WeightLevel, string> = {
+    '低权重': t('tags.weightLow'),
+    '中权重': t('tags.weightMedium'),
+    '高权重': t('tags.weightHigh'),
+  }
+  return labels[value]
+}
 // Define types from generated schemas
 type CardRead = components['schemas']['CardRead']
 type Tags = components['schemas']['Tags']
@@ -157,7 +186,7 @@ const saveTags = async () => {
   isSaving.value = true
   try {
     await cardStore.modifyCard(props.card.id, { content: localData });
-    ElMessage.success('已保存标签设置')
+    ElMessage.success(t('tags.saved'))
   } catch (error) {
     // 错误消息已在 store 处理
   } finally {
@@ -399,4 +428,4 @@ onMounted(async () => {
 .el-radio.is-bordered {
   margin: 0;
 }
-</style> 
+</style>

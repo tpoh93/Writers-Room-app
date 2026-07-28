@@ -1,29 +1,29 @@
 <template>
   <div class="schema-builder">
     <div class="toolbar">
-      <el-button type="primary" @click="addField">新增字段</el-button>
+      <el-button type="primary" @click="addField">{{ t('settings.addField') }}</el-button>
     </div>
     <el-table :data="localFields" size="small" class="field-table">
-             <el-table-column label="操作" width="100" align="left">
+             <el-table-column :label="t('settings.actions')" width="100" align="left">
         <template #default="{ $index }">
           <div class="ops-col">
-            <el-button class="ops-btn" size="small" @click="moveUp($index)" :disabled="$index===0">上移</el-button>
-            <el-button class="ops-btn" size="small" @click="moveDown($index)" :disabled="$index===localFields.length-1">下移</el-button>
-            <el-button class="ops-btn" size="small" type="danger" plain @click="removeField($index)">删除</el-button>
+            <el-button class="ops-btn" size="small" @click="moveUp($index)" :disabled="$index===0">{{ t('settings.moveUp') }}</el-button>
+            <el-button class="ops-btn" size="small" @click="moveDown($index)" :disabled="$index===localFields.length-1">{{ t('settings.moveDown') }}</el-button>
+            <el-button class="ops-btn" size="small" type="danger" plain @click="removeField($index)">{{ t('common.delete') }}</el-button>
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="名称" width="150">
+      <el-table-column :label="t('settings.fieldName')" width="150">
         <template #default="{ row }">
-          <el-input v-model="row.name" placeholder="字段名" />
+          <el-input v-model="row.name" :placeholder="t('settings.fieldNamePlaceholder')" />
         </template>
       </el-table-column>
-      <el-table-column label="显示名" width="150">
+      <el-table-column :label="t('settings.displayName')" width="150">
         <template #default="{ row }">
-          <el-input v-model="row.label" placeholder="用于表单显示的标题" />
+          <el-input v-model="row.label" :placeholder="t('settings.fieldDisplayNamePlaceholder')" />
         </template>
       </el-table-column>
-      <el-table-column label="类型" width="150">
+      <el-table-column :label="t('settings.type')" width="150">
         <template #default="{ row }">
           <el-select v-model="row.kind" @change="onKindChange(row)">
             <el-option v-for="t in baseKinds" :key="t" :label="t" :value="t" />
@@ -31,49 +31,49 @@
           </el-select>
         </template>
       </el-table-column>
-      <el-table-column label="数组" width="80" align="center">
+      <el-table-column :label="t('settings.array')" width="80" align="center">
         <template #default="{ row }">
           <el-switch v-model="row.isArray" />
         </template>
       </el-table-column>
-      <el-table-column label="必填" width="80" align="center">
+      <el-table-column :label="t('settings.required')" width="80" align="center">
         <template #default="{ row }">
           <el-switch v-model="row.required" />
         </template>
       </el-table-column>
-      <el-table-column label="AI排除" width="90" align="center">
+      <el-table-column :label="t('settings.aiExcluded')" width="90" align="center">
         <template #default="{ row }">
           <el-switch v-model="row.aiExclude" />
         </template>
       </el-table-column>
-      <el-table-column label="注解" min-width="240">
+      <el-table-column :label="t('settings.annotation')" min-width="240">
         <template #default="{ row }">
-          <el-input v-model="row.description" placeholder="用于 Field 描述，提升 AI 结构化准确率" />
+          <el-input v-model="row.description" :placeholder="t('settings.annotationPlaceholder')" />
         </template>
       </el-table-column>
-      <el-table-column label="示例" min-width="220">
+      <el-table-column :label="t('settings.example')" min-width="220">
         <template #default="{ row }">
-          <el-input v-model="row.example" placeholder="示例（兼容 pydantic 的 examples[0]/example，可填写 JSON 字符串）" />
+          <el-input v-model="row.example" :placeholder="t('settings.examplePlaceholder')" />
         </template>
       </el-table-column>
-      <el-table-column label="元组元素" min-width="260">
+      <el-table-column :label="t('settings.tupleItems')" min-width="260">
         <template #default="{ row }">
           <div v-if="row.kind==='tuple'" class="tuple-editor">
             <div v-for="(t, i) in row.tupleItems" :key="i" class="tuple-chip">
               <el-select v-model="row.tupleItems[i]" size="small" style="width:120px">
                 <el-option v-for="tk in tupleKinds" :key="tk" :label="tk" :value="tk" />
               </el-select>
-              <el-button size="small" text type="danger" @click="removeTupleItem(row, i)" :disabled="(row.tupleItems?.length||0) <= 1">删</el-button>
+              <el-button size="small" text type="danger" @click="removeTupleItem(row, i)" :disabled="(row.tupleItems?.length||0) <= 1">{{ t('settings.removeShort') }}</el-button>
             </div>
-            <el-button size="small" text type="primary" @click="addTupleItem(row)">+ 元素</el-button>
+            <el-button size="small" text type="primary" @click="addTupleItem(row)">+ {{ t('settings.addTupleItem') }}</el-button>
           </div>
           <div v-else class="rel-config muted">—</div>
         </template>
       </el-table-column>
-      <el-table-column label="关系配置" min-width="200">
+      <el-table-column :label="t('settings.relationConfig')" min-width="200">
         <template #default="{ row }">
           <div v-if="row.kind==='relation'" class="rel-config">
-            <el-select v-model="row.relation.targetModelName" filterable placeholder="选择目标输出模型" style="width:260px">
+            <el-select v-model="row.relation.targetModelName" filterable :placeholder="t('settings.targetOutputModel')" style="width:260px">
               <el-option v-for="t in targetModels" :key="t.name" :label="t.name" :value="t.name" :disabled="isEmbedSelf(row, t.name)" />
             </el-select>
           </div>
@@ -87,10 +87,12 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
 import { type BuilderField } from '@renderer/utils/outputModelSchemaUtils'
+import { useI18n } from 'vue-i18n'
 
 export interface OutputModelLite { name: string; json_schema?: any }
 
 const props = defineProps<{ modelValue: BuilderField[]; models: OutputModelLite[]; currentModelName?: string }>()
+const { t } = useI18n()
 const emit = defineEmits<{ 'update:modelValue': [value: BuilderField[]] }>()
 
 const baseKinds: Array<BuilderField['kind']> = ['string', 'number', 'integer', 'boolean', 'tuple']
@@ -144,4 +146,4 @@ function removeTupleItem(row: BuilderField, idx: number) {
 .ops-col { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; width: 100%; }
 .ops-col .el-button + .el-button { margin-left: 0 !important; }
 .ops-btn { width: 100%; box-sizing: border-box; padding-left: 0; padding-right: 0; display: block; }
-</style> 
+</style>

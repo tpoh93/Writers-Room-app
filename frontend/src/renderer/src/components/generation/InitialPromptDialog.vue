@@ -1,34 +1,34 @@
 <template>
   <el-dialog
     v-model="dialogVisible"
-    title="开始生成卡片"
+    :title="t('generation.startCard')"
     width="500px"
     :close-on-click-modal="false"
   >
     <div class="dialog-content">
       <p class="hint-text">
-        你可以提供一些生成偏好或要求（可选）
+        {{ t('generation.preferencesHint') }}
       </p>
       <p class="hint-subtext">
-        直接点击"开始生成"，AI 会自主决定生成内容
+        {{ t('generation.startHint') }}
       </p>
 
       <el-checkbox v-model="useExistingContent" class="content-option">
-        基于现有内容继续生成（如果卡片已有部分内容）
+        {{ t('generation.useExisting') }}
       </el-checkbox>
 
       <el-input
         v-model="userPrompt"
         type="textarea"
         :rows="4"
-        placeholder="例如：年轻武者，擅长剑术，性格沉稳..."
+        :placeholder="t('generation.promptPlaceholder')"
         maxlength="500"
         show-word-limit
         @keyup.ctrl.enter="handleStartGenerate"
       />
 
       <div class="example-hints">
-        <span class="example-label">示例：</span>
+        <span class="example-label">{{ t('generation.examples') }}</span>
         <el-tag
           v-for="example in examples"
           :key="example"
@@ -44,17 +44,17 @@
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="handleCancel">
-          取消
+          {{ t('common.cancel') }}
         </el-button>
         <el-button @click="handleSkip">
-          跳过，直接生成
+          {{ t('generation.skip') }}
         </el-button>
         <el-button
           type="primary"
           :disabled="!userPrompt.trim()"
           @click="handleStartGenerate"
         >
-          开始生成
+          {{ t('generation.start') }}
         </el-button>
       </div>
     </template>
@@ -63,6 +63,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // ==================== Props & Emits ====================
 
@@ -85,9 +88,9 @@ const useExistingContent = ref(false)
 
 // 示例提示（根据卡片类型动态调整）
 const examples = ref<string[]>([
-  '年轻武者，擅长剑术',
-  '神秘的魔法师，精通元素魔法',
-  '经验丰富的商人，善于谈判'
+  t('generation.exampleCharacterOne'),
+  t('generation.exampleCharacterTwo'),
+  t('generation.exampleCharacterThree')
 ])
 
 // ==================== 方法 ====================
@@ -138,27 +141,27 @@ watch(() => props.cardTypeName, (typeName) => {
   // 可以根据不同的卡片类型提供不同的示例
   if (typeName.includes('角色') || typeName.includes('Character')) {
     examples.value = [
-      '年轻武者，擅长剑术',
-      '神秘的魔法师，精通元素魔法',
-      '经验丰富的商人，善于谈判'
+      t('generation.exampleCharacterOne'),
+      t('generation.exampleCharacterTwo'),
+      t('generation.exampleCharacterThree')
     ]
   } else if (typeName.includes('章节') || typeName.includes('Chapter')) {
     examples.value = [
-      '紧张刺激的战斗场景',
-      '温馨的日常对话',
-      '关键的剧情转折'
+      t('generation.exampleChapterOne'),
+      t('generation.exampleChapterTwo'),
+      t('generation.exampleChapterThree')
     ]
   } else if (typeName.includes('大纲') || typeName.includes('Outline')) {
     examples.value = [
-      '三幕式结构',
-      '英雄之旅模式',
-      '多线叙事'
+      t('generation.exampleOutlineOne'),
+      t('generation.exampleOutlineTwo'),
+      t('generation.exampleOutlineThree')
     ]
   } else {
     examples.value = [
-      '简洁明了',
-      '详细完整',
-      '富有创意'
+      t('generation.exampleGeneralOne'),
+      t('generation.exampleGeneralTwo'),
+      t('generation.exampleGeneralThree')
     ]
   }
 })

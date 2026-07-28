@@ -1,41 +1,41 @@
 <template>
-  <el-dialog v-model="visible" title="历史版本" width="80%">
+  <el-dialog v-model="visible" :title="t('editor.versionHistory')" width="80%">
     <div class="toolbar">
-      <el-button size="small" @click="reload">刷新</el-button>
-      <el-popconfirm title="清空该卡片的所有本地版本？" @confirm="clearAll">
+      <el-button size="small" @click="reload">{{ t('workflow.refresh') }}</el-button>
+      <el-popconfirm :title="t('editor.clearVersionsConfirm')" @confirm="clearAll">
         <template #reference>
-          <el-button size="small" type="danger" plain>清空全部</el-button>
+          <el-button size="small" type="danger" plain>{{ t('editor.clearAll') }}</el-button>
         </template>
       </el-popconfirm>
-      <span class="tip">历史版本仅保存在前端，最多保留最近20条。</span>
+      <span class="tip">{{ t('editor.versionHistoryHint') }}</span>
     </div>
 
     <el-table :data="versions" style="width:100%" height="50vh" size="small" v-loading="loading">
-      <el-table-column label="时间" width="200">
+      <el-table-column :label="t('editor.timeColumn')" width="200">
         <template #default="{ row }">{{ format(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" width="240" />
-      <el-table-column label="摘要(内容)" width="320">
+      <el-table-column prop="title" :label="t('editor.titleColumn')" width="240" />
+      <el-table-column :label="t('editor.contentSummary')" width="320">
         <template #default="{ row }">
           <span class="summary">{{ summarize(row.content) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="摘要(上下文)" width="320">
+      <el-table-column :label="t('editor.contextSummary')" width="320">
         <template #default="{ row }">
           <span class="summary">{{ summarizeCtx(row) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="260">
+      <el-table-column :label="t('editor.actionsColumn')" width="260">
         <template #default="{ row }">
-          <el-button size="small" @click="preview(row)">预览</el-button>
-          <el-popconfirm title="恢复该版本并覆盖当前内容？" @confirm="restore(row)">
+          <el-button size="small" @click="preview(row)">{{ t('editor.preview') }}</el-button>
+          <el-popconfirm :title="t('editor.restoreVersionConfirm')" @confirm="restore(row)">
             <template #reference>
-              <el-button size="small" type="primary">恢复</el-button>
+              <el-button size="small" type="primary">{{ t('editor.restore') }}</el-button>
             </template>
           </el-popconfirm>
-          <el-popconfirm title="删除该版本？" @confirm="remove(row)">
+          <el-popconfirm :title="t('editor.deleteVersionConfirm')" @confirm="remove(row)">
             <template #reference>
-              <el-button size="small" type="danger" plain>删除</el-button>
+              <el-button size="small" type="danger" plain>{{ t('common.delete') }}</el-button>
             </template>
           </el-popconfirm>
         </template>
@@ -43,17 +43,17 @@
     </el-table>
 
     <template #footer>
-      <el-button @click="visible=false">关闭</el-button>
+      <el-button @click="visible=false">{{ t('common.close') }}</el-button>
     </template>
 
     <!-- 预览抽屉：改为并排差异高亮渲染 -->
-    <el-drawer v-model="drawerVisible" title="版本预览" size="70%">
+    <el-drawer v-model="drawerVisible" :title="t('editor.versionPreview')" size="70%">
       <div class="preview-wrap2">
         <div class="pane">
-          <h4>内容对比</h4>
+          <h4>{{ t('editor.contentComparison') }}</h4>
           <div class="diff-table">
-            <div class="diff-header">所选版本</div>
-            <div class="diff-header">当前</div>
+            <div class="diff-header">{{ t('editor.selectedVersion') }}</div>
+            <div class="diff-header">{{ t('editor.currentVersion') }}</div>
             <template v-for="(row, idx) in contentDiffRows" :key="'c-'+idx">
               <pre class="diff-cell" :class="row.left?.type ? 'diff-' + row.left.type : 'diff-empty'">{{ row.left?.text || '' }}</pre>
               <pre class="diff-cell" :class="row.right?.type ? 'diff-' + row.right.type : 'diff-empty'">{{ row.right?.text || '' }}</pre>
@@ -61,10 +61,10 @@
           </div>
         </div>
         <div class="pane">
-          <h4>上下文模板对比</h4>
+          <h4>{{ t('editor.contextComparison') }}</h4>
           <div class="diff-table">
-            <div class="diff-header">所选版本</div>
-            <div class="diff-header">当前</div>
+            <div class="diff-header">{{ t('editor.selectedVersion') }}</div>
+            <div class="diff-header">{{ t('editor.currentVersion') }}</div>
             <template v-for="(row, idx) in contextDiffRows" :key="'x-'+idx">
               <pre class="diff-cell" :class="row.left?.type ? 'diff-' + row.left.type : 'diff-empty'">{{ row.left?.text || '' }}</pre>
               <pre class="diff-cell" :class="row.right?.type ? 'diff-' + row.right.type : 'diff-empty'">{{ row.right?.text || '' }}</pre>
@@ -78,9 +78,12 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { listVersions, clearVersions, deleteVersion, type CardVersionSnapshot } from '@renderer/services/versionService'
 import { ElMessage } from 'element-plus'
 import { cloneContextTemplates, CONTEXT_TEMPLATE_LABELS, type ContextTemplates } from '@renderer/services/contextSlots'
+
+const { t } = useI18n()
 
 const props = defineProps<{ projectId: number; cardId: number; modelValue: boolean; currentContent: any; currentContextTemplates: ContextTemplates }>()
 const emit = defineEmits(['update:modelValue','restore'])
@@ -116,13 +119,13 @@ function summarizeCtx(snapshot: CardVersionSnapshot) {
 function clearAll() {
   clearVersions(props.projectId, props.cardId)
   reload()
-  ElMessage.success('已清空该卡片的本地版本')
+  ElMessage.success(t('editor.versionsCleared'))
 }
 
 function remove(v: CardVersionSnapshot) {
   deleteVersion(props.projectId, props.cardId, v.id)
   reload()
-  ElMessage.success('已删除该版本')
+  ElMessage.success(t('editor.versionDeleted'))
 }
 
 const drawerVisible = ref(false)

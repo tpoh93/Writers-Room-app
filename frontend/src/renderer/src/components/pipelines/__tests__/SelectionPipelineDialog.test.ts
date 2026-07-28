@@ -3,6 +3,7 @@ import { defineComponent, h, nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SelectionPipelineDialog from '../SelectionPipelineDialog.vue'
+import i18n from '@renderer/i18n'
 import type { PipelineEventHandlers } from '@renderer/api/selectionPipelines'
 
 const startSelectionPipeline = vi.fn()
@@ -88,6 +89,7 @@ function mountDialog(conflict = '') {
       idempotencyKey: 'fixture:1',
     },
     global: {
+      plugins: [i18n],
       stubs: {
         ElDialog,
         ElInput,

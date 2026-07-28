@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useProjectStore } from '@renderer/stores/useProjectStore'
 import { useCardStore } from '@renderer/stores/useCardStore'
 import { getProjects } from '@renderer/api/projects'
 import { getCardsForProject, copyCard, moveCard, type CardRead } from '@renderer/api/cards'
 import Editor from './Editor.vue'
+
+const { t } = useI18n()
 
 const projectStore = useProjectStore()
 const { currentProject } = storeToRefs(projectStore)
@@ -107,7 +110,7 @@ async function confirmTransfer() {
   <div class="ideas-home">
     <div class="topbar" v-if="currentProject">
       <div class="left">
-        <el-button size="small" @click="openTransferDialog">移动/复制到项目</el-button>
+        <el-button size="small" @click="openTransferDialog">{{ t('ideas.transferToProject') }}</el-button>
       </div>
       <div class="right"></div>
     </div>
@@ -120,31 +123,31 @@ async function confirmTransfer() {
 
     
 
-    <el-dialog v-model="transferDialog" title="移动/复制到项目" width="760px" class="nf-transfer-dialog">
+    <el-dialog v-model="transferDialog" :title="t('ideas.transferToProject')" width="760px" class="nf-transfer-dialog">
       <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
         <el-radio-group v-model="transferOp" size="small">
-          <el-radio-button label="copy">复制</el-radio-button>
-          <el-radio-button label="move">移动</el-radio-button>
+          <el-radio-button label="copy">{{ t('ideas.copy') }}</el-radio-button>
+          <el-radio-button label="move">{{ t('ideas.move') }}</el-radio-button>
         </el-radio-group>
-        <el-select v-model="targetProjectId" placeholder="目标项目" style="width: 240px" @change="onTargetProjectChange($event as any)">
+        <el-select v-model="targetProjectId" :placeholder="t('ideas.targetProject')" style="width: 240px" @change="onTargetProjectChange($event as any)">
           <el-option v-for="p in projectOptions" :key="p.id" :label="p.name" :value="p.id" />
         </el-select>
-        <el-tree-select v-model="targetParentId" :data="targetProjectCards" :props="treeSelectProps" check-strictly clearable :render-after-expand="false" placeholder="目标父级（可选）" style="width: 280px" />
-        <el-input v-model="transferSearch" placeholder="搜索自由卡标题..." clearable style="flex:1" />
+        <el-tree-select v-model="targetParentId" :data="targetProjectCards" :props="treeSelectProps" check-strictly clearable :render-after-expand="false" :placeholder="t('ideas.targetParent')" style="width: 280px" />
+        <el-input v-model="transferSearch" :placeholder="t('ideas.searchFreeCards')" clearable style="flex:1" />
       </div>
       <el-table :data="filteredFreeCards" height="360px" border @selection-change="(rows:any[])=>selectedIds = rows.map(r=>r.id)">
         <el-table-column type="selection" width="48" />
-        <el-table-column prop="title" label="标题" min-width="220" />
-        <el-table-column label="类型" min-width="160">
+        <el-table-column prop="title" :label="t('editor.titleColumn')" min-width="220" />
+        <el-table-column :label="t('editor.typeColumn')" min-width="160">
           <template #default="{ row }">{{ row.card_type?.name }}</template>
         </el-table-column>
-        <el-table-column label="创建时间" min-width="180">
+        <el-table-column :label="t('editor.createdAtColumn')" min-width="180">
           <template #default="{ row }">{{ (row as any).created_at }}</template>
         </el-table-column>
       </el-table>
       <template #footer>
-        <el-button @click="transferDialog = false">取消</el-button>
-        <el-button type="primary" :disabled="!selectedIds.length || !targetProjectId" @click="confirmTransfer">确定</el-button>
+        <el-button @click="transferDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :disabled="!selectedIds.length || !targetProjectId" @click="confirmTransfer">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -157,4 +160,4 @@ async function confirmTransfer() {
 </style>
 <style>
 .nf-transfer-dialog .el-table .cell { font-size: 13px; }
-</style> 
+</style>

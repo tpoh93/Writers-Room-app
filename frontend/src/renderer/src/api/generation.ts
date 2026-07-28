@@ -55,7 +55,7 @@ export async function generateWithInstructionStream(
     }
 
     if (!response.body) {
-      throw new Error('响应体为空')
+      throw new Error(i18n.global.t('generation.responseEmpty'))
     }
 
     // 读取 SSE 流
@@ -104,7 +104,7 @@ export async function generateWithInstructionStream(
     }
 
     console.error('生成失败:', error)
-    callbacks.onError?.(error.message || '生成失败')
+    callbacks.onError?.(error.message || i18n.global.t('generation.failed'))
   }
 }
 
@@ -176,3 +176,4 @@ function handleEvent(event: { event: string; data: any }, callbacks: GenerateCal
       console.warn('未知的事件类型:', type, data)
   }
 }
+import i18n from '@renderer/i18n'

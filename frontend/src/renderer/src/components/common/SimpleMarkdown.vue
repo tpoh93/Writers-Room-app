@@ -10,6 +10,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { XMarkdown } from 'vue-element-plus-x'
 import { useAppStore } from '@renderer/stores/useAppStore'
 
@@ -18,13 +19,14 @@ const props = defineProps<{
 }>()
 
 const appStore = useAppStore()
+const { t } = useI18n()
 const isDarkMode = computed(() => appStore.isDarkMode)
 
-const verdictMap: Record<string, string> = {
-  pass: '基本通过',
-  revise: '建议修改',
-  block: '高风险拦截'
-}
+const verdictMap = computed<Record<string, string>>(() => ({
+  pass: t('editor.reviewPassed'),
+  revise: t('editor.reviewChangesSuggested'),
+  block: t('editor.reviewBlocked'),
+}))
 
 function normalizeReviewMarkdown(markdown: string): string {
   if (!markdown) return ''
@@ -44,7 +46,7 @@ function normalizeReviewMarkdown(markdown: string): string {
   return normalizedMarkdown.replace(
     /^(-\s*结论[：:]\s*)(pass|revise|block)(\s*)$/gim,
     (_, prefix: string, verdict: string, suffix: string) => {
-      const localizedVerdict = verdictMap[verdict.toLowerCase()] || verdict
+      const localizedVerdict = verdictMap.value[verdict.toLowerCase()] || verdict
       return `${prefix}**${localizedVerdict}**${suffix}`
     }
   )

@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 
 import type { AssistantPanelMessage, AssistantToolResult } from '@renderer/types/assistantPanel'
+import i18n from '@renderer/i18n'
 import { applyAgentStreamEvent } from './agentChatEvents'
 
 interface ApplyAssistantStreamChunkOptions {
@@ -248,21 +249,21 @@ export function applyAssistantStreamChunk(options: ApplyAssistantStreamChunkOpti
     }
 
     if (type === 'retry') {
-      const reason = data.reason || '工具调用失败'
+      const reason = data.reason || i18n.global.t('assistant.toolFailure')
       const current = data.current ?? data.retry
       const max = data.max
-      baseMessage.toolsInProgress = `🔄 工具调用失败，${reason}，正在重试 (${current}/${max})...`
+      baseMessage.toolsInProgress = i18n.global.t('assistant.toolRetrying', { reason, current, max })
       options.scrollToBottom()
       return
     }
 
     if (type === 'error') {
-      const errMessage = data.error || '执行失败'
+      const errMessage = data.error || i18n.global.t('errors.operationFailed')
       applyAgentStreamEvent(baseMessage as any, event as any, {
         trackToolStartInTools: false,
         appendErrorToContent: false,
       })
-      baseMessage.toolsInProgress = `❌ 工具调用失败: ${errMessage}`
+      baseMessage.toolsInProgress = i18n.global.t('assistant.toolFailureDetail', { error: errMessage })
       options.scrollToBottom()
       return
     }

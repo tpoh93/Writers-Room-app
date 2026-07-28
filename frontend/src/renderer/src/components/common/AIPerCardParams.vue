@@ -6,40 +6,40 @@
 					<template #icon>
 						<el-icon><Setting /></el-icon>
 					</template>
-					<span class="model-label">模型：</span>
-					<span class="model-name">{{ selectedModelName || '未设置' }}</span>
+					<span class="model-label">{{ t('settings.modelName') }}:</span>
+					<span class="model-name">{{ selectedModelName || t('editor.notSet') }}</span>
 				</el-button>
 			</template>
 			<div class="ai-config-form">
 				<el-form label-width="92px" size="small">
-					<el-form-item label="模型ID">
-						<el-select v-model="editing.llm_config_id" placeholder="选择模型" style="width: 240px;" :teleported="false">
+					<el-form-item :label="t('editor.modelId')">
+						<el-select v-model="editing.llm_config_id" :placeholder="t('workflow.selectModel')" style="width: 240px;" :teleported="false">
 							<el-option v-for="m in (aiOptions?.llm_configs || [])" :key="m.id" :label="m.display_name || String(m.id)" :value="Number(m.id)" />
 						</el-select>
 					</el-form-item>
-					<el-form-item label="提示词">
-						<el-select v-model="editing.prompt_name" placeholder="选择提示词" filterable style="width: 240px;" :teleported="false">
+					<el-form-item :label="t('settings.prompt')">
+						<el-select v-model="editing.prompt_name" :placeholder="t('settings.selectPrompt')" filterable style="width: 240px;" :teleported="false">
 							<el-option v-for="p in (aiOptions?.prompts || [])" :key="p.id" :label="p.name" :value="p.name" />
 						</el-select>
 					</el-form-item>
-					<el-form-item label="温度">
+					<el-form-item :label="t('settings.temperature')">
 						<el-input-number v-model="editing.temperature" :min="0" :max="2" :step="0.1" />
 					</el-form-item>
-					<el-form-item label="最大tokens">
+					<el-form-item :label="t('settings.maxTokens')">
 						<el-input-number v-model="editing.max_tokens" :min="1" :step="256" />
 					</el-form-item>
-					<el-form-item label="超时(秒)">
+					<el-form-item :label="t('settings.timeoutSeconds')">
 						<el-input-number v-model="editing.timeout" :min="1" :step="5" />
 					</el-form-item>
 					<el-form-item>
 						<div class="ai-actions">
 							<div class="left">
-								<el-button type="primary" size="small" @click="saveLocal">保存</el-button>
-								<el-button size="small" @click="resetToPreset">重置为预设</el-button>
+								<el-button type="primary" size="small" @click="saveLocal">{{ t('common.save') }}</el-button>
+								<el-button size="small" @click="resetToPreset">{{ t('editor.resetToPreset') }}</el-button>
 							</div>
 							<div class="right">
-								<el-button size="small" type="warning" plain @click="restoreFollowType">恢复跟随类型</el-button>
-								<el-button size="small" type="primary" plain @click="applyToType">应用到类型</el-button>
+								<el-button size="small" type="warning" plain @click="restoreFollowType">{{ t('editor.followType') }}</el-button>
+								<el-button size="small" type="primary" plain @click="applyToType">{{ t('editor.applyToType') }}</el-button>
 							</div>
 						</div>
 					</el-form-item>
@@ -51,11 +51,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Setting } from '@element-plus/icons-vue'
 import { usePerCardAISettingsStore, type PerCardAIParams } from '@renderer/stores/usePerCardAISettingsStore'
 import { getAIConfigOptions, type AIConfigOptions } from '@renderer/api/ai'
 import { getCardAIParams, updateCardAIParams, applyCardAIParamsToType } from '@renderer/api/setting'
 import { ElMessage } from 'element-plus'
+
+const { t } = useI18n()
 
 const props = defineProps<{ cardId: number; cardTypeName?: string }>()
 
@@ -126,11 +129,11 @@ function saveLocal() {
 		updateCardAIParams(props.cardId, payload)
 			.then(() => {
 				store.setForCard(props.cardId, { ...payload })
-				ElMessage.success('已保存')
+				ElMessage.success(t('settings.saveSuccess'))
 				visible.value = false
 			})
-			.catch(() => { ElMessage.error('保存到后端失败') })
-	} catch { ElMessage.error('保存失败') }
+			.catch(() => { ElMessage.error(t('editor.backendSaveError')) })
+	} catch { ElMessage.error(t('settings.saveError')) }
 }
 function resetToPreset() {
 	const preset = getPresetForType(props.cardTypeName)
@@ -138,7 +141,7 @@ function resetToPreset() {
 	store.setForCard(props.cardId, editing.value)
 }
 async function restoreFollowType() {
-	try { await updateCardAIParams(props.cardId, null); ElMessage.success('已恢复跟随类型'); const resp = await getCardAIParams(props.cardId); const eff = (resp as any)?.effective_params; if (eff) { editing.value = { ...eff }; store.setForCard(props.cardId, { ...eff }) } } catch { ElMessage.error('操作失败') }
+	try { await updateCardAIParams(props.cardId, null); ElMessage.success(t('editor.followTypeRestored')); const resp = await getCardAIParams(props.cardId); const eff = (resp as any)?.effective_params; if (eff) { editing.value = { ...eff }; store.setForCard(props.cardId, { ...eff }) } } catch { ElMessage.error(t('editor.operationError')) }
 }
 async function applyToType() {
 	try {
@@ -149,8 +152,8 @@ async function applyToType() {
 		const resp = await getCardAIParams(props.cardId)
 		const eff = (resp as any)?.effective_params
 		if (eff) { editing.value = { ...eff }; store.setForCard(props.cardId, { ...eff }) }
-		ElMessage.success('已应用到类型，并恢复本卡片跟随类型')
-	} catch { ElMessage.error('应用失败') }
+		ElMessage.success(t('editor.appliedToType'))
+	} catch { ElMessage.error(t('editor.applyError')) }
 }
 
 </script>
@@ -194,4 +197,4 @@ async function applyToType() {
   white-space: nowrap;
   text-align: left;
 }
-</style> 
+</style>

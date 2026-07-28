@@ -2,7 +2,7 @@
   <el-form-item :label="label">
     <div class="fallback-field">
       <p class="unsupported-text">
-        <strong>Unsupported Field Type:</strong> <code>{{ schema.type }}</code>
+        <strong>{{ t('dynamicForm.unsupportedFieldType') }}</strong> <code>{{ schema.type }}</code>
       </p>
       <pre class="schema-preview">{{ JSON.stringify(schema, null, 2) }}</pre>
     </div>
@@ -10,7 +10,10 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { JSONSchema } from '@renderer/api/schema'
+
+const { t } = useI18n()
 
 defineProps<{
   label: string
@@ -49,4 +52,4 @@ defineProps<{
   padding: 8px;
   border-radius: 4px;
 }
-</style> 
+</style>

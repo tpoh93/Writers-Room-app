@@ -1,7 +1,14 @@
 import { ref, watch, type Ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+import i18n from '@renderer/i18n'
 import type { AssistantChatSession, AssistantPanelMessage } from '@renderer/types/assistantPanel'
+
+const LEGACY_DEFAULT_SESSION_TITLE = '新对话'
+
+export function getAssistantSessionDisplayTitle(title: string): string {
+  return title === LEGACY_DEFAULT_SESSION_TITLE ? i18n.global.t('assistant.newConversation') : title
+}
 
 interface UseAssistantSessionHistoryOptions {
   projectId: Ref<number | null | undefined>
@@ -16,7 +23,7 @@ function createEmptySession(projectId: number): AssistantChatSession {
   return {
     id: `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     projectId,
-    title: '新对话',
+    title: LEGACY_DEFAULT_SESSION_TITLE,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     messages: [],
@@ -98,7 +105,7 @@ export function useAssistantSessionHistory(options: UseAssistantSessionHistoryOp
         projectId,
       }
 
-      if (sessionToSave.title === '新对话') {
+      if (sessionToSave.title === LEGACY_DEFAULT_SESSION_TITLE) {
         const firstUserMessage = options.messages.value.find(item => item.role === 'user')
         if (firstUserMessage) {
           sessionToSave.title =
@@ -186,16 +193,16 @@ export function useAssistantSessionHistory(options: UseAssistantSessionHistoryOp
         writeActiveSessionId(projectId, currentSession.value.id)
       }
 
-      ElMessage.success('已删除会话')
+      ElMessage.success(i18n.global.t('assistant.sessionDeleted'))
     } catch {
-      ElMessage.error('删除会话失败')
+      ElMessage.error(i18n.global.t('assistant.sessionDeleteError'))
     }
   }
 
   function handleDeleteSession(sessionId: string): void {
-    ElMessageBox.confirm('确定要删除这个对话吗？', '确认删除', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    ElMessageBox.confirm(i18n.global.t('assistant.sessionDeleteConfirm'), i18n.global.t('assistant.sessionDeleteTitle'), {
+      confirmButtonText: i18n.global.t('common.delete'),
+      cancelButtonText: i18n.global.t('common.cancel'),
       type: 'warning',
     })
       .then(() => {
@@ -213,10 +220,10 @@ export function useAssistantSessionHistory(options: UseAssistantSessionHistoryOp
     const hour = 60 * minute
     const day = 24 * hour
 
-    if (diff < minute) return '刚刚'
-    if (diff < hour) return `${Math.floor(diff / minute)}分钟前`
-    if (diff < day) return `${Math.floor(diff / hour)}小时前`
-    if (diff < 7 * day) return `${Math.floor(diff / day)}天前`
+    if (diff < minute) return i18n.global.t('assistant.justNow')
+    if (diff < hour) return i18n.global.t('assistant.minutesAgo', { count: Math.floor(diff / minute) })
+    if (diff < day) return i18n.global.t('assistant.hoursAgo', { count: Math.floor(diff / hour) })
+    if (diff < 7 * day) return i18n.global.t('assistant.daysAgo', { count: Math.floor(diff / day) })
 
     const date = new Date(timestamp)
     return `${date.getMonth() + 1}/${date.getDate()}`

@@ -2,6 +2,7 @@
  * GitHub Release 更新检测服务
  * 跨平台支持（Electron + Web）
  */
+import i18n from '@renderer/i18n'
 
 export interface ReleaseInfo {
   version: string
@@ -124,9 +125,9 @@ async function fetchLatestRelease(timeout: number = REQUEST_TIMEOUT): Promise<Re
       // 对于 HTTP 错误，抛出异常而不是当成「没有更新」，
       // 这样上层可以给出明确的错误提示（例如 403 速率限制）。
       if (response.status === 403) {
-        throw new Error('GitHub API 访问受限 (403)，可能已达到未登录用户的速率限制，请稍后重试')
+        throw new Error(i18n.global.t('updates.apiRestricted'))
       }
-      throw new Error(`GitHub API 返回错误: ${response.status}`)
+      throw new Error(i18n.global.t('updates.githubError', { status: response.status }))
     }
     
     const data = await response.json()
@@ -141,7 +142,7 @@ async function fetchLatestRelease(timeout: number = REQUEST_TIMEOUT): Promise<Re
     }
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      throw new Error('请求超时')
+      throw new Error(i18n.global.t('updates.requestTimeout'))
     }
     throw error
   }
@@ -186,7 +187,7 @@ export async function checkForUpdates(maxRetries: number = 0): Promise<UpdateChe
   }
   
   // 所有重试都失败
-  throw lastError || new Error('更新检测失败')
+  throw lastError || new Error(i18n.global.t('updates.checkFailed'))
 }
 
 /**

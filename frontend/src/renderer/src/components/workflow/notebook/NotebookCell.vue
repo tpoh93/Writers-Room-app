@@ -8,7 +8,7 @@
       <div class="cell-progress" v-if="cell.status === 'progress'">
         <el-progress
           :percentage="cell.progress || 0"
-          :format="() => cell.message || '处理中...'"
+          :format="() => cell.message || t('workflow.processing')"
           :stroke-width="6"
         />
       </div>
@@ -28,7 +28,7 @@
         <div v-if="cell.status === 'completed'" class="output-success">
           <div class="output-header">
             <el-icon><SuccessFilled /></el-icon>
-            <span>执行成功</span>
+            <span>{{ t('workflow.executionSuccess') }}</span>
           </div>
           <div class="output-content">
             <pre>{{ formatOutput(cell.outputs) }}</pre>
@@ -39,7 +39,7 @@
         <div v-if="cell.status === 'error'" class="output-error">
           <div class="output-header">
             <el-icon><CircleCloseFilled /></el-icon>
-            <span>执行失败</span>
+            <span>{{ t('workflow.executionFailed') }}</span>
           </div>
           <div class="output-content">
             <pre>{{ cell.error }}</pre>
@@ -49,7 +49,7 @@
         <!-- 进度信息 -->
         <div v-if="cell.status === 'progress'" class="output-progress">
           <el-icon class="is-loading"><Loading /></el-icon>
-          <span>{{ cell.message || '处理中...' }}</span>
+          <span>{{ cell.message || t('workflow.processing') }}</span>
         </div>
       </div>
     </div>
@@ -59,6 +59,7 @@
 <script setup>
 import { computed, watch } from 'vue'
 import { SuccessFilled, CircleCloseFilled, Loading } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
   cell: {
@@ -66,6 +67,7 @@ const props = defineProps({
     required: true
   }
 })
+const { t } = useI18n()
 
 const emit = defineEmits(['output'])
 
@@ -88,12 +90,12 @@ const statusTagType = computed(() => {
 // 状态文本
 const statusText = computed(() => {
   const textMap = {
-    running: '运行中',
-    progress: '处理中',
-    completed: '已完成',
-    error: '失败'
+    running: t('workflow.running'),
+    progress: t('workflow.statusProcessing'),
+    completed: t('workflow.completed'),
+    error: t('workflow.failed')
   }
-  return textMap[props.cell.status] || '未知'
+  return textMap[props.cell.status] || t('workflow.unknown')
 })
 
 // 是否有输出
