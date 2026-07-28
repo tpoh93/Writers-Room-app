@@ -5,13 +5,15 @@
       :card-type="getCardTypeDisplayName(props.card.card_type.name)"
       v-model:title="titleProxy"
       :dirty="isDirty"
-      :saving="isSaving"
-      :can-save="isDirty && !isSaving"
+      :saving="writerCard ? writerSession.state.value === 'saving' : isSaving"
+      :save-error="writerCard && writerSession.state.value === 'save-error'"
+      :can-save="isDirty && !(writerCard ? writerSession.state.value === 'saving' : isSaving)"
       :last-saved-at="lastSavedAt"
       :is-chapter-content="!!activeContentEditor"
       :needs-confirmation="props.card.needs_confirmation"
       :active-context-template-kind="activeContextTemplateKind"
       @save="handleSave"
+      @retry="handleWriterRetry"
       @generate="handleGenerateClick"
       @open-context="openDrawer = true"
       @update:active-context-template-kind="handleActiveContextTemplateKindChange"
@@ -33,6 +35,7 @@
         @update:review-context-kind="handleReviewContextKindChange"
         @switch-tab="handleSwitchTab"
         @update:dirty="handleContentEditorDirtyChange"
+        @manual-save="handleWriterManualSave"
       />
     </template>
 
@@ -183,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
+import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount, defineAsyncComponent, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getCardDisplayTitle, getCardTypeDisplayName } from '@renderer/i18n'
 import { storeToRefs } from 'pinia'
@@ -207,6 +210,9 @@ import type { CardRead, CardUpdate } from '@renderer/api/cards'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import SimpleMarkdown from '../common/SimpleMarkdown.vue'
 import { addVersion } from '@renderer/services/versionService'
+import { isWriterReadyCard } from '@renderer/services/isWriterReadyCard'
+import { useWriterCardSession, type WriterEditorAdapter } from '@renderer/composables/useWriterCardSession'
+import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
 import { List, Select, Loading } from '@element-plus/icons-vue'
 import { useAppStore } from '@renderer/stores/useAppStore'
 import { useAIStore as useAIStoreForOptions } from '@renderer/stores/useAIStore'
@@ -301,6 +307,32 @@ const isStageOutlineCard = computed(() => props.card.card_type?.name === '阶段
 // 通用的内容编辑器引用（可以是 CodeMirrorEditor 或其他）
 const contentEditorRef = ref<any>(null)
 const contentEditorDirty = ref(false)
+const writerCard = computed(() => isWriterReadyCard(props.card))
+const savedWriterTitle = ref(props.card.title)
+const writerAdapter = computed<WriterEditorAdapter | null>(() => {
+  const editor = contentEditorRef.value
+  if (!writerCard.value || !editor?.getSnapshot) return null
+  return {
+    getSnapshot: () => ({
+      ...editor.getSnapshot(),
+      title: titleProxy.value,
+      contextTemplates: cloneContextTemplates(localAiContextTemplates.value),
+    }),
+    setSavedBaseline: (snapshot: WriterSnapshot) => {
+      editor.setSavedBaseline(snapshot)
+      savedWriterTitle.value = snapshot.title
+      originalAiContextTemplates.value = cloneContextTemplates(snapshot.contextTemplates)
+      contentEditorDirty.value = false
+      lastSavedAt.value = new Date().toLocaleTimeString()
+    },
+    setSnapshot: (snapshot: WriterSnapshot) => {
+      editor.setSnapshot(snapshot)
+      titleProxy.value = snapshot.title
+      localAiContextTemplates.value = cloneContextTemplates(snapshot.contextTemplates)
+    },
+  }
+})
+const writerSession = useWriterCardSession(toRef(props, 'card'), writerAdapter)
 
 function handleSwitchTab(tab: string) {
   const evt = new CustomEvent('nf:switch-right-tab', { detail: { tab } })
@@ -309,6 +341,7 @@ function handleSwitchTab(tab: string) {
 
 function handleContentEditorDirtyChange(dirty: boolean) {
   contentEditorDirty.value = dirty
+  if (writerCard.value) writerSession.onEditorChange()
 }
 
 function getResolvedContextByKind(kind: ContextTemplateKind | string | null | undefined, currentContent?: any) {
@@ -377,6 +410,9 @@ const lastSavedAt = ref<string | undefined>(undefined)
 // 顶部标题与表单 Title 字段保持同步
 // 1) 初始化为 card.title，切换卡片时重置
 const titleProxy = ref(props.card.title)
+watch([titleProxy, localAiContextTemplates], () => {
+  if (writerCard.value) writerSession.onEditorChange()
+}, { deep: true })
 watch(
   () => props.card.title,
   (v) => {
@@ -414,7 +450,7 @@ const isDirty = computed(() => {
   // 使用自定义内容编辑器（如章节正文）：
   // 只要正文内容、上下文模板或标题有任一改动，都视为未保存
   if (activeContentEditor.value) {
-    return contentEditorDirty.value || ctxDirty || titleDirty
+    return contentEditorDirty.value || ctxDirty || (writerCard.value ? titleProxy.value !== savedWriterTitle.value : titleDirty)
   }
 
   // 默认表单编辑器：比较内容 + 上下文模板 + 标题
@@ -433,6 +469,7 @@ watch(
       generationContextKind.value = 'generation'
       reviewContextKind.value = 'review'
       titleProxy.value = newCard.title
+      savedWriterTitle.value = newCard.title
       await loadSchemaForCard(newCard)
       // 载入每卡片参数
       await loadAIOptions()
@@ -853,6 +890,10 @@ function openSelectorFromDrawer(payload?: { kind?: ContextTemplateKind; text?: s
 const previewText = computed(() => localAiContextTemplates.value[activeContextTemplateKind.value] || '')
 
 async function handleSave() {
+  if (writerCard.value) {
+    await handleWriterManualSave()
+    return
+  }
   const templatesBeforeSave = cloneContextTemplates(localAiContextTemplates.value)
   const previousTemplatesOnCard = getCardContextTemplates(props.card)
   // 自定义内容编辑器的保存逻辑（如 CodeMirrorEditor）
@@ -921,6 +962,18 @@ async function handleSave() {
     lastSavedAt.value = new Date().toLocaleTimeString()
     ElMessage.success(t('settings.saveSuccess'))
   } finally { isSaving.value = false }
+}
+
+async function handleWriterManualSave() {
+  const result = await writerSession.manualSave()
+  if (result.ok) ElMessage.success(t('settings.saveSuccess'))
+  else ElMessage.error(result.error?.message || t('settings.saveError'))
+}
+
+async function handleWriterRetry() {
+  const result = await writerSession.retry()
+  if (result.ok) ElMessage.success(t('settings.saveSuccess'))
+  else ElMessage.error(result.error?.message || t('settings.saveError'))
 }
 
 async function executeReview() {

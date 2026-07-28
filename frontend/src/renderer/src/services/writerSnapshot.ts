@@ -58,7 +58,10 @@ export function canonicalizeWriterSnapshot(snapshot: WriterSnapshot): string {
     canonicalizeJson({
       title: snapshot.title,
       content: snapshot.content,
-      contextTemplates: snapshot.contextTemplates,
+      contextTemplates: {
+        generation: snapshot.contextTemplates.generation,
+        review: snapshot.contextTemplates.review,
+      },
     })
   )
 }
