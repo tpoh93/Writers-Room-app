@@ -288,6 +288,33 @@ VL-00 is documentation-only, so no frontend or backend runtime suite is
 required for this commit. Every future implementation wave must run both full
 relevant suites and the safety gates defined in the implementation plan.
 
+## Independent review corrective pass
+
+Review status before correction: `CHANGES REQUESTED`.
+
+- Finding 1: the mandatory backend gate lacked the controlled Python 3.11 and
+  temporary SQLite isolation already proven in Stabilization Closure 1.1. The
+  plan now requires `/opt/homebrew/bin/python3.11`, a fresh external ephemeral
+  `uv` environment, and a new explicit `/tmp` SQLite path through
+  `NOVELFORGE_DB_PATH` for every backend run. The root `.env` cannot supply the
+  mandatory gate's database configuration, and resolving
+  `/data/novelforge.db` or another non-portable path blocks the wave before
+  commit.
+- Finding 2: VL-03, VL-04, and VL-05 contained non-exact test allowlists. Each
+  wave now names every permitted existing test modification and every permitted
+  new test path; directory-level and conditional alternatives were removed.
+- Finding 3: VL-01 requested a durable failing check without an allowlisted
+  file. It now uses one named, one-time static pre-change assertion whose `RED`
+  and `GREEN` results must be recorded in
+  `docs/acceptance/visual-language-vl-01.md`; it creates no hidden test or
+  script.
+
+Application implementation started: `NO`.
+
+Visual Language decisions changed: `NO`.
+
+Status after correction: `READY FOR REVIEW`.
+
 ## Decision
 
 VL-00 is `READY FOR REVIEW`.

@@ -54,11 +54,48 @@ npm test -- --run
 npm run typecheck
 npm run build:web:container
 cd ..
+
+test -x /opt/homebrew/bin/python3.11
+command -v uv
+
+VL_BACKEND_ENV_ROOT="$(mktemp -d /tmp/writers-room-vl-env.XXXXXX)"
+VL_BACKEND_VENV="$VL_BACKEND_ENV_ROOT/venv"
+uv venv --python /opt/homebrew/bin/python3.11 "$VL_BACKEND_VENV"
+source "$VL_BACKEND_VENV/bin/activate"
+test "$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')" = \
+  "3.11"
+uv pip install -r backend/requirements-dev.txt
+
+VL_BACKEND_DB_ROOT="$(mktemp -d /tmp/writers-room-vl-db.XXXXXX)"
+export NOVELFORGE_DB_PATH="$VL_BACKEND_DB_ROOT/writers-room-vl.db"
+export BOOTSTRAP_OVERWRITE=false
+test -d "$VL_BACKEND_DB_ROOT"
+test "$NOVELFORGE_DB_PATH" != "/data/novelforge.db"
+
 PYTHONPATH=backend pytest -q backend/tests \
   -W error::pydantic.warnings.PydanticDeprecatedSince20
+
+rm -rf "$VL_BACKEND_DB_ROOT"
+unset NOVELFORGE_DB_PATH
+unset BOOTSTRAP_OVERWRITE
+deactivate
+rm -rf "$VL_BACKEND_ENV_ROOT"
+
 bash scripts/verify-upstream.sh
 git diff --check
 ```
+
+This is the controlled Python 3.11 pattern proven by Stabilization Closure 1.1
+Attempt 2. The environment is external and ephemeral, and each mandatory
+backend invocation must create a fresh explicit SQLite database under `/tmp`
+through `NOVELFORGE_DB_PATH`. Do not source, read, modify, or use the root
+`.env` as the database configuration for a mandatory gate. Cleanup of the
+temporary database and environment remains mandatory after either PASS or
+terminal failure.
+
+If a controlled backend run resolves `NOVELFORGE_DB_PATH` to
+`/data/novelforge.db` or another non-portable path, stop the wave as `BLOCKED`
+before commit. Do not retry with inherited configuration.
 
 If a wave does not touch a behavior seam, existing tests are still the
 regression authority. Do not weaken or delete a test to make a visual migration
@@ -103,8 +140,32 @@ allowed.
 
 ### Actions
 
-- [ ] Add a failing documentation/style-contract check that identifies the
-  required four token layers and forbids duplicate token ownership.
+- [ ] Run the one-time `VL-01 token-layer ownership assertion` below before any
+  style change and record its expected non-zero `RED` result. Run the identical
+  command after the migration and record its zero-exit `GREEN` result in
+  `docs/acceptance/visual-language-vl-01.md`. This is a pre-change assertion,
+  not a new committed test or script:
+
+  ```bash
+  test -f frontend/src/renderer/src/assets/tokens.css &&
+  test -f frontend/src/renderer/src/assets/themes.css &&
+  rg -q -- '--wr-primitive-' \
+    frontend/src/renderer/src/assets/tokens.css &&
+  rg -q -- '--wr-(header|editor|dialog)' \
+    frontend/src/renderer/src/assets/tokens.css &&
+  rg -q -- '--wr-(color|shadow)-' \
+    frontend/src/renderer/src/assets/themes.css &&
+  rg -q -- '--el-' \
+    frontend/src/renderer/src/assets/themes.css &&
+  ! rg -n -- '--wr-(primitive|header|editor|dialog)' \
+    frontend/src/renderer/src/assets/themes.css &&
+  ! rg -n -- '--wr-(color|shadow)-' \
+    frontend/src/renderer/src/assets/tokens.css &&
+  ! rg -n -- '--wr-(primitive|color|shadow|header|editor|dialog)' \
+    frontend/src/renderer/src/assets/base.css \
+    frontend/src/renderer/src/assets/main.css
+  ```
+
 - [ ] Define the small primitive scales listed in the contract.
 - [ ] Define light semantic roles at `:root`.
 - [ ] Define dark semantic roles under `html.dark`.
@@ -280,8 +341,8 @@ to the first complete product path: shell, header, dashboard, and project card.
 - Modify: `frontend/src/renderer/src/views/Dashboard.vue`
 - Modify: `frontend/src/renderer/src/assets/tokens.css`
 - Modify: `frontend/src/renderer/src/assets/themes.css`
-- Modify focused existing tests or create:
-  `frontend/src/renderer/src/views/__tests__/Dashboard.visual-contract.test.ts`
+- Create:
+  `frontend/src/renderer/src/views/tests/Dashboard.visual-contract.test.ts`
 - Create: `docs/acceptance/visual-language-vl-03.md`
 
 ### High-risk files
@@ -366,10 +427,10 @@ the editor without a large component refactor or any change to editor behavior.
 - Modify: `frontend/src/renderer/src/composables/useSidebarResizer.ts`
 - Modify: `frontend/src/renderer/src/components/common/EditorHeader.vue`
 - Modify: `frontend/src/renderer/src/assets/tokens.css`
-- Modify focused existing editor tests under:
-  `frontend/src/renderer/src/components/editors/__tests__/`
-- Create focused layout tests under:
-  `frontend/src/renderer/src/views/__tests__/`
+- Create:
+  `frontend/src/renderer/src/views/tests/Editor.visual-contract.test.ts`
+- Create:
+  `frontend/src/renderer/src/composables/tests/useSidebarResizer.test.ts`
 - Create: `docs/acceptance/visual-language-vl-04.md`
 
 No other editor, card, assistant, panel, store, API, or backend file is allowed.
@@ -471,8 +532,7 @@ contracts exactly.
   `frontend/src/renderer/src/components/pipelines/__tests__/SelectionPipelineDialog.test.ts`
 - Modify:
   `frontend/src/renderer/src/components/workflow/WorkflowStatusBar.vue`
-- Modify focused existing tests for `WorkflowStatusBar` if present; otherwise
-  create:
+- Create:
   `frontend/src/renderer/src/components/workflow/__tests__/WorkflowStatusBar.visual-contract.test.ts`
 - Modify: `frontend/src/renderer/src/assets/tokens.css`
 - Create: `docs/acceptance/visual-language-vl-05.md`
