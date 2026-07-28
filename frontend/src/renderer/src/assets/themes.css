@@ -1,0 +1,259 @@
+:root {
+  color-scheme: light;
+
+  --wr-color-bg-app: var(--wr-primitive-neutral-50);
+  --wr-color-surface-canvas: var(--wr-primitive-neutral-0);
+  --wr-color-surface-panel: var(--wr-primitive-neutral-100);
+  --wr-color-surface-raised: var(--wr-primitive-neutral-0);
+  --wr-color-surface-overlay: var(--wr-primitive-neutral-0);
+  --wr-color-text-primary: var(--wr-primitive-neutral-900);
+  --wr-color-text-secondary: var(--wr-primitive-neutral-600);
+  --wr-color-text-muted: var(--wr-primitive-neutral-550);
+  --wr-color-text-inverse: var(--wr-primitive-neutral-0);
+  --wr-color-border-default: var(--wr-primitive-neutral-300);
+  --wr-color-border-strong: var(--wr-primitive-neutral-400);
+  --wr-color-focus-ring: var(--wr-primitive-accent-700);
+  --wr-color-accent: var(--wr-primitive-accent-600);
+  --wr-color-accent-rgb: var(--wr-primitive-accent-600-rgb);
+  --wr-color-accent-subtle: var(--wr-primitive-accent-100);
+  --wr-color-selection: var(--wr-primitive-info-light);
+
+  --wr-color-status-success: var(--wr-primitive-success-base);
+  --wr-color-status-success-rgb: var(--wr-primitive-success-base-rgb);
+  --wr-color-status-success-foreground: var(--wr-primitive-success-dark);
+  --wr-color-status-success-background:
+    var(--wr-primitive-success-subtle-light);
+  --wr-color-status-success-border: var(--wr-primitive-success-base);
+  --wr-color-status-warning: var(--wr-primitive-warning-base);
+  --wr-color-status-warning-rgb: var(--wr-primitive-warning-base-rgb);
+  --wr-color-status-warning-foreground: var(--wr-primitive-warning-dark);
+  --wr-color-status-warning-background:
+    var(--wr-primitive-warning-subtle-light);
+  --wr-color-status-warning-border: var(--wr-primitive-warning-base);
+  --wr-color-status-error: var(--wr-primitive-error-base);
+  --wr-color-status-error-rgb: var(--wr-primitive-error-base-rgb);
+  --wr-color-status-error-foreground: var(--wr-primitive-error-dark);
+  --wr-color-status-error-background: var(--wr-primitive-error-subtle-light);
+  --wr-color-status-error-border: var(--wr-primitive-error-base);
+  --wr-color-status-info: var(--wr-primitive-info-base);
+  --wr-color-status-info-rgb: var(--wr-primitive-accent-600-rgb);
+  --wr-color-status-info-foreground: var(--wr-primitive-info-dark);
+  --wr-color-status-info-background: var(--wr-primitive-accent-50);
+  --wr-color-status-info-border: var(--wr-primitive-info-base);
+
+  --wr-color-mask:
+    rgb(var(--wr-primitive-neutral-900-rgb) / 0.64);
+  --wr-color-mask-subtle:
+    rgb(var(--wr-primitive-neutral-900-rgb) / 0.32);
+  --wr-shadow-panel: var(--wr-primitive-shadow-low);
+  --wr-shadow-overlay: var(--wr-primitive-shadow-overlay);
+  --wr-shadow-dialog: var(--wr-primitive-shadow-dialog);
+}
+
+html.dark {
+  color-scheme: dark;
+
+  --wr-color-bg-app: var(--wr-primitive-neutral-925);
+  --wr-color-surface-canvas: var(--wr-primitive-neutral-875);
+  --wr-color-surface-panel: var(--wr-primitive-neutral-825);
+  --wr-color-surface-raised: var(--wr-primitive-neutral-775);
+  --wr-color-surface-overlay: var(--wr-primitive-neutral-750);
+  --wr-color-text-primary: var(--wr-primitive-neutral-50);
+  --wr-color-text-secondary: var(--wr-primitive-neutral-300);
+  --wr-color-text-muted: var(--wr-primitive-neutral-350);
+  --wr-color-text-inverse: var(--wr-primitive-neutral-0);
+  --wr-color-border-default: var(--wr-primitive-neutral-600);
+  --wr-color-border-strong: var(--wr-primitive-neutral-500);
+  --wr-color-focus-ring: var(--wr-primitive-accent-300);
+  --wr-color-accent: var(--wr-primitive-accent-600);
+  --wr-color-accent-rgb: var(--wr-primitive-accent-600-rgb);
+  --wr-color-accent-subtle: var(--wr-primitive-accent-900);
+  --wr-color-selection: var(--wr-primitive-info-dark);
+
+  --wr-color-status-success: var(--wr-primitive-success-bright);
+  --wr-color-status-success-rgb: var(--wr-primitive-success-bright-rgb);
+  --wr-color-status-success-foreground: var(--wr-primitive-success-light);
+  --wr-color-status-success-background:
+    var(--wr-primitive-success-subtle-dark);
+  --wr-color-status-success-border: var(--wr-primitive-success-bright);
+  --wr-color-status-warning: var(--wr-primitive-warning-bright);
+  --wr-color-status-warning-rgb: var(--wr-primitive-warning-bright-rgb);
+  --wr-color-status-warning-foreground: var(--wr-primitive-warning-light);
+  --wr-color-status-warning-background:
+    var(--wr-primitive-warning-subtle-dark);
+  --wr-color-status-warning-border: var(--wr-primitive-warning-bright);
+  --wr-color-status-error: var(--wr-primitive-error-bright);
+  --wr-color-status-error-rgb: var(--wr-primitive-error-bright-rgb);
+  --wr-color-status-error-foreground: var(--wr-primitive-error-light);
+  --wr-color-status-error-background: var(--wr-primitive-error-subtle-dark);
+  --wr-color-status-error-border: var(--wr-primitive-error-bright);
+  --wr-color-status-info: var(--wr-primitive-accent-400);
+  --wr-color-status-info-rgb: var(--wr-primitive-accent-400-rgb);
+  --wr-color-status-info-foreground: var(--wr-primitive-info-light);
+  --wr-color-status-info-background: var(--wr-primitive-info-subtle-dark);
+  --wr-color-status-info-border: var(--wr-primitive-accent-400);
+
+  --wr-color-mask:
+    rgb(var(--wr-primitive-neutral-950-rgb) / 0.72);
+  --wr-color-mask-subtle:
+    rgb(var(--wr-primitive-neutral-950-rgb) / 0.4);
+  --wr-shadow-panel: var(--wr-primitive-shadow-none);
+  --wr-shadow-overlay: var(--wr-primitive-shadow-overlay-dark);
+  --wr-shadow-dialog: var(--wr-primitive-shadow-dialog-dark);
+}
+
+html:root,
+html.dark {
+  /* Element Plus brand and status mapping */
+  --el-color-primary: var(--wr-color-accent);
+  --el-color-primary-rgb: var(--wr-color-accent-rgb);
+  --el-color-primary-light-3:
+    color-mix(in srgb, var(--wr-color-accent) 70%, var(--wr-color-surface-canvas));
+  --el-color-primary-light-5:
+    color-mix(in srgb, var(--wr-color-accent) 50%, var(--wr-color-surface-canvas));
+  --el-color-primary-light-7:
+    color-mix(in srgb, var(--wr-color-accent) 30%, var(--wr-color-surface-panel));
+  --el-color-primary-light-8:
+    color-mix(in srgb, var(--wr-color-accent) 20%, var(--wr-color-surface-panel));
+  --el-color-primary-light-9: var(--wr-color-accent-subtle);
+  --el-color-primary-dark-2:
+    color-mix(in srgb, var(--wr-color-accent) 80%, var(--wr-color-text-primary));
+
+  --el-color-success: var(--wr-color-status-success);
+  --el-color-success-rgb: var(--wr-color-status-success-rgb);
+  --el-color-success-light-3:
+    color-mix(in srgb, var(--wr-color-status-success) 70%, var(--wr-color-surface-canvas));
+  --el-color-success-light-5:
+    color-mix(in srgb, var(--wr-color-status-success) 50%, var(--wr-color-surface-canvas));
+  --el-color-success-light-7:
+    color-mix(in srgb, var(--wr-color-status-success) 30%, var(--wr-color-surface-panel));
+  --el-color-success-light-8:
+    color-mix(in srgb, var(--wr-color-status-success) 20%, var(--wr-color-surface-panel));
+  --el-color-success-light-9: var(--wr-color-status-success-background);
+  --el-color-success-dark-2:
+    color-mix(in srgb, var(--wr-color-status-success) 80%, var(--wr-color-text-primary));
+
+  --el-color-warning: var(--wr-color-status-warning);
+  --el-color-warning-rgb: var(--wr-color-status-warning-rgb);
+  --el-color-warning-light-3:
+    color-mix(in srgb, var(--wr-color-status-warning) 70%, var(--wr-color-surface-canvas));
+  --el-color-warning-light-5:
+    color-mix(in srgb, var(--wr-color-status-warning) 50%, var(--wr-color-surface-canvas));
+  --el-color-warning-light-7:
+    color-mix(in srgb, var(--wr-color-status-warning) 30%, var(--wr-color-surface-panel));
+  --el-color-warning-light-8:
+    color-mix(in srgb, var(--wr-color-status-warning) 20%, var(--wr-color-surface-panel));
+  --el-color-warning-light-9: var(--wr-color-status-warning-background);
+  --el-color-warning-dark-2:
+    color-mix(in srgb, var(--wr-color-status-warning) 80%, var(--wr-color-text-primary));
+
+  --el-color-danger: var(--wr-color-status-error);
+  --el-color-danger-rgb: var(--wr-color-status-error-rgb);
+  --el-color-danger-light-3:
+    color-mix(in srgb, var(--wr-color-status-error) 70%, var(--wr-color-surface-canvas));
+  --el-color-danger-light-5:
+    color-mix(in srgb, var(--wr-color-status-error) 50%, var(--wr-color-surface-canvas));
+  --el-color-danger-light-7:
+    color-mix(in srgb, var(--wr-color-status-error) 30%, var(--wr-color-surface-panel));
+  --el-color-danger-light-8:
+    color-mix(in srgb, var(--wr-color-status-error) 20%, var(--wr-color-surface-panel));
+  --el-color-danger-light-9: var(--wr-color-status-error-background);
+  --el-color-danger-dark-2:
+    color-mix(in srgb, var(--wr-color-status-error) 80%, var(--wr-color-text-primary));
+  --el-color-error: var(--wr-color-status-error);
+  --el-color-error-rgb: var(--wr-color-status-error-rgb);
+  --el-color-error-light-3: var(--el-color-danger-light-3);
+  --el-color-error-light-5: var(--el-color-danger-light-5);
+  --el-color-error-light-7: var(--el-color-danger-light-7);
+  --el-color-error-light-8: var(--el-color-danger-light-8);
+  --el-color-error-light-9: var(--wr-color-status-error-background);
+  --el-color-error-dark-2: var(--el-color-danger-dark-2);
+
+  --el-color-info: var(--wr-color-status-info);
+  --el-color-info-rgb: var(--wr-color-status-info-rgb);
+  --el-color-info-light-3:
+    color-mix(in srgb, var(--wr-color-status-info) 70%, var(--wr-color-surface-canvas));
+  --el-color-info-light-5:
+    color-mix(in srgb, var(--wr-color-status-info) 50%, var(--wr-color-surface-canvas));
+  --el-color-info-light-7:
+    color-mix(in srgb, var(--wr-color-status-info) 30%, var(--wr-color-surface-panel));
+  --el-color-info-light-8:
+    color-mix(in srgb, var(--wr-color-status-info) 20%, var(--wr-color-surface-panel));
+  --el-color-info-light-9: var(--wr-color-status-info-background);
+  --el-color-info-dark-2:
+    color-mix(in srgb, var(--wr-color-status-info) 80%, var(--wr-color-text-primary));
+
+  /* Element Plus surfaces, fills, and text tiers */
+  --el-bg-color-page: var(--wr-color-bg-app);
+  --el-bg-color: var(--wr-color-surface-canvas);
+  --el-bg-color-overlay: var(--wr-color-surface-overlay);
+  --el-fill-color-darker:
+    color-mix(in srgb, var(--wr-color-text-primary) 14%, var(--wr-color-surface-panel));
+  --el-fill-color-dark:
+    color-mix(in srgb, var(--wr-color-text-primary) 10%, var(--wr-color-surface-panel));
+  --el-fill-color:
+    color-mix(in srgb, var(--wr-color-text-primary) 8%, var(--wr-color-surface-panel));
+  --el-fill-color-light:
+    color-mix(in srgb, var(--wr-color-text-primary) 6%, var(--wr-color-surface-panel));
+  --el-fill-color-lighter:
+    color-mix(in srgb, var(--wr-color-text-primary) 4%, var(--wr-color-surface-panel));
+  --el-fill-color-extra-light:
+    color-mix(in srgb, var(--wr-color-text-primary) 2%, var(--wr-color-surface-panel));
+  --el-fill-color-blank: var(--wr-color-surface-canvas);
+  --el-text-color-primary: var(--wr-color-text-primary);
+  --el-text-color-regular: var(--wr-color-text-secondary);
+  --el-text-color-secondary: var(--wr-color-text-muted);
+  --el-text-color-placeholder: var(--wr-color-text-muted);
+  --el-text-color-disabled:
+    color-mix(in srgb, var(--wr-color-text-muted) 64%, var(--wr-color-surface-panel));
+
+  /* Element Plus border, focus, disabled, and mask mapping */
+  --el-border-color-darker: var(--wr-color-border-strong);
+  --el-border-color-dark:
+    color-mix(
+      in srgb,
+      var(--wr-color-border-strong) 75%,
+      var(--wr-color-border-default)
+    );
+  --el-border-color: var(--wr-color-border-default);
+  --el-border-color-light:
+    color-mix(
+      in srgb,
+      var(--wr-color-border-default) 75%,
+      var(--wr-color-surface-panel)
+    );
+  --el-border-color-lighter:
+    color-mix(
+      in srgb,
+      var(--wr-color-border-default) 55%,
+      var(--wr-color-surface-panel)
+    );
+  --el-border-color-extra-light:
+    color-mix(
+      in srgb,
+      var(--wr-color-border-default) 35%,
+      var(--wr-color-surface-panel)
+    );
+  --el-border-color-hover: var(--wr-color-focus-ring);
+  --el-disabled-bg-color: var(--el-fill-color-light);
+  --el-disabled-text-color: var(--el-text-color-disabled);
+  --el-disabled-border-color: var(--el-border-color-light);
+  --el-mask-color: var(--wr-color-mask);
+  --el-mask-color-extra-light: var(--wr-color-mask-subtle);
+
+  /* Element Plus shape, elevation, and stable control sizes */
+  --el-border-width: var(--wr-border-width-default);
+  --el-border-style: solid;
+  --el-border: var(--el-border-width) var(--el-border-style) var(--el-border-color);
+  --el-border-radius-base: var(--wr-radius-control);
+  --el-border-radius-small: var(--wr-radius-small);
+  --el-border-radius-round: var(--wr-radius-pill);
+  --el-border-radius-circle: 50%;
+  --el-box-shadow: var(--wr-shadow-dialog);
+  --el-box-shadow-light: var(--wr-shadow-overlay);
+  --el-box-shadow-lighter: var(--wr-shadow-panel);
+  --el-box-shadow-dark: var(--wr-shadow-dialog);
+  --el-component-size-small: var(--wr-control-height-compact);
+  --el-component-size: var(--wr-control-height-default);
+  --el-component-size-large: var(--wr-control-height-comfortable);
+}

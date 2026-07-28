@@ -1,0 +1,225 @@
+:root {
+  /* Primitive colour scales */
+  --wr-primitive-neutral-0: #ffffff;
+  --wr-primitive-neutral-50: #f8fafc;
+  --wr-primitive-neutral-100: #f1f5f9;
+  --wr-primitive-neutral-200: #e2e8f0;
+  --wr-primitive-neutral-300: #cbd5e1;
+  --wr-primitive-neutral-350: #a7b3c5;
+  --wr-primitive-neutral-400: #94a3b8;
+  --wr-primitive-neutral-500: #64748b;
+  --wr-primitive-neutral-550: #59677a;
+  --wr-primitive-neutral-600: #475569;
+  --wr-primitive-neutral-700: #334155;
+  --wr-primitive-neutral-750: #2b3a50;
+  --wr-primitive-neutral-775: #273449;
+  --wr-primitive-neutral-800: #1e293b;
+  --wr-primitive-neutral-825: #1f2937;
+  --wr-primitive-neutral-875: #18212f;
+  --wr-primitive-neutral-900: #0f172a;
+  --wr-primitive-neutral-900-rgb: 15 23 42;
+  --wr-primitive-neutral-925: #111827;
+  --wr-primitive-neutral-950: #020617;
+  --wr-primitive-neutral-950-rgb: 2 6 23;
+
+  --wr-primitive-accent-50: #eff6ff;
+  --wr-primitive-accent-100: #dbeafe;
+  --wr-primitive-accent-300: #93c5fd;
+  --wr-primitive-accent-400: #60a5fa;
+  --wr-primitive-accent-400-rgb: 96, 165, 250;
+  --wr-primitive-accent-500: #3b82f6;
+  --wr-primitive-accent-600: #2563eb;
+  --wr-primitive-accent-600-rgb: 37, 99, 235;
+  --wr-primitive-accent-700: #1d4ed8;
+  --wr-primitive-accent-900: #1e3a5f;
+
+  --wr-primitive-success-light: #bbf7d0;
+  --wr-primitive-success-base: #15803d;
+  --wr-primitive-success-base-rgb: 21, 128, 61;
+  --wr-primitive-success-dark: #166534;
+  --wr-primitive-success-bright: #4ade80;
+  --wr-primitive-success-bright-rgb: 74, 222, 128;
+  --wr-primitive-success-subtle-light: #f0fdf4;
+  --wr-primitive-success-subtle-dark: #143322;
+  --wr-primitive-warning-light: #fef08a;
+  --wr-primitive-warning-base: #a16207;
+  --wr-primitive-warning-base-rgb: 161, 98, 7;
+  --wr-primitive-warning-dark: #713f12;
+  --wr-primitive-warning-bright: #facc15;
+  --wr-primitive-warning-bright-rgb: 250, 204, 21;
+  --wr-primitive-warning-subtle-light: #fefce8;
+  --wr-primitive-warning-subtle-dark: #3a2e0b;
+  --wr-primitive-error-light: #fecaca;
+  --wr-primitive-error-base: #dc2626;
+  --wr-primitive-error-base-rgb: 220, 38, 38;
+  --wr-primitive-error-dark: #991b1b;
+  --wr-primitive-error-bright: #f87171;
+  --wr-primitive-error-bright-rgb: 248, 113, 113;
+  --wr-primitive-error-subtle-light: #fef2f2;
+  --wr-primitive-error-subtle-dark: #3b171b;
+  --wr-primitive-info-light: #bfdbfe;
+  --wr-primitive-info-base: #2563eb;
+  --wr-primitive-info-dark: #1e40af;
+  --wr-primitive-info-subtle-dark: #172554;
+
+  /* Primitive typography */
+  --wr-primitive-font-family-ui:
+    Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+    Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif;
+  --wr-primitive-font-family-writing: var(--wr-primitive-font-family-ui);
+  --wr-primitive-font-family-mono:
+    'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  --wr-primitive-font-size-12: 12px;
+  --wr-primitive-font-size-13: 13px;
+  --wr-primitive-font-size-14: 14px;
+  --wr-primitive-font-size-16: 16px;
+  --wr-primitive-font-size-20: 20px;
+  --wr-primitive-font-size-24: 24px;
+  --wr-primitive-font-weight-regular: 400;
+  --wr-primitive-font-weight-medium: 500;
+  --wr-primitive-font-weight-semibold: 600;
+  --wr-primitive-line-height-tight: 1.25;
+  --wr-primitive-line-height-body: 1.6;
+
+  /* Primitive spacing */
+  --wr-primitive-space-0: 0;
+  --wr-primitive-space-2: 2px;
+  --wr-primitive-space-4: 4px;
+  --wr-primitive-space-6: 6px;
+  --wr-primitive-space-8: 8px;
+  --wr-primitive-space-12: 12px;
+  --wr-primitive-space-16: 16px;
+  --wr-primitive-space-20: 20px;
+  --wr-primitive-space-24: 24px;
+  --wr-primitive-space-32: 32px;
+
+  /* Primitive shape and border */
+  --wr-primitive-radius-0: 0;
+  --wr-primitive-radius-4: 4px;
+  --wr-primitive-radius-6: 6px;
+  --wr-primitive-radius-8: 8px;
+  --wr-primitive-radius-12: 12px;
+  --wr-primitive-radius-pill: 9999px;
+  --wr-primitive-border-default: 1px;
+  --wr-primitive-border-emphasis: 2px;
+
+  /* Primitive elevation */
+  --wr-primitive-shadow-none: none;
+  --wr-primitive-shadow-low: 0 1px 2px rgb(15 23 42 / 0.08);
+  --wr-primitive-shadow-overlay:
+    0 10px 24px rgb(15 23 42 / 0.14), 0 2px 6px rgb(15 23 42 / 0.08);
+  --wr-primitive-shadow-dialog:
+    0 20px 48px rgb(15 23 42 / 0.2), 0 6px 16px rgb(15 23 42 / 0.1);
+  --wr-primitive-shadow-overlay-dark: 0 8px 24px rgb(0 0 0 / 0.32);
+  --wr-primitive-shadow-dialog-dark:
+    0 18px 48px rgb(0 0 0 / 0.48), 0 6px 16px rgb(0 0 0 / 0.28);
+
+  /* Primitive motion */
+  --wr-primitive-motion-instant: 0ms;
+  --wr-primitive-motion-fast: 120ms;
+  --wr-primitive-motion-standard: 200ms;
+  --wr-primitive-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --wr-primitive-easing-emphasized: cubic-bezier(0.2, 0, 0, 1.2);
+
+  /* Primitive control and layout dimensions */
+  --wr-primitive-control-compact: 28px;
+  --wr-primitive-control-default: 32px;
+  --wr-primitive-control-comfortable: 40px;
+  --wr-primitive-target-minimum: 40px;
+  --wr-primitive-layout-header: 60px;
+  --wr-primitive-layout-panel-left-min: 180px;
+  --wr-primitive-layout-panel-right-min: 280px;
+  --wr-primitive-layout-canvas-min: 560px;
+  --wr-primitive-layout-canvas-readable-min: 720px;
+  --wr-primitive-layout-canvas-readable-max: 880px;
+  --wr-primitive-layout-dialog-gutter: 24px;
+
+  /* Shared typography roles */
+  --wr-font-family-ui: var(--wr-primitive-font-family-ui);
+  --wr-font-family-writing: var(--wr-primitive-font-family-writing);
+  --wr-font-family-mono: var(--wr-primitive-font-family-mono);
+  --wr-font-size-caption: var(--wr-primitive-font-size-12);
+  --wr-font-size-meta: var(--wr-primitive-font-size-13);
+  --wr-font-size-body-small: var(--wr-primitive-font-size-14);
+  --wr-font-size-body: var(--wr-primitive-font-size-16);
+  --wr-font-size-heading-small: var(--wr-primitive-font-size-20);
+  --wr-font-size-heading: var(--wr-primitive-font-size-24);
+  --wr-font-weight-regular: var(--wr-primitive-font-weight-regular);
+  --wr-font-weight-medium: var(--wr-primitive-font-weight-medium);
+  --wr-font-weight-semibold: var(--wr-primitive-font-weight-semibold);
+  --wr-line-height-tight: var(--wr-primitive-line-height-tight);
+  --wr-line-height-body: var(--wr-primitive-line-height-body);
+
+  /* Shared spacing and shape roles */
+  --wr-space-0: var(--wr-primitive-space-0);
+  --wr-space-2: var(--wr-primitive-space-2);
+  --wr-space-4: var(--wr-primitive-space-4);
+  --wr-space-6: var(--wr-primitive-space-6);
+  --wr-space-8: var(--wr-primitive-space-8);
+  --wr-space-12: var(--wr-primitive-space-12);
+  --wr-space-16: var(--wr-primitive-space-16);
+  --wr-space-20: var(--wr-primitive-space-20);
+  --wr-space-24: var(--wr-primitive-space-24);
+  --wr-space-32: var(--wr-primitive-space-32);
+  --wr-radius-none: var(--wr-primitive-radius-0);
+  --wr-radius-small: var(--wr-primitive-radius-4);
+  --wr-radius-control: var(--wr-primitive-radius-6);
+  --wr-radius-surface: var(--wr-primitive-radius-8);
+  --wr-radius-dialog: var(--wr-primitive-radius-12);
+  --wr-radius-pill: var(--wr-primitive-radius-pill);
+  --wr-border-width-default: var(--wr-primitive-border-default);
+  --wr-border-width-emphasis: var(--wr-primitive-border-emphasis);
+
+  /* Shared control, motion, and elevation roles */
+  --wr-control-height-compact: var(--wr-primitive-control-compact);
+  --wr-control-height-default: var(--wr-primitive-control-default);
+  --wr-control-height-comfortable: var(--wr-primitive-control-comfortable);
+  --wr-target-size-minimum: var(--wr-primitive-target-minimum);
+  --wr-motion-instant: var(--wr-primitive-motion-instant);
+  --wr-motion-fast: var(--wr-primitive-motion-fast);
+  --wr-motion-standard: var(--wr-primitive-motion-standard);
+  --wr-easing-standard: var(--wr-primitive-easing-standard);
+  --wr-easing-emphasized: var(--wr-primitive-easing-emphasized);
+  --wr-elevation-base: var(--wr-primitive-shadow-none);
+  --wr-elevation-low: var(--wr-primitive-shadow-low);
+  --wr-elevation-overlay: var(--wr-primitive-shadow-overlay);
+  --wr-elevation-dialog: var(--wr-primitive-shadow-dialog);
+
+  /* Shared ordered z-index roles */
+  --wr-z-base: 0;
+  --wr-z-sticky: 100;
+  --wr-z-dropdown: 1000;
+  --wr-z-floating-status: 1600;
+  --wr-z-overlay: 2000;
+  --wr-z-dialog: 2100;
+  --wr-z-critical-modal: 2200;
+
+  /* Shared layout and documented breakpoint roles */
+  --wr-layout-header-height: var(--wr-primitive-layout-header);
+  --wr-layout-panel-left-min-width: var(--wr-primitive-layout-panel-left-min);
+  --wr-layout-panel-right-min-width: var(--wr-primitive-layout-panel-right-min);
+  --wr-layout-panel-left-default-width: 285px;
+  --wr-layout-panel-right-default-width: 340px;
+  --wr-layout-canvas-min-width: var(--wr-primitive-layout-canvas-min);
+  --wr-layout-canvas-readable-min-width:
+    var(--wr-primitive-layout-canvas-readable-min);
+  --wr-layout-canvas-readable-max-width:
+    var(--wr-primitive-layout-canvas-readable-max);
+  --wr-layout-dialog-gutter: var(--wr-primitive-layout-dialog-gutter);
+  --wr-layout-dialog-max-width: 900px;
+  --wr-breakpoint-wide: 1440px;
+  --wr-breakpoint-standard: 1180px;
+  --wr-breakpoint-narrow: 900px;
+  --wr-breakpoint-minimum: 768px;
+
+  /* Stable component aliases */
+  --wr-header-height: var(--wr-layout-header-height);
+  --wr-editor-left-panel-width: var(--wr-layout-panel-left-default-width);
+  --wr-editor-right-panel-width: var(--wr-layout-panel-right-default-width);
+  --wr-editor-canvas-min-width: var(--wr-layout-canvas-min-width);
+  --wr-dialog-max-width: var(--wr-layout-dialog-max-width);
+  --wr-card-padding: var(--wr-space-16);
+  --wr-control-height: var(--wr-control-height-default);
+  --wr-resizer-hit-area: var(--wr-space-8);
+  --wr-statusbar-z: var(--wr-z-floating-status);
+}

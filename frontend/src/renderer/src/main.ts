@@ -1,3 +1,8 @@
+import 'element-plus/dist/index.css'
+import 'element-plus/theme-chalk/dark/css-vars.css'
+import './assets/tokens.css'
+import './assets/themes.css'
+import './assets/base.css'
 import './assets/main.css'
 
 import { setupWebMock } from './web-mock'
@@ -6,8 +11,6 @@ setupWebMock()
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
-import 'element-plus/theme-chalk/dark/css-vars.css'
 import App from './App.vue'
 import { useAppStore } from './stores/useAppStore'
 import { usePerCardAISettingsStore } from './stores/usePerCardAISettingsStore'
