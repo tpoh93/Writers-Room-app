@@ -985,6 +985,8 @@ const pl = {
     none: 'Brak kart do wyeksportowania dla wybranych warunków.',
     summary: 'Brak kart do eksportu. Format: {format}. | Do eksportu: {count} karta. Format: {format}. | Do eksportu: {count} karty. Format: {format}. | Do eksportu: {count} kart. Format: {format}.',
     success: 'Nie wyeksportowano żadnych kart. | Wyeksportowano {count} kartę. | Wyeksportowano {count} karty. | Wyeksportowano {count} kart.',
+    flushFailed: 'Eksport został zablokowany: nie udało się zapisać zmian.',
+    failed: 'Eksport nie powiódł się.',
   },
   generation: {
     title: 'Generowanie AI',

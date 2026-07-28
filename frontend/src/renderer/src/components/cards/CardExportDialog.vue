@@ -44,7 +44,7 @@
 
     <template #footer>
       <el-button @click="visible = false">{{ t('common.cancel') }}</el-button>
-      <el-button type="primary" :loading="exporting" :disabled="!canExport" @click="handleExport">
+      <el-button data-test="card-export-submit" type="primary" :loading="exporting" :disabled="!canExport" @click="handleExport">
         {{ t('cardExport.export') }}
       </el-button>
     </template>
@@ -71,6 +71,7 @@ const props = defineProps<{
   cards: CardRead[]
   cardTypes: CardTypeRead[]
   initialCardId?: number | null
+  beforeExport?: () => Promise<boolean>
 }>()
 
 const emit = defineEmits<{
@@ -175,6 +176,11 @@ function triggerDownload(blob: Blob, filename: string): void {
 async function handleExport() {
   if (!props.projectId || !canExport.value) return
 
+  if (props.beforeExport && !await props.beforeExport()) {
+    ElMessage.error(t('cardExport.flushFailed'))
+    return
+  }
+
   const payload: any = {
     scope: scope.value,
     format: format.value
@@ -190,7 +196,8 @@ async function handleExport() {
     ElMessage.success(t('cardExport.success', { count: filteredCards.value.length }, filteredCards.value.length))
     visible.value = false
   } catch (error) {
-    console.error('导出失败:', error)
+    console.error('Export failed:', error)
+    ElMessage.error(t('cardExport.failed'))
   } finally {
     exporting.value = false
   }

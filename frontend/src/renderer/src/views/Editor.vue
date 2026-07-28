@@ -352,6 +352,7 @@
     :cards="cards as any"
     :card-types="cardStore.cardTypes as any"
     :initial-card-id="selectedCardIds.length === 1 ? selectedCardIds[0] : ((activeCard as any)?.id ?? null)"
+    :before-export="beforeWriterExport"
   />
 
   
@@ -455,6 +456,10 @@ function openExportDialog() {
     return
   }
   exportDialogVisible.value = true
+}
+
+async function beforeWriterExport(): Promise<boolean> {
+  return (await editorStore.flushActiveWriter('export')).ok
 }
 
  async function onImportSourceChange(pid: number | null) {
