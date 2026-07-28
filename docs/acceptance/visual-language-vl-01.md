@@ -102,9 +102,15 @@ untouched and are not claimed as migrated.
 - `base.css` and `main.css` define none of those layers; they consume the
   central mapping and shared non-colour roles.
 
-The ownership assertion intentionally keeps primitive and component-alias names
-out of `themes.css`, theme colour/shadow names out of `tokens.css`, and all
-owned token families out of the two consumer stylesheets.
+The effective value flow is:
+
+`primitives` → `semantic roles` → `component/framework mappings` → `surfaces`.
+
+`themes.css` consumes primitive colour, RGB, and shadow values when defining
+the light and dark semantic roles. Element Plus consumes only those semantic
+Writers Room roles plus shared radius, border, and control-size roles.
+Component aliases consume shared layout, spacing, control, and z-index roles.
+Feature components do not consume primitives directly.
 
 ## Import order
 
@@ -138,8 +144,8 @@ background in both themes.
 
 ## Contrast
 
-The ratios below were calculated from the actual hexadecimal values parsed
-from `themes.css`. Text and status pairs use the stricter `4.5:1` threshold;
+The ratios below were recalculated after resolving the final primitive-to-
+semantic references. Text and status pairs use the stricter `4.5:1` threshold;
 focus indicators use `3:1`.
 
 | Theme | Foreground token | Background token | Ratio | Threshold | Result |
@@ -169,9 +175,17 @@ focus indicators use `3:1`.
 
 Failed pairs: `NONE`.
 
-## GREEN assertion
+Minimum measured ratio: `5.17:1`.
 
-The command is identical to the RED assertion above.
+## Historical VL-01 GREEN assertion
+
+This records the ownership assertion run for the initial VL-01 commit, before
+the independent-review correction. The command was identical to the RED
+assertion above and its result remains historical evidence; its prohibition on
+primitive references in `themes.css` cannot validate the required
+primitive-to-semantic linkage and is superseded for the corrective diff by the
+linkage assertion below. Declaration ownership remains unchanged:
+`tokens.css` declares primitives, while `themes.css` declares semantic roles.
 
 - Assertion exit code: `0`.
 - Base HEAD: `ee2ca21d4939375d631d8317b2f4c226e44226b3`.
@@ -181,6 +195,75 @@ The command is identical to the RED assertion above.
 - First GREEN timestamp: `2026-07-28T05:18:20Z`.
 - Final identical GREEN after live mapping correction and evidence creation:
   exit `0` at `2026-07-28T05:32:12Z`.
+
+## Independent review corrective pass
+
+Review status before correction: `CHANGES REQUESTED`.
+
+### Finding
+
+- Primitive colour and shadow scales existed in `tokens.css`.
+- Semantic theme roles used independent raw colour and shadow values, so the
+  primitive layer was not the actual source from which themes were built.
+- Components could not consume primitives directly, while Element Plus mapped
+  only from semantic roles; the missing primitive-to-semantic edge therefore
+  left much of the first layer unused.
+- `--wr-editor-left-panel-width` and
+  `--wr-editor-right-panel-width` contained direct `285px` and `340px`
+  literals.
+
+The pre-correction linkage assertion failed as expected with exit `1` at
+`2026-07-28T06:47:09Z` on source
+`25ec98971a3d09b7ee833751e95692fa5aa5012c`.
+
+### Correction
+
+- Corrective allowlist: `tokens.css`, `themes.css`, and this acceptance
+  evidence document; no other path changed.
+- Every semantic colour role now references a primitive colour token.
+- Every semantic shadow role now references a primitive shadow token.
+- Masks derive their base colour from space-separated primitive RGB
+  companions and retain only the semantic alpha composition.
+- The previously unused `--wr-primitive-neutral-950` was normalized from
+  `#0b0f14` to the approved dark-mask base `#020617`, allowing its new RGB
+  companion to represent the same colour; no pre-correction consumer or
+  rendered value changed.
+- Accent and status RGB companions use the comma-separated representation
+  required by Element Plus and represent the exact same primitive colours.
+- Element Plus still maps only from semantic Writers Room roles and shared
+  non-colour roles; it never maps directly from a primitive.
+- Left and right panel aliases now reference shared default-width layout roles
+  while preserving `285px` and `340px`.
+- All 82 light/dark semantic computed values and 14 key Element Plus computed
+  values remain equivalent to the pre-correction values.
+- No feature component, application behavior, or dependency changed.
+- VL-02 started: `NO`.
+- Premium Polish started: `NO`.
+
+### Primitive-to-semantic linkage assertion
+
+A one-off Python heredoc checked primitive colour and shadow families,
+primitive consumption by semantic roles, light/dark role parity, absence of
+raw semantic hex/shadow values, absence of direct Element Plus-to-primitive
+mapping, shared sidebar-width roles, alias indirection, prohibited CSS
+constructs, and consumer coverage for every primitive added by the corrective
+diff.
+
+- Exit code: `0`.
+- Final timestamp: `2026-07-28T07:01:09Z`.
+- Source: `25ec98971a3d09b7ee833751e95692fa5aa5012c` plus the corrective
+  three-file working diff.
+- Primitive colour families present: `PASS`.
+- Primitive shadow families present: `PASS`.
+- Semantic layer consumes primitives: `PASS`.
+- Light/dark role parity: `PASS` — 41 roles in each.
+- Raw non-RGB semantic hex values: `NONE`.
+- Raw semantic shadow definitions: `NONE`.
+- Element Plus direct primitive mappings: `NONE`.
+- New primitives without consumers: `NONE` — 31/31 have consumers.
+- Direct component-alias width literals: `NONE`.
+- Shared left/right default-width roles: `PASS`.
+- Computed-value equivalence: `PASS`.
 
 ## Static scans
 
@@ -210,19 +293,23 @@ database content. Viewport: exactly `1440 × 900`.
 |---|---|---|---|---|---|
 | `/tmp/writers-room-vl01-before-light.png` | Before | Light | 1440 × 900 | Synthetic empty dashboard | `ee2ca21d4939375d631d8317b2f4c226e44226b3` |
 | `/tmp/writers-room-vl01-before-dark.png` | Before | Dark | 1440 × 900 | Synthetic empty dashboard | `ee2ca21d4939375d631d8317b2f4c226e44226b3` |
-| `/tmp/writers-room-vl01-after-light.png` | After | Light | 1440 × 900 | Same synthetic empty dashboard | `ee2ca21d4939375d631d8317b2f4c226e44226b3` + staged VL-01 diff |
-| `/tmp/writers-room-vl01-after-dark.png` | After | Dark | 1440 × 900 | Same synthetic empty dashboard | `ee2ca21d4939375d631d8317b2f4c226e44226b3` + staged VL-01 diff |
+| `/tmp/writers-room-vl01-after-light.png` | Corrected after | Light | 1440 × 900 | Same synthetic empty dashboard | `25ec98971a3d09b7ee833751e95692fa5aa5012c` + corrective three-file diff |
+| `/tmp/writers-room-vl01-after-dark.png` | Corrected after | Dark | 1440 × 900 | Same synthetic empty dashboard | `25ec98971a3d09b7ee833751e95692fa5aa5012c` + corrective three-file diff |
 
 Observed in the after workflow:
 
 - application rendered after the stylesheet import-order change;
 - theme toggle changed `html.dark` and persisted across reload;
 - light and dark central `--el-*` mappings resolved to Writers Room roles;
+- corrective primitive linkage resolved to the same approved semantic and
+  Element Plus computed values;
 - surface hierarchy was equivalent;
 - document width and client width were both 1440 px;
 - browser console error/warning list was empty.
 
-Private data captured: `NO`. Screenshots are outside Git.
+The corrected AFTER screenshots were recreated at
+`2026-07-28T06:53:56Z` and `2026-07-28T06:54:35Z`. Private data captured:
+`NO`. Screenshots are outside Git.
 
 ## Shared verification gate
 
@@ -252,20 +339,21 @@ Observed nonblocking inherited warnings:
 - backend reports one `StarletteDeprecationWarning`, outside the Pydantic
   warning-as-error category.
 
-The final mandatory gate exit code was `0` at `2026-07-28T05:33:46Z`.
+The corrective-pass mandatory gate exit code was `0` at
+`2026-07-28T06:59:08Z`.
 
 ## Acceptance criteria
 
 | Criterion | Result | Evidence |
 |---|---|---|
-| Four layers explicit and centrally owned | PASS | Ownership assertion and architecture section |
+| Four layers explicit, linked, and centrally owned | PASS | Corrective linkage assertion and architecture section |
 | Same semantic roles in light/dark | PASS | 41 roles in each theme; empty role-set diff |
 | No feature component changed | PASS | Exact diff allowlist |
 | No new `transition: all` | PASS | Static scan empty |
 | No unexplained `!important` | PASS | Migrated-assets scan empty |
 | No new glass | PASS | `.glass` and backdrop scans empty |
 | No new gradient | PASS | Gradient scan empty |
-| VL-AC-01 | PASS | Central primitive, semantic, alias, and framework owners |
+| VL-AC-01 | PASS after linkage correction | Primitives feed semantic roles; aliases feed through shared roles; Element Plus consumes semantics |
 | VL-AC-02 | PASS | No component changed or given primitive consumption |
 | VL-AC-03 | PASS | Matching role sets and equivalent screenshot hierarchy |
 | VL-AC-04 | PASS | All 22 measured pairs meet thresholds |

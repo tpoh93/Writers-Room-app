@@ -5,33 +5,62 @@
   --wr-primitive-neutral-100: #f1f5f9;
   --wr-primitive-neutral-200: #e2e8f0;
   --wr-primitive-neutral-300: #cbd5e1;
+  --wr-primitive-neutral-350: #a7b3c5;
   --wr-primitive-neutral-400: #94a3b8;
   --wr-primitive-neutral-500: #64748b;
+  --wr-primitive-neutral-550: #59677a;
   --wr-primitive-neutral-600: #475569;
   --wr-primitive-neutral-700: #334155;
+  --wr-primitive-neutral-750: #2b3a50;
+  --wr-primitive-neutral-775: #273449;
   --wr-primitive-neutral-800: #1e293b;
+  --wr-primitive-neutral-825: #1f2937;
+  --wr-primitive-neutral-875: #18212f;
   --wr-primitive-neutral-900: #0f172a;
-  --wr-primitive-neutral-950: #0b0f14;
+  --wr-primitive-neutral-900-rgb: 15 23 42;
+  --wr-primitive-neutral-925: #111827;
+  --wr-primitive-neutral-950: #020617;
+  --wr-primitive-neutral-950-rgb: 2 6 23;
 
   --wr-primitive-accent-50: #eff6ff;
   --wr-primitive-accent-100: #dbeafe;
   --wr-primitive-accent-300: #93c5fd;
+  --wr-primitive-accent-400: #60a5fa;
+  --wr-primitive-accent-400-rgb: 96, 165, 250;
   --wr-primitive-accent-500: #3b82f6;
   --wr-primitive-accent-600: #2563eb;
+  --wr-primitive-accent-600-rgb: 37, 99, 235;
   --wr-primitive-accent-700: #1d4ed8;
+  --wr-primitive-accent-900: #1e3a5f;
 
   --wr-primitive-success-light: #bbf7d0;
   --wr-primitive-success-base: #15803d;
+  --wr-primitive-success-base-rgb: 21, 128, 61;
   --wr-primitive-success-dark: #166534;
+  --wr-primitive-success-bright: #4ade80;
+  --wr-primitive-success-bright-rgb: 74, 222, 128;
+  --wr-primitive-success-subtle-light: #f0fdf4;
+  --wr-primitive-success-subtle-dark: #143322;
   --wr-primitive-warning-light: #fef08a;
   --wr-primitive-warning-base: #a16207;
+  --wr-primitive-warning-base-rgb: 161, 98, 7;
   --wr-primitive-warning-dark: #713f12;
+  --wr-primitive-warning-bright: #facc15;
+  --wr-primitive-warning-bright-rgb: 250, 204, 21;
+  --wr-primitive-warning-subtle-light: #fefce8;
+  --wr-primitive-warning-subtle-dark: #3a2e0b;
   --wr-primitive-error-light: #fecaca;
   --wr-primitive-error-base: #dc2626;
+  --wr-primitive-error-base-rgb: 220, 38, 38;
   --wr-primitive-error-dark: #991b1b;
+  --wr-primitive-error-bright: #f87171;
+  --wr-primitive-error-bright-rgb: 248, 113, 113;
+  --wr-primitive-error-subtle-light: #fef2f2;
+  --wr-primitive-error-subtle-dark: #3b171b;
   --wr-primitive-info-light: #bfdbfe;
   --wr-primitive-info-base: #2563eb;
   --wr-primitive-info-dark: #1e40af;
+  --wr-primitive-info-subtle-dark: #172554;
 
   /* Primitive typography */
   --wr-primitive-font-family-ui:
@@ -81,6 +110,9 @@
     0 10px 24px rgb(15 23 42 / 0.14), 0 2px 6px rgb(15 23 42 / 0.08);
   --wr-primitive-shadow-dialog:
     0 20px 48px rgb(15 23 42 / 0.2), 0 6px 16px rgb(15 23 42 / 0.1);
+  --wr-primitive-shadow-overlay-dark: 0 8px 24px rgb(0 0 0 / 0.32);
+  --wr-primitive-shadow-dialog-dark:
+    0 18px 48px rgb(0 0 0 / 0.48), 0 6px 16px rgb(0 0 0 / 0.28);
 
   /* Primitive motion */
   --wr-primitive-motion-instant: 0ms;
@@ -166,6 +198,8 @@
   --wr-layout-header-height: var(--wr-primitive-layout-header);
   --wr-layout-panel-left-min-width: var(--wr-primitive-layout-panel-left-min);
   --wr-layout-panel-right-min-width: var(--wr-primitive-layout-panel-right-min);
+  --wr-layout-panel-left-default-width: 285px;
+  --wr-layout-panel-right-default-width: 340px;
   --wr-layout-canvas-min-width: var(--wr-primitive-layout-canvas-min);
   --wr-layout-canvas-readable-min-width:
     var(--wr-primitive-layout-canvas-readable-min);
@@ -180,8 +214,8 @@
 
   /* Stable component aliases */
   --wr-header-height: var(--wr-layout-header-height);
-  --wr-editor-left-panel-width: 285px;
-  --wr-editor-right-panel-width: 340px;
+  --wr-editor-left-panel-width: var(--wr-layout-panel-left-default-width);
+  --wr-editor-right-panel-width: var(--wr-layout-panel-right-default-width);
   --wr-editor-canvas-min-width: var(--wr-layout-canvas-min-width);
   --wr-dialog-max-width: var(--wr-layout-dialog-max-width);
   --wr-card-padding: var(--wr-space-16);
