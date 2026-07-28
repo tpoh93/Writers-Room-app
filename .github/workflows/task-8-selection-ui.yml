@@ -62,7 +62,9 @@ jobs:
 
       - name: Verify product command and dialog survived build inputs
         run: |
-          test "$(grep -c 'Thinking p\*rn' frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue)" -ge 2
-          grep -q 'applySelectionPipelineReplacement' frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue
-          grep -q 'validateSnapshot' frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue
+          grep -Fq "selectionPipeline.title" frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue
+          grep -Fq "SelectionPipelineDialog" frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue
+          grep -Fq "title: 'Thinking p*rn'" frontend/src/renderer/src/i18n/locales/pl.ts
+          grep -Fq "applySelectionPipelineReplacement" frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue
+          grep -Fq "validateSnapshot" frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue
           test -f frontend/dist-web/index.html

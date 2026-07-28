@@ -213,6 +213,17 @@ Other scan classifications:
 
 Total final allowlist: 84 files. There are zero CSS asset, backend, package/lock, GitHub Actions, API schema, persistence schema, or workflow-definition changes.
 
+## CI remediation after PL-01 acceptance
+
+The original PL-01 allowlist remains exactly 84 files and records the completed localization change. After draft PR #6 was opened, GitHub Actions run `30363698782` for `Task 8 Selected Text UI` failed only in `Verify product command and dialog survived build inputs`: its first guard required two hardcoded `Thinking p*rn` occurrences in `CodeMirrorEditor.vue`. PL-01 intentionally replaced that visible UI copy with `t('selectionPipeline.title')`; the workflow's focused tests, full frontend typecheck, and production web build had already passed.
+
+The compatibility correction adds one necessary CI-only file, `.github/workflows/task-8-selection-ui.yml`, and changes no product source. Its guard now uses fixed-string checks for the localized UI key, `SelectionPipelineDialog`, the canonical `Thinking p*rn` catalog value in `frontend/src/renderer/src/i18n/locales/pl.ts`, `applySelectionPipelineReplacement`, `validateSnapshot`, and the built `frontend/dist-web/index.html` artifact.
+
+- Original PL-01 localization allowlist: 84 files.
+- Additional CI compatibility exception: 1 workflow file.
+- Total changed-file set after remediation: 85 files.
+- Backend, API, persistence, product workflow definitions, layout, tokens, theme, responsive behavior, and product UI behavior: unchanged.
+
 ## Glossary
 
 | Concept | Canonical Polish |
