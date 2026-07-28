@@ -2,29 +2,27 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the existing card-based writer journey durable, recoverable, and export-safe without changing the SQLite card schema or introducing a `Scene` domain model.
+**Goal:** Deliver the approved card-based writer journey: durable complete saves, local crash recovery, safe navigation and export, version history, and operational evidence.
 
-**Architecture:** Keep `Card` and `PUT /api/cards/{card_id}` as the canonical persistence path. Add a focused frontend writer layer: deterministic snapshots, local recovery storage, one save coordinator, and a session adapter used by `GenericCardEditor`, both text editors, navigation, and export. Keep formatting and deterministic ordering in the existing backend `CardExportService`.
+**Architecture:** SQLite and the existing `PUT /api/cards/{card_id}` remain canonical. A focused frontend writer layer owns a complete snapshot, deterministic fingerprinting, a one-card session, local recovery records, and serialized saves; it is enabled only for the two approved writing-card types. The existing export and backup services retain their boundaries, with changes limited to writer-safe data flow and evidence.
 
-**Tech Stack:** Vue 3, TypeScript, Pinia, Vitest 3 with jsdom/fake timers, FastAPI, SQLModel/SQLite, pytest 8, Docker Compose.
+**Tech Stack:** Vue 3, TypeScript, Pinia, Vitest 3/jsdom/fake timers, FastAPI, SQLModel/SQLite, pytest 8, Docker Compose.
 
 ## Global Constraints
 
-- SQLite remains the canonical source of truth for saved writing; browser recovery data is never canonical.
-- Use only existing `Card` records and `PUT /api/cards/{card_id}`; create no `Scene` table, entity, or migration.
-- Apply the contract only to existing `CodeMirrorEditor` and `MarkdownTextEditor` writing cards; `SceneCard` remains a reference card.
-- A local recovery record uses `nf:v1:writer-recovery:{projectId}:{cardId}`, never makes a backend request, writes at exactly 3 seconds idle and at most 15 seconds after the prior successful local snapshot or first dirty edit.
-- Backend autosave first runs at 30 seconds dirty and then every 30 seconds while dirty; it skips confirmed, queued, and in-flight equivalent fingerprints.
-- A manual save command means either visible Polish **Zapisz** or `Cmd/Ctrl+S`; both use the same coordinator and identical error/history semantics.
-- A stale response may not mark newer editor content saved. For A → B save → C edit, retain C and rebase the recovery record base fingerprint to B.
-- Recovery cases A/B/C use deterministic writer-visible fingerprints; timestamps are informational only.
-- Cases A, B, and C are exhaustive: draft equals canonical is A; otherwise matching saved base is B; otherwise it is C.
-- Automatic save and technical flush create no version-history entry. Manual save, confirmed recovered-draft save, and confirmed historical-version save create one non-duplicate entry; retain the existing 20-entry limit.
-- Failed flush blocks scene/card navigation, project navigation, controlled view close, and export. Browser-tab close, kill, crash, and power loss rely on the local recovery record and have no backend-flush claim.
-- TXT and Markdown generated NovelForge copy is Polish and contains no CJK. Author content is preserved without translation or alphabet filtering and may contain CJK.
-- A full-artifact CJK count of zero is required only for the controlled Polish fixture whose author content contains no CJK.
-- Do not add multi-session synchronization, concurrency tokens, AI behavior, Visual Language work, Code Wiki work, unrelated dependency changes, or a general card-system refactor.
-- Use only synthetic prose in fixtures, screenshots, logs, acceptance records, and pull-request text. Never commit credentials, private writing, database files, backups, raw provider payloads, or sensitive screenshots.
+- SQLite is the sole canonical source for saved writing; local browser recovery records are never canonical.
+- Use existing `Card` records and `PUT /api/cards/{card_id}` only. Create no `Scene` entity, table, or migration.
+- Enable this contract only for `章节正文` with `CodeMirrorEditor` and `通用文本` with `MarkdownTextEditor`; an editor component alone is insufficient.
+- Every writer snapshot contains `projectId`, `cardId`, `title`, `content`, and `contextTemplates.generation` plus `contextTemplates.review`. All writer-visible persisted fields participate in dirty comparison, canonical serialization, fingerprinting, local recovery, all saves, recovery, and version history.
+- One atomic writer save sends `title`, `content`, `...buildContextTemplateUpdatePayload(contextTemplates)`, and `needs_confirmation: false` through the existing card PUT. Never issue a separate context-template write and never turn a partial failure into `saved`.
+- Local recovery draft scheduling is exactly 3 seconds idle and at most 15 seconds after the last successful local snapshot, or first dirty edit. It makes no backend request.
+- Backend autosave is first due exactly 30 seconds after dirty and then every 30 seconds while dirty. It skips an already confirmed, queued, or in-flight equivalent fingerprint.
+- The visible Polish **Zapisz** button and `Cmd/Ctrl+S` in both approved editors call the same `writerSession.manualSave()` and have identical error/history behavior.
+- A response for an older snapshot cannot mark newer editor content saved. For A → B request → C edit, retain C, retain its local draft, and rebase that record's `savedCardFingerprint` to B.
+- Recovery A/B/C is exhaustive and fingerprint-based; timestamps are diagnostic only. Automatic save and technical flush create no version-history entry; manual, confirmed recovered-draft, and confirmed historical-version saves create one non-duplicate entry while preserving the existing 20-entry cap.
+- Failed flush blocks card/project navigation, controlled view close, and export. Browser close, kill, crash, and power loss only persist a local `force-close` record and make no backend-flush claim.
+- Generated NovelForge TXT/Markdown copy is Polish and has no CJK. Author title/content/quotes/names are unchanged, may use any alphabet, and may be technically escaped only as required by the format. A full-file CJK count of zero applies only to the controlled Polish fixture with no author CJK.
+- Do not add multi-session synchronization, concurrency tokens, AI behavior, Visual Language work, Code Wiki work, a general card refactor, unrelated dependency/workflow changes, or private prose in fixtures/evidence.
 
 ---
 
@@ -32,66 +30,89 @@
 
 ### Existing files to modify
 
-| File | Responsibility in this work |
+| File | Responsibility |
 |---|---|
-| `frontend/src/renderer/src/components/cards/GenericCardEditor.vue` | Own one writer session per active supported writing card; route header Save, recovery decisions, version restore, and editor adapter events through it. |
-| `frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue` | Expose the current writer snapshot and apply a session-provided saved baseline; route `Mod-s` to the parent manual save command. |
-| `frontend/src/renderer/src/components/editors/MarkdownTextEditor.vue` | Provide the same snapshot/baseline adapter contract as CodeMirror. |
-| `frontend/src/renderer/src/components/common/EditorHeader.vue` | Render `saved`, `dirty`, `saving`, and `save-error`; expose Retry beside the existing visible **Zapisz** control. |
-| `frontend/src/renderer/src/components/cards/CardExportDialog.vue` | Await a supplied flush callback before calling the existing export API; keep the dialog open with a Polish error on failure. |
-| `frontend/src/renderer/src/views/Editor.vue` | Flush active writer work before card selection, cross-project jumps, and opening export; pass the export guard to the dialog. |
-| `frontend/src/renderer/src/App.vue` | Flush before controlled return to dashboard and before selecting another project. |
-| `frontend/src/renderer/src/stores/useEditorStore.ts` | Hold the active writer-session flush registration, following the existing active-chapter registration pattern. |
-| `frontend/src/renderer/src/services/versionService.ts` | Preserve 20-entry storage while making history creation reason-aware and fingerprint-deduplicated. |
-| `frontend/src/renderer/src/i18n/locales/pl.ts` | Add Polish writer-save, recovery, flush, and export error labels. |
-| `backend/app/services/card_export_service.py` | Keep current scopes/order and replace generated TXT/Markdown labels with Polish copy without touching author fields. |
+| `frontend/src/renderer/src/api/cards.ts` | Add a promise-preserving writer PUT wrapper around the existing raw card update; do not route writer saves through error-swallowing store actions. |
+| `frontend/src/renderer/src/components/cards/GenericCardEditor.vue` | Create/dispose exactly one session for an eligible active card; route header, recovery, version restore, and adapters through it. |
+| `frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue` | Implement the common adapter contract and route `Mod-s` to the parent session callback. |
+| `frontend/src/renderer/src/components/editors/MarkdownTextEditor.vue` | Implement the same adapter contract and add `Mod-s` routing. |
+| `frontend/src/renderer/src/components/common/EditorHeader.vue` | Display `saved`, `dirty`, `saving`, `save-error`, **Zapisz**, and Retry. |
+| `frontend/src/renderer/src/components/cards/CardExportDialog.vue` | Await the supplied flush, block download on failure, and display a Polish error. |
+| `frontend/src/renderer/src/views/Editor.vue` | Guard card selection, cross-project jump, and export with active-session flush. |
+| `frontend/src/renderer/src/App.vue` | Guard controlled dashboard/project changes with active-session flush. |
+| `frontend/src/renderer/src/stores/useEditorStore.ts` | Register/unregister the single active writer flush callback. |
+| `frontend/src/renderer/src/services/versionService.ts` | Add fingerprint-aware, legacy-compatible version deduplication and reason policy. |
+| `frontend/src/renderer/src/i18n/locales/pl.ts` | Add Polish save, recovery, navigation, and export error copy. |
+| `backend/app/services/card_export_service.py` | Keep scopes/order/formats and localize only NovelForge-generated TXT/Markdown copy. |
+| `backend/tests/services/test_backup_service.py` | Exercise backup/restore against actual NovelForge Project/Card/CardType records. |
+| `docs/operations/local-compose.md` | Add the synthetic Compose operational drill without changing product workflow. |
 
 ### Files to create
 
 | File | Responsibility |
 |---|---|
-| `frontend/src/renderer/src/services/writerSnapshot.ts` | Deterministic writer-visible snapshot canonicalization and fingerprinting. |
-| `frontend/src/renderer/src/services/recoveryDraftStore.ts` | Project/card-keyed local recovery records only. |
-| `frontend/src/renderer/src/services/writerRecovery.ts` | Pure recovery A/B/C comparison and result types. |
-| `frontend/src/renderer/src/services/writerSaveCoordinator.ts` | Per-card save state machine, manual save, autosave, retry, flush, and stale-response rebase. |
-| `frontend/src/renderer/src/composables/useWriterCardSession.ts` | Vue adapter between supported editor snapshots, coordinator, recovery store, header, and lifecycle registration. |
-| `frontend/src/renderer/src/components/cards/WriterRecoveryDialog.vue` | Explicit Recover / Discard / Cancel UI for cases B and C. |
-| `frontend/src/renderer/src/services/__tests__/writerSnapshot.test.ts` | Unit tests for canonical serialization and deterministic fingerprints. |
-| `frontend/src/renderer/src/services/__tests__/recoveryDraftStore.test.ts` | Fake-timer and local-storage tests for 3-second/15-second records. |
-| `frontend/src/renderer/src/services/__tests__/writerRecovery.test.ts` | Exhaustive case A/B/C and rebase classification tests. |
-| `frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts` | Fake-clock state, autosave, duplicate suppression, stale response, flush, and history-reason tests. |
-| `frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts` | Manual-save controls, UI states, recovery decision, and version-policy component tests. |
-| `frontend/src/renderer/src/components/cards/__tests__/CardExportDialog.writerReady.test.ts` | Flush-before-export and blocked-download component tests. |
-| `frontend/src/renderer/src/views/__tests__/Editor.writerReady.test.ts` | Card/project navigation and controlled-close flush integration tests. |
-| `backend/tests/services/test_card_export_service.py` | Scope/order/format and generated-copy versus author-content export tests. |
-| `backend/tests/api/test_cards_writer_ready.py` | Existing card API persistence and export endpoint integration tests using a disposable SQLite path. |
-| `frontend/src/renderer/src/test-support/writerReadyFixtures.ts` | Disposable Polish project/card, canonical/draft, and CJK-author fixture builders. |
-| `docs/acceptance/writer-ready-01.md` | Final WR-01…WR-25 evidence record, created only in the closure task. |
+| `frontend/src/renderer/src/services/isWriterReadyCard.ts` | Strict approved-card predicate. |
+| `frontend/src/renderer/src/services/writerSnapshot.ts` | JSON canonicalization, complete snapshots, equality, and fingerprinting. |
+| `frontend/src/renderer/src/services/recoveryDraftStore.ts` | Project/card-keyed local recovery record I/O only. |
+| `frontend/src/renderer/src/services/writerRecovery.ts` | Pure A/B/C recovery classification. |
+| `frontend/src/renderer/src/services/writerSaveCoordinator.ts` | Timers, serialized canonical saves, state machine, rebase, and recovery snapshots. |
+| `frontend/src/renderer/src/composables/useWriterCardSession.ts` | Vue lifecycle, atomic PUT construction, active-flush registration, and editor adapter bridge. |
+| `frontend/src/renderer/src/components/cards/WriterRecoveryDialog.vue` | Recover / Discard / Cancel UI. |
+| `frontend/src/renderer/src/test-support/writerReadyFixtures.ts` | Synthetic Polish project/cards, snapshots, and author-CJK fixture data. |
+| `frontend/src/renderer/src/services/__tests__/isWriterReadyCard.test.ts` | Predicate tests. |
+| `frontend/src/renderer/src/services/__tests__/writerSnapshot.test.ts` | Canonicalization and complete-field fingerprint tests. |
+| `frontend/src/renderer/src/services/__tests__/recoveryDraftStore.test.ts` | Store and fake-timer recovery scheduling tests. |
+| `frontend/src/renderer/src/services/__tests__/writerRecovery.test.ts` | A/B/C classification tests. |
+| `frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts` | Save state, autosave, rebase, and disposal tests. |
+| `frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts` | Both editors' manual inputs, UI state, recovery, and history behavior. |
+| `frontend/src/renderer/src/components/cards/__tests__/CardExportDialog.writerReady.test.ts` | Flush-before-export, blocked download, and Polish error tests. |
+| `frontend/src/renderer/src/views/__tests__/Editor.writerReady.test.ts` | Card/project/controlled-close flush guards. |
+| `backend/tests/services/test_card_export_service.py` | Scope/order/formats, generated-copy, and author-content export tests. |
+| `backend/tests/api/test_cards_writer_ready.py` | Real card PUT/export persistence integration on disposable SQLite. |
+| `docs/acceptance/writer-ready-01.md` | Final redacted WR-01…WR-25 evidence record, created only at Closure. |
 
-### Boundary rules
+### Boundaries
 
-- **Editor adapter:** `useWriterCardSession` receives current data from `CodeMirrorEditor` or `MarkdownTextEditor`; editors do not call `cardStore.modifyCard` for writer saves after this work.
-- **Save coordinator:** only `WriterSaveCoordinator` calls its injected `save(snapshot)` function and decides `saved`, `dirty`, `saving`, or `save-error`.
-- **Fingerprint:** only `writerSnapshot.ts` canonicalizes writer-visible fields; version metadata, timers, and timestamps never enter a fingerprint.
-- **Recovery storage/comparison:** `RecoveryDraftStore` owns localStorage I/O; `writerRecovery.ts` remains pure and contains no Vue, API, or storage access.
-- **Navigation/flush:** `useEditorStore.flushActiveWriter()` is the sole cross-view entry point; callers may continue only after it resolves `{ ok: true }`.
-- **History:** `versionService.ts` receives a reason; no caller may append history directly after coordinator adoption.
-- **Export:** frontend flushes before the existing endpoint; backend remains responsible for deterministic card order and generated artifact copy.
-- **Fixtures/evidence:** fixtures are code/test support; the final evidence document records observed results and never contains private data.
+- **Policy:** `isWriterReadyCard` decides eligibility from both card-type name and editor component; no other layer infers eligibility from editor name alone.
+- **Editor adapter:** both editors expose only `getSnapshot()`, `setSavedBaseline(snapshot)`, and `setSnapshot(snapshot)`. They never independently persist a writer card.
+- **Save coordinator:** only `WriterSaveCoordinator` transitions save state, schedules timers, writes recovery records, and invokes its injected canonical save function.
+- **Snapshot/fingerprint:** only `writerSnapshot.ts` canonicalizes fields. IDs identify records but do not influence a writer-visible-content fingerprint.
+- **Recovery:** store I/O is isolated in `RecoveryDraftStore`; comparison is pure in `writerRecovery.ts`; UI never overwrites SQLite automatically.
+- **Navigation/export:** cross-view callers use only `flushActiveWriter(reason)` and proceed solely after `{ ok: true }`.
+- **History:** only `recordVersionIfEligible` creates history after coordinator adoption; it computes legacy fingerprints when absent.
+- **Fixtures/evidence:** only synthetic data; evidence references redacted artifacts, never database files or private writing.
 
 ## Exact interfaces
 
 ```ts
+// frontend/src/renderer/src/services/isWriterReadyCard.ts
+export function isWriterReadyCard(card: CardRead): boolean
+
 // frontend/src/renderer/src/services/writerSnapshot.ts
-export interface WriterSnapshot { projectId: number; cardId: number; title: string; content: Record<string, unknown> }
-export function createWriterSnapshot(card: Pick<CardRead, 'id' | 'project_id' | 'title' | 'content'>): WriterSnapshot
+export type JsonPrimitive = string | number | boolean | null
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
+export interface WriterContextTemplates { generation: string; review: string }
+export interface WriterSnapshot {
+  projectId: number
+  cardId: number
+  title: string
+  content: JsonValue
+  contextTemplates: WriterContextTemplates
+}
+export function createWriterSnapshot(card: Pick<CardRead, 'id' | 'project_id' | 'title' | 'content' | 'ai_context_template' | 'ai_context_template_review'>): WriterSnapshot
+export function canonicalizeJson(value: JsonValue): JsonValue
 export function canonicalizeWriterSnapshot(snapshot: WriterSnapshot): string
 export function fingerprintWriterSnapshot(snapshot: WriterSnapshot): string
 export function snapshotsEqual(left: WriterSnapshot, right: WriterSnapshot): boolean
 
 // frontend/src/renderer/src/services/recoveryDraftStore.ts
-export type RecoveryDraftReason = 'local-idle' | 'failed-save' | 'network-error' | 'controlled-close' | 'export'
-export interface RecoveryDraftRecord extends WriterSnapshot { savedCardFingerprint: string; draftFingerprint: string; capturedAt: string; reason: RecoveryDraftReason }
+export type RecoveryDraftReason = 'local-idle' | 'failed-save' | 'network-error' | 'force-close'
+export interface RecoveryDraftRecord extends WriterSnapshot {
+  savedCardFingerprint: string
+  draftFingerprint: string
+  capturedAt: string
+  reason: RecoveryDraftReason
+}
 export class RecoveryDraftStore {
   constructor(storage: Storage, now: () => Date)
   key(projectId: number, cardId: number): string
@@ -107,255 +128,317 @@ export function compareRecoveryDraft(draft: RecoveryDraftRecord, canonical: Writ
 
 // frontend/src/renderer/src/services/writerSaveCoordinator.ts
 export type WriterSaveState = 'saved' | 'dirty' | 'saving' | 'save-error'
-export type WriterSaveReason = 'manual' | 'autosave' | 'retry' | 'flush' | 'recovered-draft' | 'restored-version'
+export type WriterFlushReason = 'manual' | 'retry' | 'card-change' | 'project-change' | 'export' | 'controlled-close' | 'recovered-draft' | 'restored-version'
+export type WriterHistoryReason = 'manual' | 'recovered-draft' | 'restored-version' | 'autosave' | 'technical-flush'
 export interface WriterSaveResult { ok: boolean; snapshot?: WriterSnapshot; error?: Error }
-export interface WriterSaveCoordinatorOptions { initial: WriterSnapshot; save: (snapshot: WriterSnapshot) => Promise<WriterSnapshot>; drafts: RecoveryDraftStore; now: () => Date; setTimeoutFn: typeof setTimeout; clearTimeoutFn: typeof clearTimeout; onStateChange: (state: WriterSaveState, error?: Error) => void; onHistoryEligible: (snapshot: WriterSnapshot, reason: WriterSaveReason) => void }
-export class WriterSaveCoordinator { update(snapshot: WriterSnapshot): void; manualSave(reason?: 'manual' | 'recovered-draft' | 'restored-version'): Promise<WriterSaveResult>; retry(): Promise<WriterSaveResult>; flush(reason: RecoveryDraftReason): Promise<WriterSaveResult>; persistRecoveryDraft(reason: RecoveryDraftReason): void; dispose(): void }
+export interface WriterSaveCoordinatorOptions {
+  initial: WriterSnapshot
+  save: (snapshot: WriterSnapshot) => Promise<WriterSnapshot>
+  drafts: RecoveryDraftStore
+  now: () => Date
+  setTimeoutFn: typeof setTimeout
+  clearTimeoutFn: typeof clearTimeout
+  onStateChange: (state: WriterSaveState, error: Error | null) => void
+  onHistoryEligible: (snapshot: WriterSnapshot, reason: WriterHistoryReason) => void
+}
+export class WriterSaveCoordinator {
+  update(snapshot: WriterSnapshot): void
+  manualSave(): Promise<WriterSaveResult>
+  retry(): Promise<WriterSaveResult>
+  flush(reason: WriterFlushReason): Promise<WriterSaveResult>
+  persistRecoveryDraft(reason: RecoveryDraftReason): void
+  dispose(): void
+}
 
 // frontend/src/renderer/src/composables/useWriterCardSession.ts
-export interface WriterEditorAdapter { getSnapshot(): WriterSnapshot; setSavedBaseline(snapshot: WriterSnapshot): void; setSnapshot(snapshot: WriterSnapshot): void }
-export interface WriterCardSession { state: Ref<WriterSaveState>; error: Ref<Error | null>; onEditorChange(): void; manualSave(): Promise<WriterSaveResult>; retry(): Promise<WriterSaveResult>; flush(reason: RecoveryDraftReason): Promise<WriterSaveResult>; checkRecovery(canonical: WriterSnapshot): RecoveryComparison | null; recoverDraft(): void; discardDraft(): void; cancelRecovery(): void; dispose(): void }
+export interface WriterEditorAdapter {
+  getSnapshot(): WriterSnapshot
+  setSavedBaseline(snapshot: WriterSnapshot): void
+  setSnapshot(snapshot: WriterSnapshot): void
+}
+export interface WriterCardSession {
+  state: Ref<WriterSaveState>
+  error: Ref<Error | null>
+  onEditorChange(): void
+  manualSave(): Promise<WriterSaveResult>
+  retry(): Promise<WriterSaveResult>
+  flush(reason: WriterFlushReason): Promise<WriterSaveResult>
+  persistRecoveryDraft(reason: RecoveryDraftReason): void
+  checkRecovery(canonical: WriterSnapshot): RecoveryComparison | null
+  recoverDraft(): void
+  discardDraft(): void
+  cancelRecovery(): void
+  dispose(): void
+}
 export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEditorAdapter | null>): WriterCardSession
 
-// frontend/src/renderer/src/services/versionService.ts
-export type VersionWriteReason = 'manual' | 'recovered-draft' | 'restored-version' | 'autosave' | 'flush'
-export function recordVersionIfEligible(projectId: number, snapshot: Omit<CardVersionSnapshot, 'id' | 'createdAt'>, reason: VersionWriteReason, fingerprint: string): boolean
+// frontend/src/renderer/src/api/cards.ts
+export function updateWriterCard(cardId: number, data: CardUpdate): Promise<CardRead>
 
-// frontend/src/renderer/src/stores/useEditorStore.ts additions
-setActiveWriterFlush(fn: ((reason: RecoveryDraftReason) => Promise<WriterSaveResult>) | null): void
-flushActiveWriter(reason: RecoveryDraftReason): Promise<WriterSaveResult>
+// frontend/src/renderer/src/services/versionService.ts
+export type VersionWriteReason = WriterHistoryReason
+export function fingerprintVersionSnapshot(snapshot: CardVersionSnapshot): string
+export function recordVersionIfEligible(projectId: number, snapshot: CardVersionSnapshot, reason: VersionWriteReason): boolean
+
+// frontend/src/renderer/src/stores/useEditorStore.ts
+export function setActiveWriterFlush(fn: ((reason: WriterFlushReason) => Promise<WriterSaveResult>) | null): void
+export function flushActiveWriter(reason: WriterFlushReason): Promise<WriterSaveResult>
+```
+
+The session constructs its sole writer request as follows; the promise must reject to the coordinator if the PUT fails:
+
+```ts
+const snapshot = adapter.value!.getSnapshot()
+const payload: CardUpdate = {
+  title: snapshot.title,
+  content: snapshot.content,
+  ...buildContextTemplateUpdatePayload(snapshot.contextTemplates),
+  needs_confirmation: false,
+}
+return updateWriterCard(snapshot.cardId, payload)
 ```
 
 ## Wave strategy
 
 | Wave | Tasks | Entry criterion | Exit criterion | Allowed areas | Required checks | Review point |
 |---|---:|---|---|---|---|---|
-| Foundation | 1–2 | `main` clean; existing editor/save tests pass before change | Snapshot and local draft tests are green | new frontend services/tests only | focused Vitest + `git diff --check` | fingerprints and timer semantics |
-| Persistence and recovery | 3–5 | Foundation has zero failures | coordinator, autosave, manual save, recovery UI, history tests are green | frontend services, editor adapters, header, versions, tests | focused Vitest plus frontend typecheck | stale-response and data-loss review |
-| Navigation and export | 6–8 | persistence/recovery wave green | navigation/export tests and backend export tests are green | Editor/App/export/UI/backend service/tests/i18n | Vitest, pytest, typecheck, `git diff --check` | flush blocking and author-copy review |
-| Integration and browser QA | 9–10 | navigation/export wave has zero failures | synthetic runtime proves all executable WR rows | test support, API tests, operations/evidence prep | focused backend/frontend tests, Compose health | fixture and browser-script review |
-| Closure | 11–12 | all automated checks green | WR-01…WR-25 evidence is PASS with zero FAIL and zero NOT VERIFIED | acceptance document and evidence scripts only | full targeted suites, Compose/backup operational checks | owner acceptance review |
+| Foundation | 1–2 | clean branch and existing focused tests pass | policy, complete snapshot, fingerprint, local-draft fake timers green | new frontend services/tests | focused Vitest, typecheck, diff check | writer field completeness and timer contract |
+| Persistence and recovery | 3–6 | Foundation has zero failures | coordinator/autosave/session/recovery/history tests green | frontend services, API wrapper, adapters, header, recovery UI, tests | focused Vitest, typecheck, diff check | stale response, atomicity, and data-loss review |
+| Navigation and export | 7–8 | prior wave has zero failures | guarded navigation and export tests green | Editor/App/store/export/i18n/backend export/tests | Vitest, pytest, typecheck, diff check | failed flush and author-copy review |
+| Integration and browser QA | 9–10 | navigation/export wave has zero failures | Compose synthetic fixture, API integration, browser scenarios, and inspected artifacts are PASS | fixtures, API tests, operations/evidence working matrix | focused suites, Compose ready check, browser QA | every operational row observed and recorded |
+| Closure | 11–12 | Integration/browser gate has zero FAIL and zero NOT VERIFIED | final regressions and WR-01…WR-25 evidence are PASS | real-model backup test, operational docs, acceptance evidence | targeted suites, Compose restart/restore drill, diff check | READY / NOT READY decision |
 
-Do not begin a later wave while the current wave has a FAIL or NOT VERIFIED result.
+Do not enter a later wave while the current wave has a FAIL or NOT VERIFIED result. A defect found in Task 10 requires a separately authorized fix and a repeat of Task 10 before Closure.
 
 ## Tasks
 
-### Task 1: Deterministic writer snapshots and fingerprints
+### Task 1: Approved writing-card policy and complete deterministic snapshots
 
 **Files:**
+- Create: `frontend/src/renderer/src/services/isWriterReadyCard.ts`
 - Create: `frontend/src/renderer/src/services/writerSnapshot.ts`
+- Test: `frontend/src/renderer/src/services/__tests__/isWriterReadyCard.test.ts`
 - Test: `frontend/src/renderer/src/services/__tests__/writerSnapshot.test.ts`
 
-**Interfaces:** Produces `WriterSnapshot`, `createWriterSnapshot`, `canonicalizeWriterSnapshot`, `fingerprintWriterSnapshot`, and `snapshotsEqual` for Tasks 2–8. Consumes existing `CardRead` only as a type import.
+**Interfaces:** Produces `isWriterReadyCard`, `JsonValue`, `WriterContextTemplates`, `WriterSnapshot`, and all `writerSnapshot.ts` functions for Tasks 2–8.
 
-- [ ] **Step 1: Write failing fingerprint tests.**
+- [ ] **Step 1: Write failing policy and canonicalization tests.**
 
 ```ts
-it('is stable when JSON key order differs', () => {
-  expect(fingerprintWriterSnapshot(a)).toBe(fingerprintWriterSnapshot(b))
+it.each([
+  ['章节正文', 'CodeMirrorEditor', true],
+  ['通用文本', 'MarkdownTextEditor', true],
+  ['场景卡', 'CodeMirrorEditor', false],
+  ['章节正文', 'MarkdownTextEditor', false],
+])('qualifies %s / %s only when explicitly approved', (name, editor, expected) => {
+  expect(isWriterReadyCard(cardWith(name, editor))).toBe(expected)
 })
-it('changes when writer-visible title or content changes', () => {
-  expect(fingerprintWriterSnapshot(a)).not.toBe(fingerprintWriterSnapshot(changed))
+it('sorts nested object keys but preserves arrays and null', () => {
+  expect(canonicalizeJson({ z: null, a: [{ b: 2, a: 1 }] })).toEqual({ a: [{ a: 1, b: 2 }], z: null })
+})
+it('changes fingerprint for either context template but not project/card identity', () => {
+  expect(fingerprintWriterSnapshot(withGenerationChanged)).not.toBe(fingerprintWriterSnapshot(base))
+  expect(fingerprintWriterSnapshot(withOtherIds)).toBe(fingerprintWriterSnapshot(base))
 })
 ```
 
-- [ ] **Step 2: Run the RED test.**
+- [ ] **Step 2: Run RED.**
 
-Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerSnapshot.test.ts`
+Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/isWriterReadyCard.test.ts src/renderer/src/services/__tests__/writerSnapshot.test.ts`
 
-Expected: FAIL because `writerSnapshot.ts` does not exist.
+Expected: FAIL because the policy and snapshot modules do not exist.
 
-- [ ] **Step 3: Implement canonical snapshot construction.**
+- [ ] **Step 3: Implement the policy and canonicalization.**
 
 ```ts
+export function isWriterReadyCard(card: CardRead): boolean {
+  return (card.card_type?.name === '章节正文' && card.card_type?.editor_component === 'CodeMirrorEditor') ||
+    (card.card_type?.name === '通用文本' && card.card_type?.editor_component === 'MarkdownTextEditor')
+}
+export function canonicalizeJson(value: JsonValue): JsonValue {
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+  if (Array.isArray(value)) return value.map(canonicalizeJson)
+  if (typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalizeJson(value[key]!)]))
+  throw new TypeError('Writer snapshot accepts JSON-compatible values only')
+}
 export function canonicalizeWriterSnapshot(snapshot: WriterSnapshot): string {
-  return JSON.stringify(sortKeys({ title: snapshot.title, content: snapshot.content }))
-}
-export function fingerprintWriterSnapshot(snapshot: WriterSnapshot): string {
-  return canonicalizeWriterSnapshot(snapshot)
+  return JSON.stringify(canonicalizeJson({ title: snapshot.title, content: snapshot.content, contextTemplates: snapshot.contextTemplates }))
 }
 ```
 
-Use the canonical serialization string as the deterministic fingerprint in this first slice; do not add a dependency or a cryptographic API.
+Build `createWriterSnapshot` from both API template fields, and prove title, content, generation, and review each alter equality/fingerprint.
 
-- [ ] **Step 4: Run GREEN and regression checks.**
+- [ ] **Step 4: Run GREEN and focused regression.**
 
-Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerSnapshot.test.ts`
+Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/isWriterReadyCard.test.ts src/renderer/src/services/__tests__/writerSnapshot.test.ts`
 
-Expected: PASS, including timestamp exclusion and semantic key-order equality.
+Expected: PASS for unsupported values, object ordering, arrays, null, IDs excluded, and all complete fields.
 
 - [ ] **Step 5: Check and commit.**
 
 Run: `git diff --check`
 
-Run: `git add frontend/src/renderer/src/services/writerSnapshot.ts frontend/src/renderer/src/services/__tests__/writerSnapshot.test.ts && git commit -m "feat: add deterministic writer snapshots"`
+Run: `git add frontend/src/renderer/src/services/isWriterReadyCard.ts frontend/src/renderer/src/services/writerSnapshot.ts frontend/src/renderer/src/services/__tests__/isWriterReadyCard.test.ts frontend/src/renderer/src/services/__tests__/writerSnapshot.test.ts && git commit -m "feat: define writer card snapshots"`
 
-### Task 2: Local recovery-draft storage and exact timers
+### Task 2: Local recovery records and exact 3-second/15-second scheduling
 
 **Files:**
 - Create: `frontend/src/renderer/src/services/recoveryDraftStore.ts`
-- Create: `frontend/src/renderer/src/services/__tests__/recoveryDraftStore.test.ts`
-- Create: `frontend/src/renderer/src/services/writerSaveCoordinator.ts` (timer-capable skeleton expanded in Task 3)
+- Create: `frontend/src/renderer/src/services/writerSaveCoordinator.ts`
+- Test: `frontend/src/renderer/src/services/__tests__/recoveryDraftStore.test.ts`
 
-**Interfaces:** Consumes Task 1 snapshots/fingerprints. Produces `RecoveryDraftStore`, `RecoveryDraftRecord`, and timer behavior called by Task 3's `WriterSaveCoordinator`.
+**Interfaces:** Consumes Task 1. Produces `RecoveryDraftStore`, `RecoveryDraftRecord`, `RecoveryDraftReason`, and timer portions of `WriterSaveCoordinator` used by Tasks 3–7.
 
-- [ ] **Step 1: Write failing fake-timer tests.**
+- [ ] **Step 1: Write failing fake-timer/store tests.**
 
 ```ts
 vi.useFakeTimers()
-coordinator.update(snapshotB)
+coordinator.update(withReviewChanged)
 await vi.advanceTimersByTimeAsync(2999)
-expect(storage.setItem).not.toHaveBeenCalled()
+expect(store.read(1, 2)).toBeNull()
 await vi.advanceTimersByTimeAsync(1)
-expect(store.read(1, 2)?.draftFingerprint).toBe(fingerprintWriterSnapshot(snapshotB))
+expect(store.read(1, 2)?.contextTemplates.review).toBe(withReviewChanged.contextTemplates.review)
 
-for (let second = 0; second < 15; second += 1) { coordinator.update(nextSnapshot(second)); await vi.advanceTimersByTimeAsync(1000) }
-expect(store.read(1, 2)).not.toBeNull()
+for (let elapsed = 0; elapsed < 15; elapsed += 1) {
+  coordinator.update(nextCompleteSnapshot(elapsed))
+  await vi.advanceTimersByTimeAsync(1000)
+}
+expect(store.read(1, 2)?.draftFingerprint).toBe(fingerprintWriterSnapshot(nextCompleteSnapshot(14)))
+expect(save).not.toHaveBeenCalled()
 ```
 
-- [ ] **Step 2: Run the RED test.**
+- [ ] **Step 2: Run RED.**
 
 Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/recoveryDraftStore.test.ts`
 
-Expected: FAIL because the recovery store and 3-second/15-second scheduler do not exist.
+Expected: FAIL because the local store and scheduler do not exist.
 
-- [ ] **Step 3: Implement storage and scheduling primitives.**
+- [ ] **Step 3: Implement keyed records and timers.**
 
 ```ts
-write(record: RecoveryDraftRecord): void { this.storage.setItem(this.key(record.projectId, record.cardId), JSON.stringify(record)) }
-read(projectId: number, cardId: number): RecoveryDraftRecord | null { /* parse only this key; return null on malformed data */ }
-persistRecoveryDraft(reason: RecoveryDraftReason): void { /* write newest snapshot; never call save() */ }
+persistRecoveryDraft(reason: RecoveryDraftReason): void {
+  const snapshot = this.current
+  this.drafts.write({ ...snapshot, savedCardFingerprint: this.confirmedFingerprint, draftFingerprint: fingerprintWriterSnapshot(snapshot), capturedAt: this.now().toISOString(), reason })
+}
 ```
 
-Maintain a 3,000 ms idle timeout and a 15,000 ms maximum timeout from the last successful local write, or from first dirty when no write exists.
+On each dirty update reset only the 3-second idle timer; retain a 15-second max-wait timer measured from the last successful record or the first dirty update. Store title, content, and both templates. A local storage exception leaves memory dirty and reports no canonical success.
 
-- [ ] **Step 4: Run GREEN and local-storage failure regression.**
+- [ ] **Step 4: Run GREEN and timer regression.**
 
 Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/recoveryDraftStore.test.ts`
 
-Expected: PASS; a throwing `Storage.setItem` retains in-memory dirty content and does not call the backend save stub.
+Expected: PASS for 3 seconds exactly, first-dirty 15 seconds, continuous typing max-wait, local-only writes, and complete template records.
 
 - [ ] **Step 5: Check and commit.**
 
 Run: `git diff --check`
 
-Run: `git add frontend/src/renderer/src/services/recoveryDraftStore.ts frontend/src/renderer/src/services/writerSaveCoordinator.ts frontend/src/renderer/src/services/__tests__/recoveryDraftStore.test.ts && git commit -m "feat: add writer recovery draft storage"`
+Run: `git add frontend/src/renderer/src/services/recoveryDraftStore.ts frontend/src/renderer/src/services/writerSaveCoordinator.ts frontend/src/renderer/src/services/__tests__/recoveryDraftStore.test.ts && git commit -m "feat: add writer recovery drafts"`
 
-### Task 3: Save coordinator state machine and immediate manual save
+### Task 3: Atomic canonical save coordinator and state machine
 
 **Files:**
+- Modify: `frontend/src/renderer/src/api/cards.ts`
 - Modify: `frontend/src/renderer/src/services/writerSaveCoordinator.ts`
-- Create: `frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
-- Modify: `frontend/src/renderer/src/stores/useEditorStore.ts`
+- Test: `frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
 
-**Interfaces:** Consumes Tasks 1–2. Produces `WriterSaveCoordinator`, `WriterSaveState`, `WriterSaveResult`, and `useEditorStore.flushActiveWriter()` for Tasks 4–8.
+**Interfaces:** Consumes Tasks 1–2. Produces the full `WriterSaveCoordinator`, `WriterSaveState`, `WriterSaveResult`, `WriterFlushReason`, and `updateWriterCard` for Tasks 4–8.
 
-- [ ] **Step 1: Write failing state and manual-save tests.**
+- [ ] **Step 1: Write failing atomic-save/state tests.**
 
 ```ts
-expect(state).toBe('saved')
-coordinator.update(snapshotB)
-expect(state).toBe('dirty')
-await coordinator.manualSave('manual')
-expect(save).toHaveBeenCalledWith(snapshotB)
-expect(state).toBe('saved')
+await coordinator.manualSave()
+expect(save).toHaveBeenCalledWith(expect.objectContaining({ title: 'T', content: expect.anything(), contextTemplates: { generation: 'G', review: 'R' } }))
+expect(states).toEqual(['saving', 'saved'])
 
-save.mockRejectedValueOnce(new Error('offline'))
-await coordinator.manualSave('manual')
-expect(state).toBe('save-error')
-expect(drafts.read(1, 2)?.draftFingerprint).toBe(fingerprintWriterSnapshot(snapshotB))
+save.mockRejectedValueOnce(new Error('template PUT rejected'))
+await expect(coordinator.manualSave()).resolves.toMatchObject({ ok: false })
+expect(state()).toBe('save-error')
+expect(store.read(1, 2)?.contextTemplates).toEqual({ generation: 'G', review: 'R2' })
 ```
 
-- [ ] **Step 2: Run the RED test.**
+- [ ] **Step 2: Run RED.**
 
 Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
 
-Expected: FAIL because state transitions and immediate save operations are absent.
+Expected: FAIL because canonical save state and rejection handling are incomplete.
 
-- [ ] **Step 3: Implement the serialized save path.**
-
-```ts
-async manualSave(reason: 'manual' | 'recovered-draft' | 'restored-version' = 'manual') { return this.saveLatest(reason) }
-async retry() { return this.saveLatest('retry') }
-async flush(reason: RecoveryDraftReason) { return this.saveLatest('flush', reason) }
-```
-
-`saveLatest` captures the newest snapshot, sets `saving`, waits for the injected existing-card API adapter, then enters `saved` only if the current fingerprint still equals the acknowledged fingerprint.
-
-- [ ] **Step 4: Register the active flush contract in the existing store.**
+- [ ] **Step 3: Implement promise-preserving complete PUT and state transitions.**
 
 ```ts
-function setActiveWriterFlush(fn: ((reason: RecoveryDraftReason) => Promise<WriterSaveResult>) | null) { activeWriterFlush.value = fn }
-async function flushActiveWriter(reason: RecoveryDraftReason): Promise<WriterSaveResult> { return activeWriterFlush.value ? activeWriterFlush.value(reason) : { ok: true } }
+export async function updateWriterCard(cardId: number, data: CardUpdate): Promise<CardRead> {
+  const response = await updateCardRaw(cardId, data)
+  return response.data
+}
+async saveLatest(reason: WriterHistoryReason): Promise<WriterSaveResult> {
+  const requestSnapshot = this.current
+  this.setState('saving', null)
+  try { const confirmed = await this.save(requestSnapshot); return this.acknowledge(requestSnapshot, confirmed, reason) }
+  catch (error) { this.persistRecoveryDraft('failed-save'); this.setState('save-error', asError(error)); return { ok: false, error: asError(error) } }
+}
 ```
 
-- [ ] **Step 5: Run GREEN and focused regression.**
+In the session, construct the single `CardUpdate` shown in Exact interfaces with `buildContextTemplateUpdatePayload`; remove the former separate template store write and its catch-and-ignore path. `saved` is legal only if the confirmed request fingerprint equals the current complete snapshot fingerprint.
+
+- [ ] **Step 4: Run GREEN and API wrapper regression.**
 
 Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
 
-Run: `npm --prefix frontend run test -- src/renderer/src/utils/__tests__/selectionPatch.test.ts`
+Expected: PASS for `saved`, `dirty`, `saving`, `save-error`, template failure retention, and no partially accepted writer save.
 
-Expected: PASS; retry does not clear a failed draft, and unrelated editor-store behavior remains green.
-
-- [ ] **Step 6: Check and commit.**
+- [ ] **Step 5: Check and commit.**
 
 Run: `git diff --check`
 
-Run: `git add frontend/src/renderer/src/services/writerSaveCoordinator.ts frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts frontend/src/renderer/src/stores/useEditorStore.ts && git commit -m "feat: add writer save coordinator"`
+Run: `git add frontend/src/renderer/src/api/cards.ts frontend/src/renderer/src/services/writerSaveCoordinator.ts frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts && git commit -m "feat: coordinate atomic writer saves"`
 
-### Task 4: Guaranteed autosave and stale-response rebase
+### Task 4: Guaranteed backend autosave, duplicate suppression, and stale-response rebase
 
 **Files:**
 - Modify: `frontend/src/renderer/src/services/writerSaveCoordinator.ts`
-- Modify: `frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
-- Modify: `frontend/src/renderer/src/services/__tests__/recoveryDraftStore.test.ts`
+- Test: `frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
 
-**Interfaces:** Uses Task 3 coordinator. Produces the exact 30-second autosave and A→B→C rebase behavior consumed by Tasks 5 and 7.
+**Interfaces:** Uses Task 3. Produces exact autosave cadence and rebase behavior for Tasks 5–8.
 
-- [ ] **Step 1: Write failing fake-clock tests.**
+- [ ] **Step 1: Write failing fake-timer/rebase tests.**
 
 ```ts
 coordinator.update(B)
 await vi.advanceTimersByTimeAsync(30_000)
-expect(save).toHaveBeenCalledTimes(1)
+expect(save).toHaveBeenLastCalledWith(B)
 coordinator.update(C)
+resolveSave(B)
+await flushPromises()
+expect(state()).toBe('dirty')
+expect(store.read(1, 2)).toMatchObject({ savedCardFingerprint: fingerprintWriterSnapshot(B), draftFingerprint: fingerprintWriterSnapshot(C), content: C.content, contextTemplates: C.contextTemplates })
 await vi.advanceTimersByTimeAsync(30_000)
 expect(save).toHaveBeenLastCalledWith(C)
-
-resolveSaveB(B)
-await flushPromises()
-expect(coordinator.state).toBe('dirty')
-expect(drafts.read(1, 2)).toMatchObject({ savedCardFingerprint: fingerprintWriterSnapshot(B), draftFingerprint: fingerprintWriterSnapshot(C) })
 ```
 
-- [ ] **Step 2: Run the RED test.**
+- [ ] **Step 2: Run RED.**
 
 Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
 
-Expected: FAIL because autosave cadence, equivalence suppression, and rebase are not implemented.
+Expected: FAIL because autosave cadence and stale-response rebase are absent.
 
-- [ ] **Step 3: Implement cadence and stale acknowledgement handling.**
+- [ ] **Step 3: Implement cadence, dedupe, and rebase.**
 
-```ts
-private scheduleAutosave(): void { /* first due at 30_000; repeat only while dirty */ }
-private acknowledge(snapshot: WriterSnapshot): void { /* saved only when current fingerprint equals snapshot; otherwise rebase draft base fingerprint */ }
-```
+Start the first 30-second timer when the baseline first becomes dirty. After each tick while dirty, enqueue the newest complete snapshot unless its fingerprint is confirmed, queued, or in-flight; schedule the next tick regardless of continued typing. Immediate manual/retry/flush bypass the timer. On B confirmation with current C, keep C dirty, write C as the local record, set only its `savedCardFingerprint` to B's fingerprint, and never call `setSavedBaseline(C)`.
 
-Suppress a request when its fingerprint equals the last confirmed fingerprint or an already queued/in-flight fingerprint. Do not delay `manualSave`, `retry`, or `flush`.
+- [ ] **Step 4: Run GREEN and coordinator regression.**
 
-- [ ] **Step 4: Run GREEN and timer regression.**
+Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
 
-Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts src/renderer/src/services/__tests__/recoveryDraftStore.test.ts`
-
-Expected: PASS for first 30 seconds, repeated dirty intervals, no duplicate requests, B confirmation after C, and C reopening against B as ordinary recovery.
+Expected: PASS for first and repeated 30-second saves, no duplicate fingerprint PUT, B→C rebase, and no stale saved state.
 
 - [ ] **Step 5: Check and commit.**
 
 Run: `git diff --check`
 
-Run: `git add frontend/src/renderer/src/services/writerSaveCoordinator.ts frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts frontend/src/renderer/src/services/__tests__/recoveryDraftStore.test.ts && git commit -m "feat: schedule writer autosave safely"`
+Run: `git add frontend/src/renderer/src/services/writerSaveCoordinator.ts frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts && git commit -m "feat: guarantee writer autosave cadence"`
 
-### Task 5: Supported-editor session adapter, header state, and both manual-save inputs
+### Task 5: One active writer session, common adapters, and both manual-save inputs
 
 **Files:**
 - Create: `frontend/src/renderer/src/composables/useWriterCardSession.ts`
@@ -364,500 +447,452 @@ Run: `git add frontend/src/renderer/src/services/writerSaveCoordinator.ts fronte
 - Modify: `frontend/src/renderer/src/components/editors/MarkdownTextEditor.vue`
 - Modify: `frontend/src/renderer/src/components/common/EditorHeader.vue`
 - Modify: `frontend/src/renderer/src/i18n/locales/pl.ts`
-- Create: `frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
+- Test: `frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
 
-**Interfaces:** Consumes Tasks 1–4. Produces `WriterEditorAdapter`, `useWriterCardSession`, header state props, and one `manualSave()` used by **Zapisz** and `Mod-s`.
+**Interfaces:** Consumes Tasks 1–4. Produces `WriterEditorAdapter`, `WriterCardSession`, and `useWriterCardSession` exactly as declared above.
 
-- [ ] **Step 1: Write failing component tests.**
+- [ ] **Step 1: Write failing component/session tests for all four manual inputs.**
 
 ```ts
-await wrapper.get('[data-test="writer-save"]').trigger('click')
-expect(saveSpy).toHaveBeenCalledTimes(1)
-await triggerCodeMirrorModS(wrapper)
-expect(saveSpy).toHaveBeenCalledTimes(2)
-expect(wrapper.text()).toContain('Niezapisane zmiany')
+it.each([
+  ['CodeMirrorEditor', 'button'], ['CodeMirrorEditor', 'Mod-s'],
+  ['MarkdownTextEditor', 'button'], ['MarkdownTextEditor', 'Mod-s'],
+])('%s %s calls the same manualSave command', async (editor, input) => {
+  await triggerSave(wrapperFor(editor), input)
+  expect(writerSession.manualSave).toHaveBeenCalledTimes(1)
+})
+it('shows the same save error and history reason for every manual input', async () => {
+  await triggerSave(failingWriter, 'Mod-s')
+  expect(writerSession.error.value?.message).toBe('PUT failed')
+  expect(recordVersionIfEligible).not.toHaveBeenCalled()
+})
 ```
 
-Also assert `Zapisywanie` and a persistent Polish error with Retry after a rejected save.
-
-- [ ] **Step 2: Run the RED test.**
+- [ ] **Step 2: Run RED.**
 
 Run: `npm --prefix frontend run test -- src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
 
-Expected: FAIL because neither editor delegates a common writer session.
+Expected: FAIL because supported sessions/adapters and Markdown `Mod-s` routing do not exist.
 
-- [ ] **Step 3: Add adapter methods and wire the parent session.**
+- [ ] **Step 3: Implement the session and adapters.**
 
 ```ts
-// each supported editor expose
-getWriterSnapshot(): WriterSnapshot
-setWriterSavedBaseline(snapshot: WriterSnapshot): void
-setWriterSnapshot(snapshot: WriterSnapshot): void
-
-// GenericCardEditor
-async function handleSave() { await writerSession.manualSave() }
+function handleHeaderSave(): Promise<WriterSaveResult> { return writerSession.manualSave() }
+function handleEditorManualSave(): Promise<WriterSaveResult> { return writerSession.manualSave() }
+defineExpose({ getSnapshot, setSavedBaseline, setSnapshot })
 ```
 
-Replace direct writer-content calls to `cardStore.modifyCard` in `handleSave` and CodeMirror `Mod-s` with this session. Retain the existing non-writing form editor behavior unchanged.
+Create a session only when `isWriterReadyCard(card)` is true. Its `getSnapshot()` obtains the complete title/content/template snapshot. Both editor key handlers emit the same parent callback; neither invokes a direct card store save. Header **Zapisz** and both editor shortcuts use `writerSession.manualSave()` with the coordinator's `manual` history reason. Expose Retry and all four save states with Polish copy.
 
-- [ ] **Step 4: Render required save states and retry.**
+- [ ] **Step 4: Run GREEN and typecheck.**
 
-```vue
-<el-tag :type="writerStatus.type">{{ writerStatus.label }}</el-tag>
-<el-button v-if="saveState === 'save-error'" @click="$emit('retry')">{{ t('common.retry') }}</el-button>
-```
-
-Add Polish keys for saved, unsaved, saving, save error, recovery actions, and flush-blocked action messages.
-
-- [ ] **Step 5: Run GREEN, typecheck, and localization regression.**
-
-Run: `npm --prefix frontend run test -- src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts src/renderer/src/components/__tests__/localization.test.ts`
+Run: `npm --prefix frontend run test -- src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
 
 Run: `npm --prefix frontend run typecheck`
 
-Expected: PASS; button and shortcut share one coordinator, show the same failure state, and no i18n key is rendered.
+Expected: PASS for each button/shortcut-editor pair, identical error behavior, `manual` history eligibility, and adapter names.
 
-- [ ] **Step 6: Check and commit.**
+- [ ] **Step 5: Check and commit.**
 
 Run: `git diff --check`
 
 Run: `git add frontend/src/renderer/src/composables/useWriterCardSession.ts frontend/src/renderer/src/components/cards/GenericCardEditor.vue frontend/src/renderer/src/components/editors/CodeMirrorEditor.vue frontend/src/renderer/src/components/editors/MarkdownTextEditor.vue frontend/src/renderer/src/components/common/EditorHeader.vue frontend/src/renderer/src/i18n/locales/pl.ts frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts && git commit -m "feat: unify writer manual save controls"`
 
-### Task 6: Recovery comparison, dialog, and version-history policy
+### Task 6: Recovery A/B/C, session disposal, and legacy-aware version history
 
 **Files:**
 - Create: `frontend/src/renderer/src/services/writerRecovery.ts`
-- Create: `frontend/src/renderer/src/services/__tests__/writerRecovery.test.ts`
 - Create: `frontend/src/renderer/src/components/cards/WriterRecoveryDialog.vue`
-- Modify: `frontend/src/renderer/src/components/cards/GenericCardEditor.vue`
+- Modify: `frontend/src/renderer/src/composables/useWriterCardSession.ts`
+- Modify: `frontend/src/renderer/src/stores/useEditorStore.ts`
 - Modify: `frontend/src/renderer/src/services/versionService.ts`
-- Modify: `frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
+- Test: `frontend/src/renderer/src/services/__tests__/writerRecovery.test.ts`
+- Test: `frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
+- Test: `frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
 
-**Interfaces:** Consumes recovery records from Task 2 and session from Task 5. Produces `compareRecoveryDraft`, explicit recovery UI, and `recordVersionIfEligible` for Tasks 7–8.
+**Interfaces:** Consumes Tasks 1–5. Produces `compareRecoveryDraft`, recovery UI, lifecycle cleanup, `setActiveWriterFlush`, and legacy-safe version history for Tasks 7–8.
 
-- [ ] **Step 1: Write failing comparison and version tests.**
+- [ ] **Step 1: Write failing recovery, lifecycle, and legacy history tests.**
 
 ```ts
-expect(compareRecoveryDraft(redundant, canonical).kind).toBe('redundant')
-expect(compareRecoveryDraft(ordinary, canonical).kind).toBe('ordinary')
-expect(compareRecoveryDraft({ ...conflict, draftFingerprint: conflict.savedCardFingerprint }, canonical).kind).toBe('conflict')
-expect(recordVersionIfEligible(1, snapshot, 'autosave', fingerprint)).toBe(false)
-expect(recordVersionIfEligible(1, snapshot, 'manual', fingerprint)).toBe(true)
-expect(recordVersionIfEligible(1, snapshot, 'manual', fingerprint)).toBe(false)
+expect(compareRecoveryDraft(draftEqualCanonical, canonical).kind).toBe('redundant')
+expect(compareRecoveryDraft(draftWithSavedBaseCanonical, canonical).kind).toBe('ordinary')
+expect(compareRecoveryDraft({ ...draft, savedCardFingerprint: draft.draftFingerprint }, canonical).kind).toBe('conflict')
+expect(compareRecoveryDraft(allThreeDifferent, canonical).kind).toBe('conflict')
+expect(recordVersionIfEligible(1, legacyVersionWithoutFingerprint, 'manual')).toBe(false)
+
+session.dispose()
+await vi.advanceTimersByTimeAsync(30_000)
+expect(save).not.toHaveBeenCalled()
+resolveOldRequest()
+expect(newSession.state.value).not.toBe('saved')
 ```
 
-- [ ] **Step 2: Run the RED tests.**
+- [ ] **Step 2: Run RED.**
 
-Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerRecovery.test.ts src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
+Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerRecovery.test.ts src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
 
-Expected: FAIL because recovery classification/dialog behavior and reason-aware history do not exist.
+Expected: FAIL because recovery classification, disposal isolation, and legacy deduplication are incomplete.
 
-- [ ] **Step 3: Implement pure A/B/C classification and explicit dialog actions.**
+- [ ] **Step 3: Implement recovery, lifecycle, and history policy.**
 
 ```ts
 export function compareRecoveryDraft(draft: RecoveryDraftRecord, canonical: WriterSnapshot): RecoveryComparison {
-  if (draft.draftFingerprint === fingerprintWriterSnapshot(canonical)) return { kind: 'redundant', canonicalFingerprint: fingerprintWriterSnapshot(canonical), draft }
-  if (draft.savedCardFingerprint === fingerprintWriterSnapshot(canonical)) return { kind: 'ordinary', canonicalFingerprint: fingerprintWriterSnapshot(canonical), draft }
-  return { kind: 'conflict', canonicalFingerprint: fingerprintWriterSnapshot(canonical), draft }
+  const canonicalFingerprint = fingerprintWriterSnapshot(canonical)
+  if (draft.draftFingerprint === canonicalFingerprint) return { kind: 'redundant', canonicalFingerprint, draft }
+  if (draft.savedCardFingerprint === canonicalFingerprint) return { kind: 'ordinary', canonicalFingerprint, draft }
+  return { kind: 'conflict', canonicalFingerprint, draft }
+}
+function handleBeforeUnload(): void { session.persistRecoveryDraft('force-close') }
+function dispose(): void {
+  coordinator.dispose(); window.removeEventListener('beforeunload', handleBeforeUnload)
+  setActiveWriterFlush(null); disposed = true
 }
 ```
 
-Case A deletes only the matching local key without a dialog. Case B/C show canonical and draft text; Recover loads dirty without SQLite write, Discard removes only the matching key, Cancel changes neither storage nor editor.
+On card ID change, dispose the old session before creating the new one. Clear both timers, unregister the named beforeunload handler and store callback, and use a captured session token so a disposed request response cannot write a recovery record, state, or baseline for a new card. Before unload only writes local `force-close`; it makes no PUT. Recovery B offers Recover/Discard/Cancel: Recover sets the full snapshot dirty without SQLite save, Discard removes only that record, Cancel changes nothing. C shows canonical and local content, changes neither automatically, and keeps SQLite unchanged until a normal save. `fingerprintVersionSnapshot` derives a fingerprint from legacy title/content/both templates; use it when an existing history entry lacks a fingerprint. Only manual/recovered/restored reasons append, and equal fingerprints never duplicate history.
 
-- [ ] **Step 4: Apply the history policy.**
+- [ ] **Step 4: Run GREEN and focused regression.**
 
-```ts
-export function recordVersionIfEligible(projectId, snapshot, reason, fingerprint): boolean {
-  if (!['manual', 'recovered-draft', 'restored-version'].includes(reason)) return false
-  if (latestVersion(projectId, snapshot.cardId)?.fingerprint === fingerprint) return false
-  // append, retaining existing 20-entry cap
-}
-```
+Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerRecovery.test.ts src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
 
-Extend `CardVersionSnapshot` with `fingerprint`; old entries without it remain readable.
+Expected: PASS for A, B, both C variants, Recover/Discard/Cancel, timer/listener cleanup, old-response isolation, force-close local-only behavior, legacy dedupe/read/restore, and 20-entry retention.
 
-- [ ] **Step 5: Run GREEN and version regression.**
-
-Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerRecovery.test.ts src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
-
-Expected: PASS for A, B, both C variants, Recover/Discard/Cancel, no autosave/flush history, manual/recovered/restored history, duplicate suppression, and 20-entry retention.
-
-- [ ] **Step 6: Check and commit.**
+- [ ] **Step 5: Check and commit.**
 
 Run: `git diff --check`
 
-Run: `git add frontend/src/renderer/src/services/writerRecovery.ts frontend/src/renderer/src/services/__tests__/writerRecovery.test.ts frontend/src/renderer/src/components/cards/WriterRecoveryDialog.vue frontend/src/renderer/src/components/cards/GenericCardEditor.vue frontend/src/renderer/src/services/versionService.ts frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts && git commit -m "feat: add writer recovery decisions"`
+Run: `git add frontend/src/renderer/src/services/writerRecovery.ts frontend/src/renderer/src/components/cards/WriterRecoveryDialog.vue frontend/src/renderer/src/composables/useWriterCardSession.ts frontend/src/renderer/src/stores/useEditorStore.ts frontend/src/renderer/src/services/versionService.ts frontend/src/renderer/src/services/__tests__/writerRecovery.test.ts frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts && git commit -m "feat: add writer recovery and history policy"`
 
-### Task 7: Mandatory flush before card/project navigation and controlled close
+### Task 7: Mandatory flush for navigation and controlled close
 
 **Files:**
 - Modify: `frontend/src/renderer/src/views/Editor.vue`
 - Modify: `frontend/src/renderer/src/App.vue`
-- Modify: `frontend/src/renderer/src/composables/useWriterCardSession.ts`
-- Modify: `frontend/src/renderer/src/components/cards/GenericCardEditor.vue`
-- Create: `frontend/src/renderer/src/views/__tests__/Editor.writerReady.test.ts`
+- Modify: `frontend/src/renderer/src/stores/useEditorStore.ts`
+- Modify: `frontend/src/renderer/src/i18n/locales/pl.ts`
+- Test: `frontend/src/renderer/src/views/__tests__/Editor.writerReady.test.ts`
 
-**Interfaces:** Consumes `flushActiveWriter(reason)` from Task 3. Produces guarded card/project/dashboard navigation and force-close local-draft persistence.
+**Interfaces:** Consumes `flushActiveWriter(reason)` from Task 6 and passes only `card-change`, `project-change`, or `controlled-close` reasons.
 
-- [ ] **Step 1: Write failing navigation tests.**
+- [ ] **Step 1: Write failing flush-gate tests.**
 
 ```ts
-flush.mockResolvedValueOnce({ ok: false, error: new Error('offline') })
-await wrapper.vm.handleEditCard(22)
-expect(cardStore.setActiveCard).not.toHaveBeenCalledWith(22)
+flushActiveWriter.mockResolvedValueOnce({ ok: false, error: new Error('offline') })
+await clickDifferentCard()
+expect(cardStore.setActiveCard).not.toHaveBeenCalled()
+expect(screen.getByText('Nie można zmienić sceny: zapis się nie powiódł.')).toBeVisible()
 
-flush.mockResolvedValueOnce({ ok: true })
-await wrapper.vm.handleEditCard(22)
-expect(cardStore.setActiveCard).toHaveBeenCalledWith(22)
+await triggerControlledClose()
+expect(flushActiveWriter).toHaveBeenCalledWith('controlled-close')
 ```
 
-Cover `handleJumpToCard`, `App.handleProjectSelected`, and `App.handleBackToDashboard` with the same blocked/success behavior.
-
-- [ ] **Step 2: Run the RED test.**
+- [ ] **Step 2: Run RED.**
 
 Run: `npm --prefix frontend run test -- src/renderer/src/views/__tests__/Editor.writerReady.test.ts`
 
-Expected: FAIL because current selection and project changes happen immediately.
+Expected: FAIL because navigation proceeds without an awaited writer flush.
 
-- [ ] **Step 3: Implement guarded transitions.**
+- [ ] **Step 3: Implement guarded operations.**
 
 ```ts
-async function requireWriterFlush(reason: RecoveryDraftReason): Promise<boolean> {
-  const result = await editorStore.flushActiveWriter(reason)
-  if (!result.ok) ElMessage.error(t('writerReady.flushBlocked'))
-  return result.ok
+async function requireWriterFlush(reason: WriterFlushReason): Promise<boolean> {
+  const result = await flushActiveWriter(reason)
+  if (result.ok) return true
+  showPolishFlushError(reason, result.error)
+  return false
 }
 ```
 
-Call it before `setActiveCard`, `setCurrentProject`, dashboard return, and cross-project jumps. On a failed result keep the current card/project and leave its recovery record intact.
+Call this before selecting a card, changing project, returning to the dashboard, and controlled view close. Do not add a backend request to browser unload; Task 6 owns its local-only named listener.
 
-- [ ] **Step 4: Separate controlled and force-close behavior.**
+- [ ] **Step 4: Run GREEN and regression.**
 
-```ts
-window.addEventListener('beforeunload', () => writerSession.persistRecoveryDraft('controlled-close'))
-```
+Run: `npm --prefix frontend run test -- src/renderer/src/views/__tests__/Editor.writerReady.test.ts`
 
-Do not await or claim backend persistence in `beforeunload`; this is force-close protection. Controlled actions above await `flush('controlled-close')` and may be cancelled on failure.
+Expected: PASS for successful continuation and failed card/project/controlled-close blocking with no false success claim.
 
-- [ ] **Step 5: Run GREEN and editor regression.**
-
-Run: `npm --prefix frontend run test -- src/renderer/src/views/__tests__/Editor.writerReady.test.ts src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
-
-Expected: PASS for scene/card, project, controlled close, force-close local record, and no false save success.
-
-- [ ] **Step 6: Check and commit.**
+- [ ] **Step 5: Check and commit.**
 
 Run: `git diff --check`
 
-Run: `git add frontend/src/renderer/src/views/Editor.vue frontend/src/renderer/src/App.vue frontend/src/renderer/src/composables/useWriterCardSession.ts frontend/src/renderer/src/components/cards/GenericCardEditor.vue frontend/src/renderer/src/views/__tests__/Editor.writerReady.test.ts && git commit -m "feat: flush writer changes before navigation"`
+Run: `git add frontend/src/renderer/src/views/Editor.vue frontend/src/renderer/src/App.vue frontend/src/renderer/src/stores/useEditorStore.ts frontend/src/renderer/src/i18n/locales/pl.ts frontend/src/renderer/src/views/__tests__/Editor.writerReady.test.ts && git commit -m "feat: flush writer before context changes"`
 
-### Task 8: Export flush gate and Polish generated export copy
+### Task 8: Export flush gate and Polish generated copy
 
 **Files:**
 - Modify: `frontend/src/renderer/src/components/cards/CardExportDialog.vue`
 - Modify: `frontend/src/renderer/src/views/Editor.vue`
-- Create: `frontend/src/renderer/src/components/cards/__tests__/CardExportDialog.writerReady.test.ts`
+- Modify: `frontend/src/renderer/src/i18n/locales/pl.ts`
 - Modify: `backend/app/services/card_export_service.py`
-- Create: `backend/tests/services/test_card_export_service.py`
-- Create: `backend/tests/api/test_cards_writer_ready.py`
+- Test: `frontend/src/renderer/src/components/cards/__tests__/CardExportDialog.writerReady.test.ts`
+- Test: `backend/tests/services/test_card_export_service.py`
 
-**Interfaces:** Consumes Task 3 flush result and existing `exportCardsForProject`. Preserves existing `CardExportRequest`, `CardExportService.export`, all scopes, and formats.
+**Interfaces:** Consumes Task 7's `flushActiveWriter('export')`; preserves existing export request scopes and formats.
 
-- [ ] **Step 1: Write failing frontend and backend tests.**
+- [ ] **Step 1: Write failing export component and service tests.**
 
 ```ts
-const beforeExport = vi.fn().mockResolvedValue({ ok: false })
 await wrapper.get('[data-test="card-export-submit"]').trigger('click')
-expect(exportCardsForProject).not.toHaveBeenCalled()
+expect(flush).toHaveBeenCalledWith('export')
+expect(download).not.toHaveBeenCalled()
+expect(wrapper.text()).toContain('Eksport zablokowany: zapis zmian się nie powiódł.')
+
+assert '项目' not in txt_generated_copy
+assert '章节' not in markdown_generated_copy
+assert author_cjk_title in markdown_with_cjk_author
+assert cjk_count(polish_fixture_txt) == 0
 ```
 
-```py
-assert 'Eksport kart NovelForge' in text
-generated = text.replace(author_text, '')
-assert not CJK_RE.search(generated)
-assert author_text in text
-assert cjk_author_text in service.export(project.id, request).content.decode()
-```
-
-Define `CJK_RE = re.compile(r'[\u3400-\u9FFF\uF900-\uFAFF]')` at the top of `test_card_export_service.py`.
-
-- [ ] **Step 2: Run the RED tests.**
+- [ ] **Step 2: Run RED.**
 
 Run: `npm --prefix frontend run test -- src/renderer/src/components/cards/__tests__/CardExportDialog.writerReady.test.ts`
 
 Run: `cd backend && python -m pytest tests/services/test_card_export_service.py -q`
 
-Expected: FAIL because export currently starts without a flush and TXT/Markdown generated labels include Chinese text.
+Expected: FAIL because export can start before failed flush and generated labels are not fully Polish.
 
-- [ ] **Step 3: Add the frontend gate.**
+- [ ] **Step 3: Implement safe export and localization.**
 
-```ts
-const props = defineProps<{ beforeExport?: () => Promise<WriterSaveResult>; /* existing props */ }>()
-if (props.beforeExport && !(await props.beforeExport()).ok) { ElMessage.error(t('writerReady.exportBlocked')); return }
-```
+Pass one `beforeExport` callback from `Editor.vue` to `CardExportDialog`; it awaits `flushActiveWriter('export')`, returns false on error, and the dialog never calls download/export API then. Keep this selector and all flush/export tests in `CardExportDialog.writerReady.test.ts`, never in `GenericCardEditor` tests. Change only headers, labels, range names, metadata names, messages, and technical copy owned by NovelForge to Polish. Preserve all author fields byte-for-byte except format-required escaping. Preserve JSON technical field names.
 
-`Editor.vue` passes `() => editorStore.flushActiveWriter('export')` to the dialog.
-
-- [ ] **Step 4: Localize backend-generated copy while preserving author content.**
-
-Use Polish labels such as `Eksport kart NovelForge`, `Projekt`, `Zakres eksportu`, `Format eksportu`, `Data eksportu`, `Liczba kart`, `Typ`, `Identyfikator`, `Identyfikator rodzica`, and `Data utworzenia`. Do not translate `project.name`, `card.title`, card content, quotations, proper names, or card-type names. Keep JSON technical keys unchanged.
-
-- [ ] **Step 5: Run GREEN across every format and scope.**
+- [ ] **Step 4: Run GREEN and export regression.**
 
 Run: `npm --prefix frontend run test -- src/renderer/src/components/cards/__tests__/CardExportDialog.writerReady.test.ts`
 
-Run: `cd backend && python -m pytest tests/services/test_card_export_service.py tests/api/test_cards_writer_ready.py -q`
+Run: `cd backend && python -m pytest tests/services/test_card_export_service.py -q`
 
-Expected: PASS for all/single/type × txt/md/json, deterministic tree order, failed-flush no-download, zero CJK in generated TXT/Markdown copy, untouched multilingual author content, and full CJK=0 Polish fixture artifacts.
+Expected: PASS for flush-before-export order, blocked download, Polish error, TXT/MD/JSON, every existing scope, deterministic order, generated-copy CJK zero, author CJK preservation, and Polish-fixture full CJK zero.
 
-- [ ] **Step 6: Check and commit.**
+- [ ] **Step 5: Check and commit.**
 
 Run: `git diff --check`
 
-Run: `git add frontend/src/renderer/src/components/cards/CardExportDialog.vue frontend/src/renderer/src/views/Editor.vue frontend/src/renderer/src/components/cards/__tests__/CardExportDialog.writerReady.test.ts backend/app/services/card_export_service.py backend/tests/services/test_card_export_service.py backend/tests/api/test_cards_writer_ready.py && git commit -m "feat: protect writer exports"`
+Run: `git add frontend/src/renderer/src/components/cards/CardExportDialog.vue frontend/src/renderer/src/views/Editor.vue frontend/src/renderer/src/i18n/locales/pl.ts frontend/src/renderer/src/components/cards/__tests__/CardExportDialog.writerReady.test.ts backend/app/services/card_export_service.py backend/tests/services/test_card_export_service.py && git commit -m "feat: protect writer exports"`
 
-### Task 9: Synthetic fixtures and API persistence integration
+### Task 9: Synthetic fixture and real card API integration
 
 **Files:**
 - Create: `frontend/src/renderer/src/test-support/writerReadyFixtures.ts`
+- Create: `backend/tests/api/test_cards_writer_ready.py`
 - Modify: `frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
-- Modify: `frontend/src/renderer/src/views/__tests__/Editor.writerReady.test.ts`
-- Modify: `backend/tests/api/test_cards_writer_ready.py`
 
-**Interfaces:** Produces `createWriterReadyFixture()` with a Polish project, `Rozdział 1`, nested `Scena 1`, deterministic sibling order, non-writing reference card, canonical A/B/C snapshots, and optional author CJK text.
+**Interfaces:** Produces reusable synthetic fixture builders and API evidence for Tasks 10–12.
 
-- [ ] **Step 1: Write failing fixture-shape tests.**
+- [ ] **Step 1: Write failing real API persistence tests.**
 
-```ts
-const fixture = createWriterReadyFixture()
-expect(fixture.cards.map(card => card.title)).toEqual(['Rozdział 1', 'Scena 1', 'Scena 2', 'Karta referencyjna'])
-expect(fixture.polishAuthorText).not.toMatch(CJK_PATTERN)
+```py
+response = client.put(f'/api/cards/{card.id}', json={
+    'title': 'Syntetyczna scena', 'content': {'text': 'Bezpieczny tekst'},
+    'ai_context_template': 'Szablon generowania', 'ai_context_template_review': 'Szablon recenzji',
+    'needs_confirmation': False,
+})
+assert response.status_code == 200
+assert CardService.get_card(card.id).ai_context_template_review == 'Szablon recenzji'
 ```
 
-- [ ] **Step 2: Run the RED test.**
-
-Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts src/renderer/src/views/__tests__/Editor.writerReady.test.ts`
-
-Expected: FAIL because the shared synthetic fixture does not exist.
-
-- [ ] **Step 3: Implement only synthetic fixture builders and disposable SQLite setup.**
-
-```ts
-export function createWriterReadyFixture(): WriterReadyFixture { /* fixed ids, Polish prose, A/B/C, deterministic display_order */ }
-export const CJK_PATTERN = /[\u3400-\u9FFF\uF900-\uFAFF]/u
-```
-
-Backend API tests set `NOVELFORGE_DB_PATH` to pytest `tmp_path / 'writer-ready.db'` before importing `main`, then create only the fixture project/cards.
-
-- [ ] **Step 4: Run GREEN and API persistence checks.**
-
-Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts src/renderer/src/views/__tests__/Editor.writerReady.test.ts`
+- [ ] **Step 2: Run RED.**
 
 Run: `cd backend && python -m pytest tests/api/test_cards_writer_ready.py -q`
 
-Expected: PASS for project → writing card → save → fresh API read, with no committed database artifact.
+Expected: FAIL because the writer-ready API integration fixture/test does not exist.
+
+- [ ] **Step 3: Create only synthetic fixtures and complete-field integration.**
+
+Build one Polish fixture project with an eligible `章节正文` and `通用文本`, nested/deterministic cards, template variants, and a deliberate author-CJK case. Use the existing test database lifecycle and actual Project/Card/CardType models or existing card API; do not create an artificial writer schema.
+
+- [ ] **Step 4: Run GREEN and frontend fixture regression.**
+
+Run: `cd backend && python -m pytest tests/api/test_cards_writer_ready.py -q`
+
+Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts`
+
+Expected: PASS for atomic persisted title/content/both templates and reusable synthetic inputs.
 
 - [ ] **Step 5: Check and commit.**
 
 Run: `git diff --check`
 
-Run: `git add frontend/src/renderer/src/test-support/writerReadyFixtures.ts frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts frontend/src/renderer/src/views/__tests__/Editor.writerReady.test.ts backend/tests/api/test_cards_writer_ready.py && git commit -m "test: add writer ready synthetic fixtures"`
+Run: `git add frontend/src/renderer/src/test-support/writerReadyFixtures.ts backend/tests/api/test_cards_writer_ready.py frontend/src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts && git commit -m "test: add writer ready fixtures"`
 
-### Task 10: Full automated integration gate and browser-QA procedure
+### Task 10: Integration and browser-QA gate on Compose synthetic data
 
 **Files:**
 - Modify: `docs/operations/local-compose.md`
-- Create: `docs/acceptance/writer-ready-01.md` (initial checklist only; final status is written in Task 12)
-- Modify: `frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
-- Modify: `backend/tests/services/test_card_export_service.py`
+- Create: `docs/acceptance/writer-ready-01-working-matrix.md`
 
-**Interfaces:** No runtime interfaces. Uses all prior fixtures/tests and the existing same-origin Compose workflow.
+**Interfaces:** Consumes actual fixture/API behavior from Task 9 and all UI flows from Tasks 1–8. Produces observed, redacted PASS/FAIL/NOT VERIFIED records for Closure.
 
-- [ ] **Step 1: Write failing final-scenario assertions.**
+- [ ] **Step 1: Prepare the failing operational matrix before execution.**
 
-```ts
-const beforeExport = vi.fn().mockResolvedValue({ ok: true })
-await wrapper.get('[data-test="card-export-submit"]').trigger('click')
-expect(beforeExport.mock.invocationCallOrder[0]).toBeLessThan(exportCardsForProject.mock.invocationCallOrder[0])
-expect(wrapper.text()).toContain('Nie można wyeksportować: zapis dokumentu się nie powiódł.')
-```
+Create rows for every executable WR-01…WR-25 scenario, with columns `row`, `scenario`, `observed result`, `artifact reference`, and `status`. Initial status is `NOT VERIFIED`; do not claim readiness.
 
-```py
-assert export_text.count('Eksport kart NovelForge') == 1
-assert author_cjk_text in export_text
-```
-
-- [ ] **Step 2: Run the RED tests.**
-
-Run: `npm --prefix frontend run test -- src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts`
-
-Run: `cd backend && python -m pytest tests/services/test_card_export_service.py -q`
-
-Expected: FAIL until the export gate exposes its final Polish failure copy and the test explicitly checks call order.
-
-- [ ] **Step 3: Add the browser-QA procedure to existing Compose operations.**
-
-Document the existing commands exactly: `docker compose up --build -d`, `docker compose ps`, `curl -fsS http://127.0.0.1:8080/healthz/ready`, `docker compose down`, and `docker compose up -d`. Require an isolated synthetic database path, private local screenshots outside Git, and artifact-content inspection for txt/md/json.
-
-- [ ] **Step 4: Execute automated gates, not browser QA.**
-
-Run: `npm --prefix frontend run test`
-
-Run: `npm --prefix frontend run typecheck`
-
-Run: `cd backend && python -m pytest -q`
-
-Expected: PASS. Browser QA remains an execution-phase manual gate using the written procedure.
-
-- [ ] **Step 5: Check and commit.**
-
-Run: `git diff --check`
-
-Run: `git add docs/operations/local-compose.md docs/acceptance/writer-ready-01.md frontend/src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts backend/tests/services/test_card_export_service.py && git commit -m "test: define writer ready acceptance checks"`
-
-### Task 11: Compose restart and guarded backup/restore operational evidence
-
-**Files:**
-- Modify: `docs/acceptance/writer-ready-01.md`
-- Modify: `docs/operations/local-compose.md`
-- Modify: `backend/tests/services/test_backup_service.py`
-- Modify: `scripts/tests/test-restore-recovery.sh`
-
-**Interfaces:** Uses existing `create_backup`, `restore_backup`, `scripts/backup.sh`, `scripts/restore.sh`, and named Compose volumes. No product API or schema changes.
-
-- [ ] **Step 1: Write failing operational-test assertions.**
-
-```py
-def test_writer_ready_restore_round_trip(tmp_path: Path) -> None:
-    db_path = tmp_path / 'writer-ready.db'
-    backup_dir = tmp_path / 'backups'
-    write_writer_card(db_path, title='Rozdział 1', content='wersja A')
-    backup_path = create_backup(db_path, backup_dir, label='writer-ready')
-    write_writer_card(db_path, title='Rozdział 1', content='wersja B')
-    restore_backup(backup_path, db_path, force=True)
-    assert read_writer_card(db_path).content == 'wersja A'
-```
-
-Define `write_writer_card(path, title, content)` and `read_writer_card(path)` in this test module using a minimal SQLite table; this preserves the backup service unit boundary without booting FastAPI.
-
-```bash
-grep -Fqx "compose up -d backend frontend" "$calls_file"
-```
-
-- [ ] **Step 2: Run the RED tests.**
-
-Run: `cd backend && python -m pytest tests/services/test_backup_service.py -q`
-
-Run: `bash scripts/tests/test-restore-recovery.sh`
-
-Expected: FAIL until the writer-card restore scenario and evidence checklist are present.
-
-- [ ] **Step 3: Add the scoped operational checks.**
-
-Use a temporary SQLite path in pytest; prove backup → card mutation → guarded restore returns the backed-up canonical card. Preserve the current safety-backup and restart behavior. In the Compose procedure, use `docker compose down` without `-v`, then `docker compose up -d`, manually reopen the synthetic project/card, and record only redacted results.
-
-- [ ] **Step 4: Run GREEN.**
-
-Run: `cd backend && python -m pytest tests/services/test_backup_service.py -q`
-
-Run: `bash scripts/tests/test-restore-recovery.sh`
-
-Expected: PASS; backup/restore remains separate from unsaved local-draft recovery.
-
-- [ ] **Step 5: Check and commit.**
-
-Run: `git diff --check`
-
-Run: `git add docs/acceptance/writer-ready-01.md docs/operations/local-compose.md backend/tests/services/test_backup_service.py scripts/tests/test-restore-recovery.sh && git commit -m "test: verify writer ready restore flow"`
-
-### Task 12: WR-01…WR-25 evidence closure
-
-**Files:**
-- Modify: `docs/acceptance/writer-ready-01.md`
-
-**Interfaces:** No runtime interface. Consumes all automated output, browser observations, Compose restart evidence, backup/restore evidence, and export artifacts from Tasks 1–11.
-
-- [ ] **Step 1: Create one evidence row per acceptance identifier.**
-
-```markdown
-| WR-01 | PASS | synthetic project/card browser recording plus API/SQLite comparison | private evidence reference |
-```
-
-Create rows WR-01 through WR-25, each with command or observation, result, artifact location, and reviewer role.
-
-- [ ] **Step 2: Record browser QA with synthetic data only.**
+- [ ] **Step 2: Start Compose and verify readiness on synthetic data.**
 
 Run: `docker compose up --build -d`
 
-Run: `curl -fsS http://127.0.0.1:8080/healthz/ready`
+Run: `docker compose ps`
 
-Expected: ready JSON before browser checks. Record saved/dirty/saving/error, recovery B/C decisions, blocked export, txt/md/json artifact content, force-close recovery, and controlled navigation only after direct observation.
+Run: `curl --fail http://127.0.0.1:8080/healthz/ready`
 
-- [ ] **Step 3: Run final automated regressions.**
+Expected: ready endpoint succeeds before browser observations begin.
 
-Run: `npm --prefix frontend run test`
+- [ ] **Step 3: Execute the browser gate and inspect artifacts.**
 
-Run: `npm --prefix frontend run typecheck`
+Using only the synthetic WRITER-READY fixture, observe project → each approved card → edits → 3-second recovery draft → 30-second autosave → both manual inputs → failed flush guards → controlled close → force-close/reopen recovery A/B/C → version history → all export scopes/formats. Open downloaded TXT/Markdown/JSON files and record content checks, including Polish generated copy/CJK and unchanged author CJK. Record each observation in the working matrix without private prose.
 
-Run: `cd backend && python -m pytest -q`
+- [ ] **Step 4: Enforce the gate.**
+
+Run: `rg -n "\| (FAIL|NOT VERIFIED) \|" docs/acceptance/writer-ready-01-working-matrix.md`
+
+Expected: no output before entering Closure. Any output stops execution; obtain a separately authorized controlled fix, repeat focused automated tests, and repeat this whole Task 10 gate.
+
+- [ ] **Step 5: Check and commit the operational procedure only after PASS.**
+
+Run: `git diff --check`
+
+Run: `git add docs/operations/local-compose.md docs/acceptance/writer-ready-01-working-matrix.md && git commit -m "docs: add writer ready browser gate"`
+
+### Task 11: Real-model Compose restart and guarded backup/restore evidence
+
+**Files:**
+- Modify: `backend/tests/services/test_backup_service.py`
+- Modify: `scripts/tests/test-restore-recovery.sh`
+- Modify: `docs/operations/local-compose.md`
+
+**Interfaces:** Uses existing `create_backup`, `restore_backup`, `Project`, `Card`, `CardType`, card API, and Compose volumes. It does not use a substitute schema as WR-24 evidence.
+
+- [ ] **Step 1: Write failing real-model backup test.**
+
+```py
+project, card = create_writer_ready_project_card(session)
+backup = create_backup(real_sqlite_path, backup_dir, label='writer-ready')
+client.put(f'/api/cards/{card.id}', json=mutated_complete_writer_payload(card))
+restore_backup(backup, real_sqlite_path, force=True)
+fresh = client.get(f'/api/cards/{card.id}').json()
+assert (fresh['title'], fresh['content'], fresh['ai_context_template'], fresh['ai_context_template_review']) == original_fields
+```
+
+- [ ] **Step 2: Run RED.**
+
+Run: `cd backend && python -m pytest tests/services/test_backup_service.py -q`
+
+Expected: FAIL because WR-24 lacks a real Project/Card/CardType backup/restore proof.
+
+- [ ] **Step 3: Implement test-only real-model drill and operation instructions.**
+
+Retain any minimal-table test solely as an isolated backup-service unit test; do not cite it for WR-24. Add the real model/API test above, preserve guarded restore and safety backup behavior, and document `docker compose down` (without `-v`) then `docker compose up -d`. The Compose drill creates/uses the synthetic writer fixture, backs up canonical SQLite, mutates through the actual API/app, restores guarded backup, then fresh-reads/reopens and compares title/content/generation/review exactly.
+
+- [ ] **Step 4: Run GREEN and restart regression.**
+
+Run: `cd backend && python -m pytest tests/services/test_backup_service.py -q`
 
 Run: `bash scripts/tests/test-restore-recovery.sh`
 
-Expected: PASS for every command. Do not mark a row PASS from inference.
-
-- [ ] **Step 4: Enforce the acceptance decision.**
-
-```text
-READY requires all WR-01…WR-25 = PASS.
-Any FAIL or NOT VERIFIED keeps the result NOT READY.
-```
-
-Confirm evidence has no credentials, private prose, raw provider content, SQLite files, or backups.
+Expected: PASS for real canonical model/API restoration and existing restore safeguards.
 
 - [ ] **Step 5: Check and commit.**
 
 Run: `git diff --check`
 
-Run: `git add docs/acceptance/writer-ready-01.md && git commit -m "docs: record writer ready acceptance evidence"`
+Run: `git add backend/tests/services/test_backup_service.py scripts/tests/test-restore-recovery.sh docs/operations/local-compose.md && git commit -m "test: verify writer ready restore flow"`
+
+### Task 12: Acceptance/evidence closure and READY decision
+
+**Files:**
+- Create: `docs/acceptance/writer-ready-01.md`
+- Modify: `docs/acceptance/writer-ready-01-working-matrix.md`
+
+**Interfaces:** No runtime interface. Consumes Task 10 observed browser/artifact evidence and Task 11 real-model restart/restore evidence.
+
+- [ ] **Step 1: Write the final evidence template with the required verdict rule.**
+
+```md
+| WR row | status | automated evidence | browser/operational evidence | artifact reference |
+|---|---|---|---|---|
+| WR-01 | NOT VERIFIED |  |  |  |
+
+Verdict: NOT READY whenever any row is FAIL or NOT VERIFIED.
+```
+
+- [ ] **Step 2: Run final focused regressions.**
+
+Run: `npm --prefix frontend run test -- src/renderer/src/services/__tests__/isWriterReadyCard.test.ts src/renderer/src/services/__tests__/writerSnapshot.test.ts src/renderer/src/services/__tests__/recoveryDraftStore.test.ts src/renderer/src/services/__tests__/writerRecovery.test.ts src/renderer/src/services/__tests__/writerSaveCoordinator.test.ts src/renderer/src/components/cards/__tests__/GenericCardEditor.writerReady.test.ts src/renderer/src/components/cards/__tests__/CardExportDialog.writerReady.test.ts src/renderer/src/views/__tests__/Editor.writerReady.test.ts`
+
+Run: `npm --prefix frontend run typecheck`
+
+Run: `cd backend && python -m pytest tests/api/test_cards_writer_ready.py tests/services/test_card_export_service.py tests/services/test_backup_service.py -q`
+
+Expected: PASS; any failure returns the work to its owning implementation task and requires a repeat of Task 10 when user-visible behavior changed.
+
+- [ ] **Step 3: Compile approved evidence and make the verdict.**
+
+Copy only PASS observations from Task 10 and Task 11 into the final matrix. Recheck generated TXT/Markdown artifact content, force-close recovery, restart, and real backup/mutate/restore results. Record `READY` only when all WR rows are PASS; otherwise record `NOT READY` and stop.
+
+- [ ] **Step 4: Run final evidence gate.**
+
+Run: `rg -n "\| (FAIL|NOT VERIFIED) \|" docs/acceptance/writer-ready-01.md`
+
+Expected: no output for `READY`; output means `NOT READY` and no delivery claim.
+
+- [ ] **Step 5: Check and commit.**
+
+Run: `git diff --check`
+
+Run: `git add docs/acceptance/writer-ready-01.md docs/acceptance/writer-ready-01-working-matrix.md && git commit -m "docs: close writer ready acceptance evidence"`
 
 ## Acceptance Coverage Matrix
 
-| Acceptance | Implementation task | Unit test | Integration test | Browser QA / operational evidence | Evidence artifact |
-|---|---|---|---|---|---|
-| WR-01 | 5, 9 | `GenericCardEditor.writerReady.test.ts` | `test_cards_writer_ready.py` | synthetic project/card selection | `docs/acceptance/writer-ready-01.md` |
-| WR-02 | 2 | `recoveryDraftStore.test.ts` fake timers | session persistence path | synthetic idle/continuous typing check | same |
-| WR-03 | 4 | `writerSaveCoordinator.test.ts` fake clock | API save call spy | runtime timer observation | same |
-| WR-04 | 5 | `GenericCardEditor.writerReady.test.ts` button | existing PUT adapter mock | visible **Zapisz** | same |
-| WR-05 | 5 | `GenericCardEditor.writerReady.test.ts` Mod-s | existing PUT adapter mock | keyboard command | same |
-| WR-06 | 7 | `Editor.writerReady.test.ts` | card selection with rejected flush | scene/card switch blocked | same |
-| WR-07 | 7 | `Editor.writerReady.test.ts` | project selection with rejected flush | project switch blocked | same |
-| WR-08 | 7 | session local-record test | no-backend-beforeunload assertion | controlled dashboard return | same |
-| WR-09 | 7 | recovery-store persistence test | browser force-close/reopen drill | browser tab/process recovery | same |
-| WR-10 | 3 | coordinator rejected-promise test | API timeout mock | Retry state UI | same |
-| WR-11 | 3 | coordinator non-success test | API error response test | no false saved UI | same |
-| WR-12 | 6 | `writerRecovery.test.ts` no-draft path | fresh API read | reopen canonical card | same |
-| WR-13 | 6 | case-A test | matching localStorage key test | no prompt / canonical visible | same |
-| WR-14 | 6 | case-B and actions test | recovery session test | Recover/Discard/Cancel | same |
-| WR-15 | 6 | both case-C variants test | recovery dialog mount | canonical/draft comparison | same |
-| WR-16 | 4, 6 | A→B→C coordinator test | reopen C against B | stale response drill | same |
-| WR-17 | 6 | version reason/dedupe test | manual/recovered/restored session saves | version dialog | same |
-| WR-18 | 8 | export dialog gate test | `test_card_export_service.py` txt all/single/type | inspect TXT artifact | same |
-| WR-19 | 8 | export dialog gate test | service markdown all/single/type | inspect Markdown artifact | same |
-| WR-20 | 8 | export dialog gate test | service JSON all/single/type | inspect JSON artifact | same |
-| WR-21 | 8, 9 | fixture CJK-pattern test | full artifact CJK scan | Polish fixture download inspection | same |
-| WR-22 | 8 | no-download-on-failed-flush test | export endpoint not called | blocked export message | same |
-| WR-23 | 11 | backup helper test | Compose data persistence procedure | down/up/reopen | same |
-| WR-24 | 11 | `test_backup_service.py` writer card test | `test-restore-recovery.sh` | backup/mutate/restore drill | same |
-| WR-25 | 10, 12 | acceptance-row completeness assertion | full frontend/backend suites | final reviewer decision | same |
+| WR row | Implementing task | Unit evidence | Integration evidence | Browser/operational evidence | Final artifact |
+|---|---:|---|---|---|---|
+| WR-01 | 1, 5, 9 | policy/snapshot tests | real approved-card PUT | project → both writing-card types | final matrix row |
+| WR-02 | 1, 3 | complete snapshot tests | title/content/template PUT | writing and dirty UI | final matrix row |
+| WR-03 | 2 | fake 3-second timer | local storage record inspection | idle draft observation | final matrix row |
+| WR-04 | 2 | fake 15-second max-wait | stored complete record | continuous typing observation | final matrix row |
+| WR-05 | 3, 4 | state/30-second tests | canonical PUT response | saved/dirty/saving/error | final matrix row |
+| WR-06 | 5 | four manual-input tests | complete PUT request | button and both-editor shortcut | final matrix row |
+| WR-07 | 3, 4 | duplicate/stale rebase tests | B→C API sequence | latest text remains dirty | final matrix row |
+| WR-08 | 7 | navigation guard tests | flush result propagation | card/project/controlled close | final matrix row |
+| WR-09 | 6 | force-close no-PUT test | stored `force-close` record | force-close then reopen | final matrix row |
+| WR-10 | 6 | A/B/C comparison tests | full draft comparison | A removal, B prompt, C conflict | final matrix row |
+| WR-11 | 6 | Recover/Discard/Cancel tests | no automatic PUT assertion | conscious recovery decision | final matrix row |
+| WR-12 | 6 | legacy fingerprint/dedupe tests | version persistence read | history/read/restore | final matrix row |
+| WR-13 | 6 | autosave/flush no-history tests | version reason calls | manual/recovered/restored entries | final matrix row |
+| WR-14 | 7 | failed project/card flush tests | blocked store/API transition | Polish visible block | final matrix row |
+| WR-15 | 8 | dialog flush-before-download test | export endpoint after flush | no old-content export | final matrix row |
+| WR-16 | 8 | scope/order tests | all export ranges | inspect TXT/MD/JSON | final matrix row |
+| WR-17 | 8 | generated-copy/author tests | service artifact assertions | Polish/CJK artifact inspection | final matrix row |
+| WR-18 | 5, 6 | adapter/lifecycle tests | session token isolation | change card while request pending | final matrix row |
+| WR-19 | 5 | CodeMirror button/shortcut tests | manual API requests | CodeMirror manual saves | final matrix row |
+| WR-20 | 5 | Markdown button/shortcut tests | manual API requests | Markdown manual saves | final matrix row |
+| WR-21 | 9, 10 | fixture tests | real card API fixture | reopen exact canonical/recovered content | final matrix row |
+| WR-22 | 10 | matrix gate check | Compose readiness | browser QA on synthetic fixture | working and final matrices |
+| WR-23 | 11 | existing restore safeguard test | Compose down/up persistence | restart/reopen synthetic card | final matrix row |
+| WR-24 | 11 | real Project/Card/CardType backup test | backup → mutate API → restore fresh GET | guarded restore/reopen drill | final matrix row |
+| WR-25 | 12 | final no-FAIL/no-unverified scan | final targeted suites | evidence review | `docs/acceptance/writer-ready-01.md` |
 
-## Final plan self-review procedure
+## Plan self-review checklist
 
-- Verify every requirement in `docs/superpowers/specs/2026-07-28-writer-ready-01-design.md` is assigned to Tasks 1–12 and every WR-01…WR-25 row above has an owner.
-- Verify `WriterSnapshot`, `RecoveryDraftRecord`, `WriterSaveCoordinator`, `WriterCardSession`, `WriterSaveReason`, and `recordVersionIfEligible` names match in every task.
-- Run: `rg -n -i 'T[B]D|TO[D]O|placeh[older]' docs/superpowers/plans/2026-07-28-writer-ready-01.md`
-- Run: `git diff --check`
-- Run: `git status --short`; before staging, the only output must be `?? docs/superpowers/plans/2026-07-28-writer-ready-01.md`.
-- Confirm every listed existing file is present before implementation; every other path is explicitly marked Create above.
-- Confirm all commands are existing `frontend/package.json` scripts, `pytest` invocations against explicit planned test paths, or documented Compose/restore commands.
-- Re-read Tasks 3–8 for data loss: newer C never becomes saved from B, failed save retains the matching recovery record, and failed flush makes no export request.
-- Confirm out-of-scope items remain absent: VL-02, VL-03, AI behavior, Code Wiki, scene schema work, multi-session concurrency, dependencies, CI workflows, and general card refactoring.
+- [ ] Every writer-visible persisted field is present in `WriterSnapshot`, one atomic PUT, recovery records, comparison, and history fingerprinting.
+- [ ] The strict card predicate checks both approved type and editor, and no other type becomes eligible from editor component alone.
+- [ ] `getSnapshot`, `setSavedBaseline`, and `setSnapshot` are the only adapter names in interfaces, tasks, pseudocode, and tests.
+- [ ] Both editors route button and `Cmd/Ctrl+S` input to the same `writerSession.manualSave()` with identical error/history rules.
+- [ ] Every session listener is named and removed; disposal clears local/autosave timers, unregisters active flush, and isolates late responses from a new card.
+- [ ] `canonicalizeJson` fully defines recursive object ordering, array retention, primitive/null retention, and rejection of non-JSON values.
+- [ ] Legacy version entries without a fingerprint are fingerprinted from title/content/generation/review before deduplication and remain readable/restorable.
+- [ ] Task 8 completes automatic export implementation/tests; Task 10 performs actual Compose/browser/artifact QA before Closure.
+- [ ] WR-24 uses real NovelForge models or the real API, never only an arbitrary SQLite table.
+- [ ] Every WR-01…WR-25 row has an implementation owner, unit evidence, integration evidence, browser/operational evidence, and a final artifact.
+- [ ] No scope includes VL work, AI work, Code Wiki, multi-session concurrency, a scene model, unrelated refactoring, dependencies, or workflow changes.
+- [ ] Run before plan delivery: `git diff --check`, `rg -n -i 'T[B]D|TO[D]O|placeh[older]' docs/superpowers/plans/2026-07-28-writer-ready-01.md`, and `git diff --name-only`.
+
+## DONE criterion
+
+This plan is implementation-ready only when it remains the sole changed file, every named interface and command maps to an existing repository location or an explicitly marked Create file, each task has a RED → GREEN → regression → `git diff --check` → commit gate, and the Acceptance Coverage Matrix assigns all WR-01…WR-25 rows. The implemented feature is READY only when Task 12 records zero FAIL and zero NOT VERIFIED rows; otherwise the verdict is NOT READY.
+
+## Out of Scope
+
+- A new Scene model, table, schema migration, or card-system redesign.
+- Multi-tab/window/device/client synchronization, optimistic concurrency, revision tokens, and conflict handling between separate sessions.
+- VL-02, VL-03, Visual Language redesign, new AI features, Code Wiki, unrelated backend/frontend changes, CI/workflow changes, and dependency changes.
+- Treating SQLite backup/restore as recovery for unsaved browser text.
