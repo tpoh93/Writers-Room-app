@@ -23,6 +23,7 @@
 - Failed flush blocks card/project navigation, controlled view close, and export. Browser close, kill, crash, and power loss only persist a local `force-close` record and make no backend-flush claim.
 - Generated NovelForge TXT/Markdown copy is Polish and has no CJK. Author title/content/quotes/names are unchanged, may use any alphabet, and may be technically escaped only as required by the format. A full-file CJK count of zero applies only to the controlled Polish fixture with no author CJK.
 - Do not add multi-session synchronization, concurrency tokens, AI behavior, Visual Language work, Code Wiki work, a general card refactor, unrelated dependency/workflow changes, or private prose in fixtures/evidence.
+- The operational fixture uses Compose project `writer-ready-fixture` and only `http://127.0.0.1:18080`; it must coexist with the ordinary NovelForge stack on port 8080.
 
 ---
 
@@ -745,7 +746,7 @@ Run: `git add frontend/src/renderer/src/test-support/writerReadyFixtures.ts back
 - Modify: `docs/operations/local-compose.md`
 - Create: `docs/acceptance/writer-ready-01-working-matrix.md`
 
-**Interfaces:** Consumes actual fixture/API behavior from Task 9 and all UI flows from Tasks 1–8. Produces observed, redacted PASS/FAIL/NOT VERIFIED records for Closure. `scripts/seed-writer-ready-fixture.py` accepts `--base-url URL`, `--reset`, `--ids-file PATH`, and `--verify`; it uses only the existing `/api/projects`, `/api/card-types`, `/api/projects/{projectId}/cards`, `/api/cards/{cardId}`, and `/api/projects/{projectId}/cards` endpoints.
+**Interfaces:** Consumes actual fixture/API behavior from Task 9 and all UI flows from Tasks 1–8. Produces observed, redacted PASS/FAIL/NOT VERIFIED records for Closure. `scripts/seed-writer-ready-fixture.py` accepts `--base-url URL`, `--reset`, `--ids-file PATH`, and `--verify`; it uses existing `/api/projects/`, `/api/projects/{projectId}`, `/api/card-types`, `/api/projects/{projectId}/cards`, and `/api/cards/{cardId}` endpoints. Project collection, creation, deletion, and detail calls read their entity from the existing `ApiResponse` envelope at `response["data"]`; CardType and Card calls retain their existing direct response shapes.
 
 - [ ] **Step 1: Prepare the failing operational matrix before execution.**
 
@@ -755,25 +756,25 @@ Create rows for every executable WR-01…WR-25 scenario, with columns `row`, `sc
 
 Run: `docker compose -p writer-ready-fixture down -v --remove-orphans`
 
-Run: `docker compose -p writer-ready-fixture up --build -d`
+Run: `APP_BIND_ADDRESS=127.0.0.1 APP_PORT=18080 docker compose -p writer-ready-fixture up --build -d`
 
 Run: `docker compose -p writer-ready-fixture ps`
 
-Run: `curl -fsS http://127.0.0.1:8080/healthz/ready`
+Run: `curl -fsS http://127.0.0.1:18080/healthz/ready`
 
-Run: `python3 scripts/seed-writer-ready-fixture.py --base-url http://127.0.0.1:8080 --reset --ids-file /tmp/writer-ready-fixture-ids.json`
+Run: `python3 scripts/seed-writer-ready-fixture.py --base-url http://127.0.0.1:18080 --reset --ids-file /tmp/writer-ready-fixture-ids.json`
 
-Implement the script with Python standard-library `urllib.request` and `json`, not a new dependency. `--reset` first GETs `/api/projects`, DELETEs only a project whose exact name is `WRITER-READY Fixture`, and then POSTs `/api/projects` with `{ "name": "WRITER-READY Fixture", "description": "Synthetic writer acceptance data", "template": null }`. It GETs `/api/card-types`, resolves by both exact `name` and `editor_component`, and POSTs the missing type only with these payloads: `章节正文` / `Chapter` / `CodeMirrorEditor`; `通用文本` / `text` / `MarkdownTextEditor`; `场景卡` / `SceneCard` / `GenericCardEditor`. It prints one JSON object and writes the same non-sensitive object to `--ids-file`: `projectId`, `chapterCardId`, `markdownCardId`, `referenceCardId`, and the three resolved card-type IDs.
+Implement the script with Python standard-library `urllib.request` and `json`, not a new dependency. `--reset` first GETs `/api/projects/`, iterates `response["data"]`, DELETEs only a project whose exact name is `WRITER-READY Fixture` after reading its delete response from `response["data"]`, and then POSTs `/api/projects/` with `{ "name": "WRITER-READY Fixture", "description": "Synthetic writer acceptance data", "template": null }`; it reads the created `projectId` from `response["data"]["id"]`. The trailing slash is mandatory for GET/POST so `urllib` never follows a 307 for POST. It GETs `/api/card-types`, resolves by both exact `name` and `editor_component`, and POSTs the missing type only with these payloads: `章节正文` / `Chapter` / `CodeMirrorEditor`; `通用文本` / `Text` / `MarkdownTextEditor`; `场景卡` / `SceneCard` / `GenericCardEditor`. It prints one JSON object and writes the same non-sensitive object to `--ids-file`: `projectId`, `chapterCardId`, `markdownCardId`, `referenceCardId`, and the three resolved card-type IDs.
 
-The script POSTs cards through `/api/projects/{projectId}/cards`: root `章节正文` has title `Scena główna`, content `{ "text": "Syntetyczny akapit." }`, generation `Szablon generowania`, review `Szablon recenzji`, and no parent; `通用文本` has title `Scena poboczna`, content `{ "text": "Drugi syntetyczny akapit." }`, the same two template fields, and parent equal to `chapterCardId`; `场景卡` has title `Karta referencyjna`, content `{ "note": "Tylko referencja." }`, and parent equal to `chapterCardId`. It then PUTs `/api/cards/{id}` with `display_order` 10, 20, and 30 respectively plus `needs_confirmation: false`. A failed type/name/editor match, API status, or unexpected field exits nonzero; it never silently reuses unrelated data.
+The script POSTs cards through `/api/projects/{projectId}/cards`: root `章节正文` has title `Scena główna`, content `{ "content": "Syntetyczny akapit." }`, generation `Szablon generowania`, review `Szablon recenzji`, and no parent; `通用文本` has title `Scena poboczna`, content `{ "content": "Drugi syntetyczny akapit." }`, the same two template fields, and parent equal to `chapterCardId`; `场景卡` has title `Karta referencyjna`, content `{ "note": "Tylko referencja." }`, and parent equal to `chapterCardId`. It then PUTs `/api/cards/{id}` with `display_order` 10, 20, and 30 respectively plus `needs_confirmation: false`. A failed type/name/editor match, API status, or unexpected field exits nonzero; it never silently reuses unrelated data.
 
-Run: `python3 scripts/seed-writer-ready-fixture.py --base-url http://127.0.0.1:8080 --ids-file /tmp/writer-ready-fixture-ids.json --verify`
+Run: `python3 scripts/seed-writer-ready-fixture.py --base-url http://127.0.0.1:18080 --ids-file /tmp/writer-ready-fixture-ids.json --verify`
 
-`--verify` reads the ID file, GETs `/api/projects/{projectId}` and `/api/projects/{projectId}/cards`, and fails unless all three IDs, exact types, parent IDs, display orders, titles, content, generation templates, and review templates match the synthetic fixture. Only after this API verification may the browser be opened.
+`--verify` reads the ID file, GETs `/api/projects/{projectId}` and reads its project payload from `response["data"]`, then GETs `/api/projects/{projectId}/cards` directly. It fails unless all three IDs, exact types, parent IDs, display orders, titles, exact writing-card content shapes, generation templates, and review templates match the synthetic fixture. Only after this API verification may the browser be opened.
 
 - [ ] **Step 3: Execute the browser gate and inspect artifacts.**
 
-Using only the synthetic WRITER-READY fixture, observe project → each approved card → edits → 3-second recovery draft → 30-second autosave → both manual inputs → failed flush guards → controlled close → force-close/reopen recovery A/B/C → version history → all export scopes/formats. Open downloaded TXT/Markdown/JSON files and record content checks, including Polish generated copy/CJK and unchanged author CJK. Record each observation in the working matrix without private prose.
+Using only the synthetic WRITER-READY fixture at `http://127.0.0.1:18080`, first open `章节正文` and `通用文本` and confirm each editor visibly loads its exact seeded prose before any edit: `Syntetyczny akapit.` and `Drugi syntetyczny akapit.`. Then observe edits → 3-second recovery draft → 30-second autosave → both manual inputs → failed flush guards → controlled close → force-close/reopen recovery A/B/C → version history → all export scopes/formats. Open downloaded TXT/Markdown/JSON files and record content checks, including Polish generated copy/CJK and unchanged author CJK. Record each observation in the working matrix without private prose.
 
 - [ ] **Step 4: Enforce the gate.**
 
@@ -801,15 +802,26 @@ Run: `git add scripts/seed-writer-ready-fixture.py docs/operations/local-compose
 ```py
 project, card = create_writer_ready_project_card(session)
 backup = create_backup(real_sqlite_path, backup_dir, label='writer-ready')
-client.put(f'/api/cards/{card.id}', json=mutated_complete_writer_payload(card))
+old_sessions = [session]
+with TestClient(app) as old_client:
+    mutation = old_client.put(f'/api/cards/{card.id}', json=mutated_complete_writer_payload(card))
+    assert mutation.status_code == 200
+# The old TestClient context has exited before any SQLite replacement.
+for old_session in old_sessions:
+    old_session.close()
+old_engine = db_session.engine
+old_engine.dispose()
 safety_backup_path = restore_backup(backup, real_sqlite_path, force=True)
-client.close()
-session.close()
-db_session.engine.dispose()
 fresh_engine = create_engine(f'sqlite:///{real_sqlite_path}', connect_args={'check_same_thread': False})
 monkeypatch.setattr(db_session, 'engine', fresh_engine)
-with TestClient(app) as fresh_client:
-    fresh = fresh_client.get(f'/api/cards/{card.id}').json()
+monkeypatch.setattr(db_package, 'engine', fresh_engine)
+monkeypatch.setattr(main, 'engine', fresh_engine)
+monkeypatch.setattr(startup, 'engine', fresh_engine)
+try:
+    with TestClient(app) as fresh_client:
+        fresh = fresh_client.get(f'/api/cards/{card.id}').json()
+finally:
+    fresh_engine.dispose()
 assert (fresh['title'], fresh['content'], fresh['ai_context_template'], fresh['ai_context_template_review']) == original_fields
 assert safety_backup_path is not None and safety_backup_path.exists()
 ```
@@ -822,7 +834,7 @@ Expected: FAIL because WR-24 lacks a real Project/Card/CardType backup/restore p
 
 - [ ] **Step 3: Implement test-only real-model drill and operation instructions.**
 
-Retain any minimal-table test solely as an isolated backup-service unit test; do not cite it for WR-24. In this test module define `create_writer_ready_project_card(session) -> tuple[Project, Card]` using actual `Project`, `Card`, and `CardType` rows, and define `mutated_complete_writer_payload(card: Card) -> dict[str, object]` with all four writer fields. Import the existing FastAPI app as `from main import app` and the actual engine module as `from app.db import session as db_session`. The real-model test closes every active `Session` and `TestClient`, disposes `db_session.engine`, creates a new engine for the restored SQLite file, replaces only the test process reference with `monkeypatch`, and uses a newly entered `TestClient` for the first post-restore GET. Assert title/content/generation/review exactly and assert the guarded restore's returned safety-backup path exists.
+Retain any minimal-table test solely as an isolated backup-service unit test; do not cite it for WR-24. In this test module define `create_writer_ready_project_card(session) -> tuple[Project, Card]` using actual `Project`, `Card`, and `CardType` rows, and define `mutated_complete_writer_payload(card: Card) -> dict[str, object]` with all four writer fields. Import `from main import app`, `import main`, `import app.db as db_package`, `from app.db import session as db_session`, and `import app.core.startup as startup`. The test follows this fixed order: create records; create backup; mutate through an old `TestClient`; exit that context; close every old SQLModel session; dispose `db_session.engine`; only then call `restore_backup(..., force=True)`; create `fresh_engine`; patch `db_session.engine`, `db_package.engine`, `main.engine`, and `startup.engine`; enter a new `TestClient`; perform its first GET; compare title/content/generation/review exactly; assert safety-backup existence; dispose `fresh_engine` in `finally`. No old client, session, connection pool, or imported engine reference can survive into the post-restore GET.
 
 For the Compose drill, seed with Task 10 and then run these exact commands from the repository root:
 
@@ -830,11 +842,11 @@ For the Compose drill, seed with Task 10 and then run these exact commands from 
 fixture_card_id="$(python3 -c 'import json; print(json.load(open("/tmp/writer-ready-fixture-ids.json"))["chapterCardId"])')"
 fixture_backup_path="$(COMPOSE_PROJECT_NAME=writer-ready-fixture ./scripts/backup.sh --label writer-ready | awk '/^\/backups\// { print $1 }')"
 test -n "$fixture_backup_path"
-curl -fsS -X PUT "http://127.0.0.1:8080/api/cards/$fixture_card_id" -H 'Content-Type: application/json' --data '{"title":"Mutacja po backupie","content":{"text":"Syntetyczna mutacja."},"ai_context_template":"Mutacja generowania","ai_context_template_review":"Mutacja recenzji","needs_confirmation":false}'
+curl -fsS -X PUT "http://127.0.0.1:18080/api/cards/$fixture_card_id" -H 'Content-Type: application/json' --data '{"title":"Mutacja po backupie","content":{"content":"Syntetyczna mutacja."},"ai_context_template":"Mutacja generowania","ai_context_template_review":"Mutacja recenzji","needs_confirmation":false}'
 COMPOSE_PROJECT_NAME=writer-ready-fixture ./scripts/restore.sh "$fixture_backup_path" --force
 docker compose -p writer-ready-fixture restart backend
-curl -fsS http://127.0.0.1:8080/healthz/ready
-curl -fsS "http://127.0.0.1:8080/api/cards/$fixture_card_id"
+curl -fsS http://127.0.0.1:18080/healthz/ready
+curl -fsS "http://127.0.0.1:18080/api/cards/$fixture_card_id"
 ```
 
 The restore script stops and restarts the backend; the explicit backend restart ensures the final GET has a new backend process. Compare the fresh response's exact backed-up title/content/generation/review and record the printed `/data/pre-restore/...` safety-backup path. Do not use a client, session, or connection pool created before restore for this verification.
@@ -901,7 +913,7 @@ Run: `git add docs/acceptance/writer-ready-01.md docs/acceptance/writer-ready-01
 
 | WR row | Implementing task | Unit evidence | Integration evidence | Browser/operational evidence | Final artifact |
 |---|---:|---|---|---|---|
-| WR-01 — Project → scene → writing | 1, 5, 9 | approved-card predicate and complete snapshot tests | fixture project/card API creation | open both eligible cards and edit title/content/templates | final matrix row |
+| WR-01 — Project → scene → writing | 1, 5, 9, 10 | approved-card predicate and complete snapshot tests | `/api/projects/` envelope plus deterministic fixture card creation | at port 18080, both editors visibly load seeded prose before editing | final matrix row |
 | WR-02 — Local draft timing: 3 s idle and 15 s max-wait | 2 | fake timer 3,000 ms and 15,000 ms tests | local record contains complete snapshot | idle and continuous-typing observation | final matrix row |
 | WR-03 — Backend autosave cadence: first and repeated 30 s | 4 | fake timer first/repeated 30,000 ms tests | atomic PUT request timestamps/fingerprints | observe two dirty autosaves | final matrix row |
 | WR-04 — Manual save through visible Zapisz | 5 | button invokes `writerSession.manualSave()` | atomic card PUT with complete snapshot | **Zapisz** in both eligible editors | final matrix row |
@@ -912,7 +924,7 @@ Run: `git add docs/acceptance/writer-ready-01.md docs/acceptance/writer-ready-01
 | WR-09 — Force-close recovery | 6 | named beforeunload local-only/no-PUT test | stored `force-close` complete draft | force-close then reopen fixture | final matrix row |
 | WR-10 — Network failure | 3 | rejected network save preserves draft and error state | simulated rejected atomic PUT | visible save error and Retry | final matrix row |
 | WR-11 — Backend/persistence failure | 3 | rejected persistence/template save preserves draft | API non-success path retains complete record | visible save error and blocked dependent action | final matrix row |
-| WR-12 — Reopen canonical content | 6, 9 | canonical snapshot baseline test | fresh GET returns saved title/content/templates | reopen project/card after normal save | final matrix row |
+| WR-12 — Reopen canonical content | 6, 9, 10 | canonical snapshot baseline test | direct card GET returns saved title/content/templates | reopen at port 18080 with exact seeded/normal-save prose | final matrix row |
 | WR-13 — Recovery case A | 6 | redundant-draft comparison test | matching draft/canonical fingerprints | reopen removes redundant draft without prompt | final matrix row |
 | WR-14 — Recovery case B | 6 | ordinary comparison plus Recover/Discard/Cancel tests | saved base equals canonical; draft differs | reopen and each conscious decision | final matrix row |
 | WR-15 — Recovery case C, both variants | 6 | base=draft≠canonical and all-different comparison tests | no automatic DELETE/PUT in conflict | canonical/local conflict UI and decision | final matrix row |
@@ -923,8 +935,8 @@ Run: `git add docs/acceptance/writer-ready-01.md docs/acceptance/writer-ready-01
 | WR-20 — JSON export | 8 | JSON scope/order/technical-field tests | JSON export endpoint after flush | inspect JSON artifact | final matrix row |
 | WR-21 — Polish fixture full-artifact CJK scan | 8, 10 | CJK scanner test for no-CJK Polish fixture | generated TXT/Markdown artifacts | inspect/download scan result equals zero | final matrix row |
 | WR-22 — Export with unsaved text / failed flush | 7, 8 | failed `export` flush blocks dialog download | export API not called after failed flush | blocked export and Polish error | final matrix row |
-| WR-23 — Compose restart | 10, 11 | operational command validation | named-volume persistence after Compose restart | restart and fresh API/browser reopen | final matrix row |
-| WR-24 — Backup → mutate → guarded restore | 11 | real Project/Card/CardType fresh-reader restore test | backup/mutate/restore/fresh GET exact comparison | stopped/restarted backend safety-backup drill | final matrix row |
+| WR-23 — Compose restart | 10, 11 | operational command validation | isolated named-volume persistence after Compose restart | port-18080 readiness then fresh API/browser reopen | final matrix row |
+| WR-24 — Backup → mutate → guarded restore | 11 | real Project/Card/CardType fresh-engine/client restore test | backup/mutate/restore/fresh GET exact comparison | port-18080 stopped/restarted backend safety-backup drill | final matrix row |
 | WR-25 — Evidence closure | 12 | final no-FAIL/no-unverified scan | final targeted regression suite | working/final matrix review | `docs/acceptance/writer-ready-01.md` |
 
 ## Plan self-review checklist
@@ -939,8 +951,10 @@ Run: `git add docs/acceptance/writer-ready-01.md docs/acceptance/writer-ready-01
 - [ ] A failed save retains `WriterSaveAttempt`; Retry preserves manual, recovered-draft, restored-version, autosave, or technical-flush history intent, rejects duplicate in-flight clicks, and creates at most one history entry.
 - [ ] Task 8 completes automatic export implementation/tests; Task 10 performs actual Compose/browser/artifact QA before Closure.
 - [ ] The Task 10 fixture command resets only the isolated `writer-ready-fixture` Compose project, resolves real card-type IDs through the API, creates and verifies all three cards with deterministic parents/order and complete fields before opening a browser.
+- [ ] Every fixture and restore command uses `APP_BIND_ADDRESS=127.0.0.1 APP_PORT=18080` or `http://127.0.0.1:18080`; no fixture command uses port 8080.
+- [ ] Project collection/create calls use `/api/projects/` and read `ApiResponse` project payloads from `response["data"]`; both writing-card content objects use exactly the `content` key and both editors visibly load that prose before edits.
 - [ ] WR-24 uses real NovelForge models or the real API, never only an arbitrary SQLite table.
-- [ ] Post-restore verification closes old sessions/clients, disposes the old engine, and uses a new engine plus new TestClient or restarted backend before its fresh GET; safety-backup evidence is asserted.
+- [ ] Post-restore verification exits the old TestClient, closes every old session, disposes the old engine before `restore_backup`, patches `db_session.engine`, `db_package.engine`, `main.engine`, and `startup.engine`, then uses a new TestClient and disposes the fresh engine; safety-backup evidence is asserted.
 - [ ] Every WR-01…WR-25 row has an implementation owner, unit evidence, integration evidence, browser/operational evidence, and a final artifact.
 - [ ] WR-01…WR-25 use only the approved acceptance scenario meanings, not internal technical requirement numbering.
 - [ ] No scope includes VL work, AI work, Code Wiki, multi-session concurrency, a scene model, unrelated refactoring, dependencies, or workflow changes.
@@ -948,7 +962,7 @@ Run: `git add docs/acceptance/writer-ready-01.md docs/acceptance/writer-ready-01
 
 ## DONE criterion
 
-This plan is implementation-ready only when it remains the sole changed file, every named interface and command maps to an existing repository location or an explicitly marked Create file, each task has a RED → GREEN → regression → `git diff --check` → commit gate, the isolated Compose fixture has an exact seed/verify command, and the Acceptance Coverage Matrix assigns the approved meanings of WR-01…WR-25 one-to-one. The implemented feature is READY only when Task 12 records zero FAIL and zero NOT VERIFIED rows; otherwise the verdict is NOT READY.
+This plan is implementation-ready only when it remains the sole changed file, every named interface and command maps to an existing repository location or an explicitly marked Create file, each task has a RED → GREEN → regression → `git diff --check` → commit gate, the isolated Compose fixture has exact port-18080 seed/verify commands and ApiResponse handling, post-restore verification uses the specified fresh-engine/fresh-client sequence, and the Acceptance Coverage Matrix assigns the approved meanings of WR-01…WR-25 one-to-one. The implemented feature is READY only when Task 12 records zero FAIL and zero NOT VERIFIED rows; otherwise the verdict is NOT READY.
 
 ## Out of Scope
 
