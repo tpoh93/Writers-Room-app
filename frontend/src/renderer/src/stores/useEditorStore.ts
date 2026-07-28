@@ -207,6 +207,10 @@ export const useEditorStore = defineStore('editor', () => {
     return activeWriterFlushRef.value ? activeWriterFlushRef.value(reason) : { ok: true }
   }
 
+  async function requireWriterFlush(reason: WriterFlushReason): Promise<boolean> {
+    return (await flushActiveWriter(reason)).ok
+  }
+
   function setTriggerExtractDynamicInfo(fn: null | ((opts: ChapterExtractRunOptions) => Promise<void>)) {
     triggerExtractDynamicInfoRef.value = fn
   }
@@ -336,6 +340,7 @@ export const useEditorStore = defineStore('editor', () => {
     setActiveWriterFlush,
     clearActiveWriterFlush,
     flushActiveWriter,
+    requireWriterFlush,
     setTriggerExtractDynamicInfo,
     triggerExtractDynamicInfo,
     setTriggerExtractRelations,

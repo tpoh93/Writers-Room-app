@@ -9,8 +9,11 @@ import { useAppStore } from './stores/useAppStore'
 import { useProjectStore } from './stores/useProjectStore'
 import { useUpdateStore } from './stores/useUpdateStore'
 import { useWorkflowStore } from './stores/useWorkflowStore'
+import { useEditorStore } from './stores/useEditorStore'
 import type { components } from '@renderer/types/generated'
 import { schemaService } from './api/schema'
+import { ElMessage } from 'element-plus'
+import i18n from './i18n'
 
 const IdeasHome = defineAsyncComponent(() => import('./views/IdeasHome.vue'))
 const CodeWorkflowEditor = defineAsyncComponent(() => import('./views/workflow/CodeWorkflowEditor.vue'))
@@ -22,16 +25,25 @@ const appStore = useAppStore()
 const projectStore = useProjectStore()
 const updateStore = useUpdateStore()
 const workflowStore = useWorkflowStore()
+const editorStore = useEditorStore()
 
 const { currentView, settingsDialogVisible } = storeToRefs(appStore)
 const { currentProject } = storeToRefs(projectStore)
 
-function handleProjectSelected(project: Project) {
+async function handleProjectSelected(project: Project) {
+  if (!await editorStore.requireWriterFlush('project-change')) {
+    ElMessage.error(i18n.global.t('writerReady.flushProjectChangeFailed'))
+    return
+  }
   projectStore.setCurrentProject(project)
   appStore.goToEditor()
 }
 
-function handleBackToDashboard() {
+async function handleBackToDashboard() {
+  if (!await editorStore.requireWriterFlush('controlled-close')) {
+    ElMessage.error(i18n.global.t('writerReady.flushControlledCloseFailed'))
+    return
+  }
   projectStore.reset()
   appStore.goToDashboard()
 }
