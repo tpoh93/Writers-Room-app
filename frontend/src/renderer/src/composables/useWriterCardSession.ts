@@ -9,6 +9,9 @@ import {
   WriterSaveCoordinator,
 } from '@renderer/services/writerSaveCoordinator'
 import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
+import { recordVersionIfEligible } from '@renderer/services/versionService'
+import { useEditorStore } from '@renderer/stores/useEditorStore'
+import { compareRecoveryDraft, type RecoveryComparison } from '@renderer/services/writerRecovery'
 
 export interface WriterEditorAdapter {
   getSnapshot(): WriterSnapshot
@@ -24,6 +27,10 @@ export interface WriterCardSession {
   retry(): Promise<WriterSaveResult>
   flush(reason: WriterFlushReason): Promise<WriterSaveResult>
   persistRecoveryDraft(reason: RecoveryDraftReason): void
+  checkRecovery(canonical: WriterSnapshot): RecoveryComparison | null
+  recoverDraft(): void
+  discardDraft(): void
+  cancelRecovery(): void
   dispose(): void
 }
 
@@ -31,10 +38,15 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
   const state = ref<WriterSaveState>('saved')
   const error = ref<Error | null>(null)
   let coordinator: WriterSaveCoordinator | null = null
+  let disposed = false
+  let recovery: RecoveryComparison | null = null
+  const editorStore = useEditorStore()
+  const handleBeforeUnload = () => persistRecoveryDraft('force-close')
 
   function createCoordinator(): WriterSaveCoordinator | null {
     if (!adapter.value) return null
     coordinator?.dispose()
+    disposed = false
     coordinator = new WriterSaveCoordinator({
       initial: adapter.value.getSnapshot(),
       drafts: new RecoveryDraftStore(localStorage, () => new Date()),
@@ -53,7 +65,19 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
         state.value = nextState
         error.value = nextError
       },
+      onHistoryEligible: (snapshot, reason) => {
+        recordVersionIfEligible(snapshot.projectId, {
+          cardId: snapshot.cardId,
+          projectId: snapshot.projectId,
+          title: snapshot.title,
+          content: snapshot.content,
+          ai_context_template: snapshot.contextTemplates.generation,
+          ai_context_template_review: snapshot.contextTemplates.review,
+        }, reason)
+      },
     })
+    editorStore.setActiveWriterFlush(flush)
+    window.addEventListener('beforeunload', handleBeforeUnload)
     return coordinator
   }
 
@@ -95,11 +119,40 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
     requireCoordinator()?.persistRecoveryDraft(reason)
   }
 
+  function checkRecovery(canonical: WriterSnapshot): RecoveryComparison | null {
+    const draft = new RecoveryDraftStore(localStorage, () => new Date()).read(canonical.projectId, canonical.cardId)
+    if (!draft) return null
+    recovery = compareRecoveryDraft(draft, canonical)
+    if (recovery.kind === 'redundant') {
+      new RecoveryDraftStore(localStorage, () => new Date()).remove(canonical.projectId, canonical.cardId)
+      recovery = null
+    }
+    return recovery
+  }
+
+  function recoverDraft(): void {
+    if (!recovery || !adapter.value) return
+    adapter.value.setSnapshot(recovery.draft)
+    requireCoordinator()?.update(adapter.value.getSnapshot())
+    recovery = null
+  }
+
+  function discardDraft(): void {
+    if (!recovery) return
+    new RecoveryDraftStore(localStorage, () => new Date()).remove(recovery.draft.projectId, recovery.draft.cardId)
+    recovery = null
+  }
+
+  function cancelRecovery(): void {}
+
   function dispose(): void {
+    disposed = true
     coordinator?.dispose()
     coordinator = null
+    window.removeEventListener('beforeunload', handleBeforeUnload)
+    editorStore.setActiveWriterFlush(null)
   }
 
   if (getCurrentInstance()) onBeforeUnmount(dispose)
-  return { state, error, onEditorChange, manualSave, retry, flush, persistRecoveryDraft, dispose }
+  return { state, error, onEditorChange, manualSave, retry, flush, persistRecoveryDraft, checkRecovery, recoverDraft, discardDraft, cancelRecovery, dispose }
 }

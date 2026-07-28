@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import type { CardRead } from '@renderer/api/cards'
 import type { WriterEditorAdapter } from '@renderer/composables/useWriterCardSession'
 import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
@@ -21,6 +22,7 @@ const snapshot: WriterSnapshot = {
 }
 
 describe('GenericCardEditor writer-ready session', () => {
+  beforeEach(() => setActivePinia(createPinia()))
   it.each(['Zapisz + CodeMirror', 'Cmd/Ctrl+S + CodeMirror', 'Zapisz + MarkdownTextEditor', 'Cmd/Ctrl+S + MarkdownTextEditor'])('%s uses one manual save command', async () => {
     updateWriterCard.mockResolvedValueOnce({ id: 2, project_id: 1, title: 'Scena', content: snapshot.content })
     const adapter = ref<WriterEditorAdapter>({
