@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, reactive } from 'vue'
+import type { WriterFlushReason, WriterSaveResult } from '@renderer/services/writerSaveCoordinator'
 
 export interface ChapterSelectionRange {
   text: string
@@ -78,6 +79,7 @@ export const useEditorStore = defineStore('editor', () => {
   // 编辑器跨组件修订接口（由 NovelEditor 注册）
   const applyChapterReplacements = ref<null | ((pairs: ChapterReplaceOp[]) => Promise<void> | void)>(null)
   const persistActiveChapterDraftRef = ref<null | (() => Promise<boolean>)>(null)
+  const activeWriterFlushRef = ref<null | ((reason: WriterFlushReason) => Promise<WriterSaveResult>)>(null)
 
   // 用于跨组件触发“提取动态信息”的回调
   const triggerExtractDynamicInfoRef = ref<null | ((opts: ChapterExtractRunOptions) => Promise<void>)>(null)
@@ -193,6 +195,22 @@ export const useEditorStore = defineStore('editor', () => {
     return await persistActiveChapterDraftRef.value()
   }
 
+  function setActiveWriterFlush(fn: ((reason: WriterFlushReason) => Promise<WriterSaveResult>) | null) {
+    activeWriterFlushRef.value = fn
+  }
+
+  function clearActiveWriterFlush(fn: ((reason: WriterFlushReason) => Promise<WriterSaveResult>) | null) {
+    if (activeWriterFlushRef.value === fn) activeWriterFlushRef.value = null
+  }
+
+  async function flushActiveWriter(reason: WriterFlushReason): Promise<WriterSaveResult> {
+    return activeWriterFlushRef.value ? activeWriterFlushRef.value(reason) : { ok: true }
+  }
+
+  async function requireWriterFlush(reason: WriterFlushReason): Promise<boolean> {
+    return (await flushActiveWriter(reason)).ok
+  }
+
   function setTriggerExtractDynamicInfo(fn: null | ((opts: ChapterExtractRunOptions) => Promise<void>)) {
     triggerExtractDynamicInfoRef.value = fn
   }
@@ -269,6 +287,7 @@ export const useEditorStore = defineStore('editor', () => {
     resizing.value = null
     applyChapterReplacements.value = null
     persistActiveChapterDraftRef.value = null
+    activeWriterFlushRef.value = null
     triggerExtractDynamicInfoRef.value = null
     triggerExtractRelationsRef.value = null
     triggerExtractItemStateRef.value = null
@@ -295,6 +314,7 @@ export const useEditorStore = defineStore('editor', () => {
     resizing,
     applyChapterReplacements,
     persistActiveChapterDraftRef,
+    activeWriterFlushRef,
     currentVolumeNumber,
     currentChapterNumber,
     currentChapterTitle,
@@ -317,6 +337,10 @@ export const useEditorStore = defineStore('editor', () => {
     applyReplacements,
     setPersistActiveChapterDraft,
     persistActiveChapterDraft,
+    setActiveWriterFlush,
+    clearActiveWriterFlush,
+    flushActiveWriter,
+    requireWriterFlush,
     setTriggerExtractDynamicInfo,
     triggerExtractDynamicInfo,
     setTriggerExtractRelations,

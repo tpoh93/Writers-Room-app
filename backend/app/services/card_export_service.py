@@ -21,7 +21,7 @@ class CardExportPayload:
 
 
 class CardExportService:
-    """项目卡片导出服务（范围筛选 + 格式序列化）。"""
+    """Eksport kart projektu z filtrowaniem zakresu i serializacją formatu."""
 
     _MEDIA_TYPES = {
         "txt": "text/plain; charset=utf-8",
@@ -39,7 +39,7 @@ class CardExportService:
 
         cards = self._load_cards(project_id=project_id, request=request)
         if not cards:
-            raise BusinessException("当前条件下没有可导出的卡片", status_code=404)
+            raise BusinessException("Brak kart do eksportu dla wybranego zakresu", status_code=404)
 
         exported_at = datetime.now()
         if request.format == "json":
@@ -70,18 +70,18 @@ class CardExportService:
 
         if request.scope == "single":
             if request.card_id is None:
-                raise BusinessException("scope=single 缺少 card_id", status_code=400)
+                raise BusinessException("Eksport pojedynczej karty wymaga card_id", status_code=400)
             card = next((item for item in ordered_cards if item.id == request.card_id), None)
             if not card:
-                raise BusinessException("目标卡片不存在或不属于当前项目", status_code=404)
+                raise BusinessException("Wybrana karta nie istnieje lub nie należy do bieżącego projektu", status_code=404)
             return [card]
 
         if request.scope == "type":
             if request.card_type_id is None:
-                raise BusinessException("scope=type 缺少 card_type_id", status_code=400)
+                raise BusinessException("Eksport według typu wymaga card_type_id", status_code=400)
             card_type = self.db.get(CardType, request.card_type_id)
             if not card_type:
-                raise BusinessException("卡片类型不存在", status_code=404)
+                raise BusinessException("Wybrany typ karty nie istnieje", status_code=404)
             return [card for card in ordered_cards if card.card_type_id == request.card_type_id]
 
         return ordered_cards
@@ -167,12 +167,12 @@ class CardExportService:
         exported_at: datetime,
     ) -> str:
         lines: List[str] = [
-            "NovelForge Card Export",
-            f"项目: {project.name}",
-            f"导出范围: {self._scope_text(request, cards)}",
-            f"导出格式: {request.format}",
-            f"导出时间: {exported_at.isoformat()}",
-            f"卡片数量: {len(cards)}",
+            "NovelForge — eksport kart",
+            f"Projekt: {project.name}",
+            f"Zakres eksportu: {self._scope_text(request, cards)}",
+            f"Format eksportu: {request.format}",
+            f"Data eksportu: {exported_at.isoformat()}",
+            f"Liczba kart: {len(cards)}",
             "",
         ]
 
@@ -181,10 +181,10 @@ class CardExportService:
                 [
                     "=" * 72,
                     f"[{index}] {card.title}",
-                    f"类型: {self._card_type_name(card)}",
+                    f"Typ: {self._card_type_name(card)}",
                     f"ID: {card.id}",
-                    f"父级ID: {card.parent_id}",
-                    f"创建时间: {card.created_at.isoformat() if card.created_at else ''}",
+                    f"ID rodzica: {card.parent_id}",
+                    f"Data utworzenia: {card.created_at.isoformat() if card.created_at else ''}",
                     "-" * 72,
                     self._format_content(card.content),
                     "",
@@ -201,22 +201,22 @@ class CardExportService:
         exported_at: datetime,
     ) -> str:
         lines: List[str] = [
-            "# NovelForge 卡片导出",
+            "# NovelForge — eksport kart",
             "",
-            f"- 项目：{project.name}",
-            f"- 导出范围：{self._scope_text(request, cards)}",
-            f"- 导出格式：{request.format}",
-            f"- 导出时间：{exported_at.isoformat()}",
-            f"- 卡片数量：{len(cards)}",
+            f"- Projekt: {project.name}",
+            f"- Zakres eksportu: {self._scope_text(request, cards)}",
+            f"- Format eksportu: {request.format}",
+            f"- Data eksportu: {exported_at.isoformat()}",
+            f"- Liczba kart: {len(cards)}",
             "",
         ]
 
         for index, card in enumerate(cards, start=1):
             lines.append(f"## {index}. {card.title}")
-            lines.append(f"- 类型：{self._card_type_name(card)}")
-            lines.append(f"- ID：{card.id}")
-            lines.append(f"- 父级ID：{card.parent_id}")
-            lines.append(f"- 创建时间：{card.created_at.isoformat() if card.created_at else ''}")
+            lines.append(f"- Typ: {self._card_type_name(card)}")
+            lines.append(f"- ID: {card.id}")
+            lines.append(f"- ID rodzica: {card.parent_id}")
+            lines.append(f"- Data utworzenia: {card.created_at.isoformat() if card.created_at else ''}")
             lines.append("")
             text_content = self._extract_text_content(card.content)
             if text_content is not None:
@@ -231,15 +231,15 @@ class CardExportService:
 
     def _scope_text(self, request: CardExportRequest, cards: List[Card]) -> str:
         if request.scope == "all":
-            return "全部卡片"
+            return "Wszystkie karty"
         if request.scope == "single":
             if cards:
-                return f"单个卡片（{cards[0].title}）"
-            return "单个卡片"
+                return f"Jedna karta ({cards[0].title})"
+            return "Jedna karta"
         if request.scope == "type":
             if cards:
-                return f"类型卡片（{self._card_type_name(cards[0])}）"
-            return "类型卡片"
+                return f"Karty typu ({self._card_type_name(cards[0])})"
+            return "Karty typu"
         return request.scope
 
     def _card_to_dict(self, card: Card) -> Dict[str, Any]:
@@ -262,7 +262,7 @@ class CardExportService:
 
     def _format_content(self, content: Any) -> str:
         if content is None:
-            return "(空内容)"
+            return "(brak treści)"
         text_content = self._extract_text_content(content)
         if text_content is not None:
             return text_content

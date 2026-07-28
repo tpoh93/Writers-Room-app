@@ -58,6 +58,7 @@
         >
           {{ needsConfirmation ? t('editor.confirmAndSave') : t('common.save') }}
         </el-button>
+        <el-button v-if="saveError" type="danger" plain @click="$emit('retry')">{{ t('common.retry') }}</el-button>
         <el-dropdown>
           <el-button text>{{ t('editor.more') }}</el-button>
           <template #dropdown>
@@ -89,6 +90,7 @@ const props = defineProps<{
   canSave?: boolean
   isChapterContent?: boolean
   needsConfirmation?: boolean  // AI 修改需要确认
+  saveError?: boolean
   activeContextTemplateKind?: ContextTemplateKind
 }>()
 const { t } = useI18n()
@@ -99,7 +101,7 @@ const canSaveComputed = computed(() => {
   return props.canSave
 })
 
-const emit = defineEmits(['update:title','save','generate','open-versions','delete','open-context','update:active-context-template-kind'])
+const emit = defineEmits(['update:title','save','retry','generate','open-versions','delete','open-context','update:active-context-template-kind'])
 const slotPickerVisible = ref(false)
 const contextTemplateKinds: ContextTemplateKind[] = ['generation', 'review']
 const contextTemplateLabels = CONTEXT_TEMPLATE_LABELS

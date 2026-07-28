@@ -31,24 +31,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { XMarkdown } from 'vue-element-plus-x'
-import type { CardRead, CardUpdate } from '@renderer/api/cards'
-import { useCardStore } from '@renderer/stores/useCardStore'
+import type { CardRead } from '@renderer/api/cards'
 import { useAppStore } from '@renderer/stores/useAppStore'
+import { getCardContextTemplates, type ContextTemplates } from '@renderer/services/contextSlots'
+import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
 
 const { t } = useI18n()
 
 const props = defineProps<{
   card: CardRead
+  contextTemplates?: ContextTemplates
 }>()
 
 const emit = defineEmits<{
   (e: 'update:dirty', value: boolean): void
+  (e: 'manual-save'): void
 }>()
 
-const cardStore = useCardStore()
 const appStore = useAppStore()
 const isDarkMode = computed(() => appStore.isDarkMode)
 
@@ -88,38 +90,43 @@ watch(textContent, (next) => {
   emit('update:dirty', next !== originalContent.value)
 })
 
-async function handleSave(newTitle?: string) {
-  const effectiveTitle = typeof newTitle === 'string' && newTitle.trim()
-    ? newTitle.trim()
-    : props.card.title
-
-  const nextContent = {
-    ...(typeof props.card.content === 'object' && props.card.content ? props.card.content : {}),
-    content: textContent.value,
+function getSnapshot(): WriterSnapshot {
+  return {
+    projectId: props.card.project_id,
+    cardId: props.card.id,
+    title: props.card.title,
+    content: {
+      ...(typeof props.card.content === 'object' && props.card.content ? props.card.content : {}),
+      content: textContent.value,
+    },
+    contextTemplates: props.contextTemplates ?? getCardContextTemplates(props.card),
   }
-
-  const updatePayload: CardUpdate = {
-    title: effectiveTitle,
-    content: nextContent as any,
-    needs_confirmation: false,
-  }
-
-  await cardStore.modifyCard(props.card.id, updatePayload)
-  originalContent.value = textContent.value
-  emit('update:dirty', false)
-  return updatePayload.content
 }
 
-async function restoreContent(versionContent: any) {
-  const text = extractText(versionContent)
+function setSavedBaseline(snapshot: WriterSnapshot): void {
+  originalContent.value = extractText(snapshot.content)
+  emit('update:dirty', false)
+}
+
+function setSnapshot(snapshot: WriterSnapshot): void {
+  const text = extractText(snapshot.content)
   textContent.value = text
-  originalContent.value = text
-  emit('update:dirty', false)
 }
+
+function handleKeydown(event: KeyboardEvent): void {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+    event.preventDefault()
+    emit('manual-save')
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', handleKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
 defineExpose({
-  handleSave,
-  restoreContent,
+  getSnapshot,
+  setSavedBaseline,
+  setSnapshot,
 })
 </script>
 

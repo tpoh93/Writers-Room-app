@@ -1199,6 +1199,7 @@ import ContinuationBudgetDialog, { type ContinuationWordControlMode } from './di
 import SelectionPipelineDialog from '../pipelines/SelectionPipelineDialog.vue'
 import { resolveTemplate } from '@renderer/services/contextResolver'
 import { getCardContextTemplates, getContextTemplateByKind, normalizeContextTemplateKind, type ContextTemplateKind, type ContextTemplates } from '@renderer/services/contextSlots'
+import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
 import { notifyTaskDone } from '@renderer/utils/taskDoneNotifier'
 import { captureSelection, validateSnapshot, type SelectionSnapshot } from '@renderer/utils/selectionPatch'
 import { applySelectionPipelineReplacement } from '@renderer/utils/selectionPipelineEditor'
@@ -1226,6 +1227,7 @@ const emit = defineEmits<{
 	(e: 'save'): void
 	(e: 'switch-tab', tab: string): void
 	(e: 'update:dirty', value: boolean): void
+	(e: 'manual-save'): void
 	(e: 'update:generation-context-kind', value: ContextTemplateKind): void
 	(e: 'update:review-context-kind', value: ContextTemplateKind): void
 }>()
@@ -2154,7 +2156,8 @@ function initEditor() {
 		{
 			key: 'Mod-s', // Ctrl+S or Cmd+S
 			run: (v: EditorView) => {
-				handleSave()
+				if (props.chapter) handleSave()
+				else emit('manual-save')
 				return true
 			},
 			preventDefault: true
@@ -4102,10 +4105,41 @@ async function restoreContent(versionContent: any) {
 	}
 }
 
+function getSnapshot(): WriterSnapshot {
+	return {
+		projectId: props.card.project_id,
+		cardId: props.card.id,
+		title: localCard.title,
+		content: {
+			...localCard.content,
+			content: getText(),
+		},
+		contextTemplates: props.contextTemplates ?? getCardContextTemplates(props.card),
+	}
+}
+
+function setSavedBaseline(snapshot: WriterSnapshot): void {
+	originalContent.value = typeof (snapshot.content as any)?.content === 'string'
+		? (snapshot.content as any).content
+		: ''
+	isDirty.value = false
+	emit('update:dirty', false)
+}
+
+function setSnapshot(snapshot: WriterSnapshot): void {
+	const text = typeof (snapshot.content as any)?.content === 'string'
+		? (snapshot.content as any).content
+		: ''
+	if (view) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } })
+	localCard.title = snapshot.title
+	localCard.content = snapshot.content as any
+}
+
 // 暴露方法供父组件调用
 defineExpose({
-	handleSave,
-	restoreContent
+	getSnapshot,
+	setSavedBaseline,
+	setSnapshot,
 })
 
 /* NF_ASSISTANT_BATCH_PATCH_BEGIN */

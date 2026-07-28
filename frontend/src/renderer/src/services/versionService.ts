@@ -7,7 +7,11 @@ export interface CardVersionSnapshot {
   ai_context_template?: string
   ai_context_template_review?: string
   createdAt: string
+  fingerprint?: string
 }
+
+import { fingerprintWriterSnapshot } from './writerSnapshot'
+import type { WriterHistoryReason } from './writerSaveCoordinator'
 
 const KEY = (projectId: number) => `nf:v1:versions:${projectId}`
 
@@ -36,6 +40,25 @@ export function addVersion(projectId: number, snapshot: Omit<CardVersionSnapshot
   // 限制每卡片最多20条
   db[snapshot.cardId] = list.slice(0, 20)
   save(projectId, db)
+}
+
+export function fingerprintVersionSnapshot(snapshot: Pick<CardVersionSnapshot, 'title' | 'content' | 'ai_context_template' | 'ai_context_template_review'>): string {
+  return fingerprintWriterSnapshot({
+    projectId: 0,
+    cardId: 0,
+    title: snapshot.title,
+    content: snapshot.content,
+    contextTemplates: { generation: snapshot.ai_context_template ?? '', review: snapshot.ai_context_template_review ?? '' },
+  })
+}
+
+export function recordVersionIfEligible(projectId: number, snapshot: Omit<CardVersionSnapshot, 'id' | 'createdAt' | 'fingerprint'>, reason: WriterHistoryReason): boolean {
+  if (reason === 'autosave' || reason === 'technical-flush') return false
+  const fingerprint = fingerprintVersionSnapshot(snapshot)
+  const existing = listVersions(projectId, snapshot.cardId)
+  if (existing.some((entry) => (entry.fingerprint ?? fingerprintVersionSnapshot(entry)) === fingerprint)) return false
+  addVersion(projectId, { ...snapshot, fingerprint })
+  return true
 }
 
 export function listVersions(projectId: number, cardId: number): CardVersionSnapshot[] {

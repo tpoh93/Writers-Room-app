@@ -352,6 +352,7 @@
     :cards="cards as any"
     :card-types="cardStore.cardTypes as any"
     :initial-card-id="selectedCardIds.length === 1 ? selectedCardIds[0] : ((activeCard as any)?.id ?? null)"
+    :before-export="beforeWriterExport"
   />
 
   
@@ -455,6 +456,10 @@ function openExportDialog() {
     return
   }
   exportDialogVisible.value = true
+}
+
+async function beforeWriterExport(): Promise<boolean> {
+  return (await editorStore.flushActiveWriter('export')).ok
 }
 
  async function onImportSourceChange(pid: number | null) {
@@ -940,6 +945,14 @@ async function onExternalDropToNode(e: DragEvent, nodeData: any) {
 // 点击行为对"分组节点"不做打开编辑，仅用于展开/折叠。对实际卡片才触发编辑。
 function handleNodeClick(data: any) {
   if (data.__isGroup) return
+  void selectWriterCard(data)
+}
+
+async function selectWriterCard(data: any) {
+  if (!await editorStore.requireWriterFlush('card-change')) {
+    ElMessage.error(t('writerReady.flushCardChangeFailed'))
+    return
+  }
   
   // 确保点击的卡片被选中（用于UI高亮），同时覆盖 handleCardClick 中的清空操作
   selectedCardIds.value = [data.id]
@@ -1739,6 +1752,10 @@ async function onAssistantFinalize(e: CustomEvent) {
 async function handleJumpToCard(payload: { projectId: number; cardId: number }) {
   try {
     const curPid = projectStore.currentProject?.id
+    if (!await editorStore.requireWriterFlush(curPid !== payload.projectId ? 'project-change' : 'card-change')) {
+      ElMessage.error(t(curPid !== payload.projectId ? 'writerReady.flushProjectChangeFailed' : 'writerReady.flushCardChangeFailed'))
+      return
+    }
     if (curPid !== payload.projectId) {
       // 切换项目：从全部项目列表中找到目标项目并设置
       const all = await getProjects()

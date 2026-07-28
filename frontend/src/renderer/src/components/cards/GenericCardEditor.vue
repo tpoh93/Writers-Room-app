@@ -5,13 +5,15 @@
       :card-type="getCardTypeDisplayName(props.card.card_type.name)"
       v-model:title="titleProxy"
       :dirty="isDirty"
-      :saving="isSaving"
-      :can-save="isDirty && !isSaving"
+      :saving="writerCard ? writerSession.state.value === 'saving' : isSaving"
+      :save-error="writerCard && writerSession.state.value === 'save-error'"
+      :can-save="isDirty && !(writerCard ? writerSession.state.value === 'saving' : isSaving)"
       :last-saved-at="lastSavedAt"
       :is-chapter-content="!!activeContentEditor"
       :needs-confirmation="props.card.needs_confirmation"
       :active-context-template-kind="activeContextTemplateKind"
       @save="handleSave"
+      @retry="handleWriterRetry"
       @generate="handleGenerateClick"
       @open-context="openDrawer = true"
       @update:active-context-template-kind="handleActiveContextTemplateKindChange"
@@ -33,6 +35,7 @@
         @update:review-context-kind="handleReviewContextKindChange"
         @switch-tab="handleSwitchTab"
         @update:dirty="handleContentEditorDirtyChange"
+        @manual-save="handleWriterManualSave"
       />
     </template>
 
@@ -109,6 +112,15 @@
     </ContextDrawer>
 
     <CardReferenceSelectorDialog v-model="isSelectorVisible" :cards="cards" :currentCardId="props.card.id" @confirm="handleReferenceConfirm" />
+    <WriterRecoveryDialog
+      v-if="writerRecoveryComparison"
+      v-model="writerRecoveryVisible"
+      :comparison="writerRecoveryComparison"
+      :canonical="writerRecoveryCanonical"
+      @recover="recoverWriterDraft"
+      @discard="discardWriterDraft"
+      @cancel="cancelWriterRecovery"
+    />
     <CardVersionsDialog
       v-if="projectStore.currentProject?.id"
       v-model="showVersions"
@@ -183,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
+import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getCardDisplayTitle, getCardTypeDisplayName } from '@renderer/i18n'
 import { storeToRefs } from 'pinia'
@@ -199,6 +211,7 @@ import ModelDrivenForm from '../dynamic-form/ModelDrivenForm.vue'
 import SectionedForm from '../dynamic-form/SectionedForm.vue'
 import { mergeSections, autoGroup, type SectionConfig } from '@renderer/services/uiLayoutService'
 import CardReferenceSelectorDialog from './CardReferenceSelectorDialog.vue'
+import WriterRecoveryDialog from './WriterRecoveryDialog.vue'
 import EditorHeader from '../common/EditorHeader.vue'
 import ContextDrawer from '../common/ContextDrawer.vue'
 import CardVersionsDialog from '../common/CardVersionsDialog.vue'
@@ -207,6 +220,10 @@ import type { CardRead, CardUpdate } from '@renderer/api/cards'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import SimpleMarkdown from '../common/SimpleMarkdown.vue'
 import { addVersion } from '@renderer/services/versionService'
+import { isWriterReadyCard } from '@renderer/services/isWriterReadyCard'
+import { useWriterCardSession, type WriterEditorAdapter } from '@renderer/composables/useWriterCardSession'
+import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
+import type { RecoveryComparison } from '@renderer/services/writerRecovery'
 import { List, Select, Loading } from '@element-plus/icons-vue'
 import { useAppStore } from '@renderer/stores/useAppStore'
 import { useAIStore as useAIStoreForOptions } from '@renderer/stores/useAIStore'
@@ -236,6 +253,7 @@ import InitialPromptDialog from '../generation/InitialPromptDialog.vue'
 import { InstructionExecutor } from '@renderer/services/instructionExecutor'
 import { generateWithInstructionStream } from '@renderer/api/generation'
 import type { Instruction, ConversationMessage } from '@renderer/types/instruction'
+import { resolveContentEditor } from '@renderer/components/editors/contentEditorRegistry'
 
 const { t } = useI18n()
 
@@ -277,30 +295,79 @@ const instructionExecutor = ref<InstructionExecutor | null>(null)
 const currentAbortController = ref<AbortController | null>(null)
 const conversationHistory = ref<ConversationMessage[]>([])
 
-// --- 内容编辑器动态映射 ---
-// 类似 CardEditorHost 的 editorMap，但这里是内容编辑器（共享外壳）
-const contentEditorMap: Record<string, any> = {
-  CodeMirrorEditor: defineAsyncComponent(() => import('../editors/CodeMirrorEditor.vue')),
-  MarkdownTextEditor: defineAsyncComponent(() => import('../editors/MarkdownTextEditor.vue')),
-  // 未来可以添加更多内容编辑器，例如：
-  // RichTextEditor: defineAsyncComponent(() => import('../editors/RichTextEditor.vue')),
-  // MarkdownEditor: defineAsyncComponent(() => import('../editors/MarkdownEditor.vue')),
-}
-
 // 根据 card_type.editor_component 选择内容编辑器
-const activeContentEditor = computed(() => {
-  const editorName = props.card?.card_type?.editor_component
-  if (editorName && contentEditorMap[editorName]) {
-    return contentEditorMap[editorName]
-  }
-  return null // null 表示使用默认的表单编辑器
-})
+const activeContentEditor = computed(() => resolveContentEditor(props.card?.card_type?.editor_component))
 
 const isStageOutlineCard = computed(() => props.card.card_type?.name === '阶段大纲')
 
 // 通用的内容编辑器引用（可以是 CodeMirrorEditor 或其他）
 const contentEditorRef = ref<any>(null)
 const contentEditorDirty = ref(false)
+const writerCard = computed(() => isWriterReadyCard(props.card))
+const savedWriterTitle = ref(props.card.title)
+const writerAdapter = computed<WriterEditorAdapter | null>(() => {
+  const editor = contentEditorRef.value
+  if (!writerCard.value || !editor?.getSnapshot) return null
+  return {
+    getSnapshot: () => ({
+      ...editor.getSnapshot(),
+      title: titleProxy.value,
+      contextTemplates: cloneContextTemplates(localAiContextTemplates.value),
+    }),
+    setSavedBaseline: (snapshot: WriterSnapshot) => {
+      editor.setSavedBaseline(snapshot)
+      savedWriterTitle.value = snapshot.title
+      originalAiContextTemplates.value = cloneContextTemplates(snapshot.contextTemplates)
+      contentEditorDirty.value = false
+      lastSavedAt.value = new Date().toLocaleTimeString()
+    },
+    setSnapshot: (snapshot: WriterSnapshot) => {
+      editor.setSnapshot(snapshot)
+      titleProxy.value = snapshot.title
+      localAiContextTemplates.value = cloneContextTemplates(snapshot.contextTemplates)
+    },
+  }
+})
+const writerSession = useWriterCardSession(toRef(props, 'card'), writerAdapter)
+const writerRecoveryComparison = ref<RecoveryComparison | null>(null)
+const writerRecoveryCanonical = ref<WriterSnapshot | null>(null)
+const writerRecoveryVisible = ref(false)
+
+function evaluateWriterRecovery(): void {
+  if (!writerCard.value || !writerAdapter.value) {
+    writerRecoveryCanonical.value = null
+    writerRecoveryComparison.value = null
+    writerRecoveryVisible.value = false
+    return
+  }
+  const canonical = writerAdapter.value.getSnapshot()
+  const comparison = writerSession.checkRecovery(canonical)
+  writerRecoveryCanonical.value = canonical
+  writerRecoveryComparison.value = comparison
+  writerRecoveryVisible.value = comparison !== null
+}
+
+function recoverWriterDraft(): void {
+  writerSession.recoverDraft()
+  contentEditorDirty.value = true
+  writerRecoveryVisible.value = false
+  writerRecoveryComparison.value = null
+}
+
+function discardWriterDraft(): void {
+  writerSession.discardDraft()
+  writerRecoveryVisible.value = false
+  writerRecoveryComparison.value = null
+}
+
+function cancelWriterRecovery(): void {
+  writerSession.cancelRecovery()
+  writerRecoveryVisible.value = false
+}
+
+watch([writerAdapter, () => props.card.id], () => {
+  nextTick(evaluateWriterRecovery)
+}, { flush: 'post' })
 
 function handleSwitchTab(tab: string) {
   const evt = new CustomEvent('nf:switch-right-tab', { detail: { tab } })
@@ -309,6 +376,7 @@ function handleSwitchTab(tab: string) {
 
 function handleContentEditorDirtyChange(dirty: boolean) {
   contentEditorDirty.value = dirty
+  if (writerCard.value) writerSession.onEditorChange()
 }
 
 function getResolvedContextByKind(kind: ContextTemplateKind | string | null | undefined, currentContent?: any) {
@@ -377,6 +445,9 @@ const lastSavedAt = ref<string | undefined>(undefined)
 // 顶部标题与表单 Title 字段保持同步
 // 1) 初始化为 card.title，切换卡片时重置
 const titleProxy = ref(props.card.title)
+watch([titleProxy, localAiContextTemplates], () => {
+  if (writerCard.value) writerSession.onEditorChange()
+}, { deep: true })
 watch(
   () => props.card.title,
   (v) => {
@@ -414,7 +485,7 @@ const isDirty = computed(() => {
   // 使用自定义内容编辑器（如章节正文）：
   // 只要正文内容、上下文模板或标题有任一改动，都视为未保存
   if (activeContentEditor.value) {
-    return contentEditorDirty.value || ctxDirty || titleDirty
+    return contentEditorDirty.value || ctxDirty || (writerCard.value ? titleProxy.value !== savedWriterTitle.value : titleDirty)
   }
 
   // 默认表单编辑器：比较内容 + 上下文模板 + 标题
@@ -433,6 +504,7 @@ watch(
       generationContextKind.value = 'generation'
       reviewContextKind.value = 'review'
       titleProxy.value = newCard.title
+      savedWriterTitle.value = newCard.title
       await loadSchemaForCard(newCard)
       // 载入每卡片参数
       await loadAIOptions()
@@ -853,6 +925,10 @@ function openSelectorFromDrawer(payload?: { kind?: ContextTemplateKind; text?: s
 const previewText = computed(() => localAiContextTemplates.value[activeContextTemplateKind.value] || '')
 
 async function handleSave() {
+  if (writerCard.value) {
+    await handleWriterManualSave()
+    return
+  }
   const templatesBeforeSave = cloneContextTemplates(localAiContextTemplates.value)
   const previousTemplatesOnCard = getCardContextTemplates(props.card)
   // 自定义内容编辑器的保存逻辑（如 CodeMirrorEditor）
@@ -921,6 +997,18 @@ async function handleSave() {
     lastSavedAt.value = new Date().toLocaleTimeString()
     ElMessage.success(t('settings.saveSuccess'))
   } finally { isSaving.value = false }
+}
+
+async function handleWriterManualSave() {
+  const result = await writerSession.manualSave()
+  if (result.ok && result.current !== false) ElMessage.success(t('settings.saveSuccess'))
+  else if (!result.ok) ElMessage.error(result.error?.message || t('settings.saveError'))
+}
+
+async function handleWriterRetry() {
+  const result = await writerSession.retry()
+  if (result.ok && result.current !== false) ElMessage.success(t('settings.saveSuccess'))
+  else if (!result.ok) ElMessage.error(result.error?.message || t('settings.saveError'))
 }
 
 async function executeReview() {
@@ -1345,6 +1433,36 @@ async function handleGenerate() {
 
 async function handleRestoreVersion(v: any) {
   showVersions.value = false
+
+  if (writerCard.value && writerAdapter.value) {
+    const restoredSnapshot: WriterSnapshot = {
+      projectId: props.card.project_id,
+      cardId: props.card.id,
+      title: v.title ?? titleProxy.value,
+      content: cloneDeep(v.content),
+      contextTemplates: {
+        generation: v.ai_context_template ?? localAiContextTemplates.value.generation,
+        review: v.ai_context_template_review ?? localAiContextTemplates.value.review,
+      },
+    }
+    try {
+      ElMessage.success(t('genericCard.restoringVersion'))
+      writerAdapter.value.setSnapshot(restoredSnapshot)
+      contentEditorDirty.value = true
+      writerSession.onEditorChange()
+      const result = await writerSession.flush('restored-version')
+      if (!result.ok) {
+        ElMessage.error(result.error?.message || t('genericCard.versionRestoreError'))
+        return
+      }
+      await cardStore.fetchCards(projectStore.currentProject?.id ?? props.card.project_id)
+      ElMessage.success(t('genericCard.versionRestored'))
+    } catch (e) {
+      console.error('Failed to restore writer version:', e)
+      ElMessage.error(t('genericCard.versionRestoreError'))
+    }
+    return
+  }
 
   // 自定义内容编辑器的恢复逻辑（如 CodeMirrorEditor）
   if (activeContentEditor.value && contentEditorRef.value) {
