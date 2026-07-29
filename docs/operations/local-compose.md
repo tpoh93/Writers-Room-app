@@ -137,6 +137,21 @@ Inspect service state:
 docker compose ps
 ```
 
+### Synthetic writer-ready-fixture on isolated port 18080
+
+For integration and browser acceptance (Task 10), use the isolated Compose project `writer-ready-fixture` on port 18080 only:
+
+```bash
+docker compose -p writer-ready-fixture down -v --remove-orphans
+APP_BIND_ADDRESS=127.0.0.1 APP_PORT=18080 docker compose -p writer-ready-fixture up --build -d
+docker compose -p writer-ready-fixture ps
+curl -fsS http://127.0.0.1:18080/healthz/ready
+python3 scripts/seed-writer-ready-fixture.py --base-url http://127.0.0.1:18080 --reset --ids-file /tmp/writer-ready-fixture-ids.json
+python3 scripts/seed-writer-ready-fixture.py --base-url http://127.0.0.1:18080 --ids-file /tmp/writer-ready-fixture-ids.json --verify
+```
+
+This project never interferes with the main stack on port 8080. Never prune or delete unrelated Compose projects. Do not run `docker compose down -v` on the main stack while this fixture is active.
+
 Check health from inside each container:
 
 ```bash
