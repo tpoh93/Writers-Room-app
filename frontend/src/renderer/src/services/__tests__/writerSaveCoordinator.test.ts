@@ -6,6 +6,7 @@ import {
   WriterSaveCoordinator,
 } from '../writerSaveCoordinator'
 import type { WriterSnapshot } from '../writerSnapshot'
+import { WRITER_READY_FIXTURE } from '../../test-support/writerReadyFixtures'
 
 const initial: WriterSnapshot = {
   projectId: 1,
@@ -199,5 +200,19 @@ describe('WriterSaveCoordinator disposal', () => {
     expect(states).toEqual(['dirty', 'saving'])
     expect(history).toEqual([])
     expect(drafts.read(1, 2)).toBeNull()
+  })
+})
+
+describe('WriterSaveCoordinator writer-ready fixture integration', () => {
+  it('uses complete snapshot from fixture with author-CJK', () => {
+    const chapter = WRITER_READY_FIXTURE.cards.chapter
+    expect(chapter.title).toBe('Scena główna')
+    expect(chapter.content).toEqual({ content: 'Syntetyczny akapit.' })
+    expect(chapter.ai_context_template).toBe('Szablon generowania')
+    expect(chapter.ai_context_template_review).toBe('Szablon recenzji')
+    // author CJK
+    const cjk = WRITER_READY_FIXTURE.cards.authorCJK
+    expect(cjk.content).toEqual({ content: '中文作者内容' })
+    expect(cjk.ai_context_template).toBe('中文模板')
   })
 })
