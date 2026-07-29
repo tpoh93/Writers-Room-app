@@ -35,6 +35,7 @@
         @update:review-context-kind="handleReviewContextKindChange"
         @switch-tab="handleSwitchTab"
         @update:dirty="handleContentEditorDirtyChange"
+        @writer-change="handleContentEditorWriterChange"
         @manual-save="handleWriterManualSave"
       />
     </template>
@@ -376,7 +377,15 @@ function handleSwitchTab(tab: string) {
 
 function handleContentEditorDirtyChange(dirty: boolean) {
   contentEditorDirty.value = dirty
-  if (writerCard.value) writerSession.onEditorChange()
+}
+
+function handleContentEditorWriterChange(snapshot: WriterSnapshot): void {
+  if (!writerCard.value) return
+  writerSession.onEditorChange({
+    ...snapshot,
+    title: titleProxy.value,
+    contextTemplates: cloneContextTemplates(localAiContextTemplates.value),
+  })
 }
 
 function getResolvedContextByKind(kind: ContextTemplateKind | string | null | undefined, currentContent?: any) {

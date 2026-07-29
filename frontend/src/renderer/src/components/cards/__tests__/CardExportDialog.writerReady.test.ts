@@ -93,4 +93,34 @@ describe('CardExportDialog writer-ready flush gate', () => {
     expect(calls).toEqual(['flush', 'export'])
     expect(exportCardsForProject).toHaveBeenCalledWith(1, { scope: 'all', format: 'txt' })
   })
+
+  it('replaces a Polish flush error with success after a later successful attempt', async () => {
+    const beforeExport = vi.fn()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true)
+    exportCardsForProject.mockResolvedValue({
+      blob: new Blob(['plik']),
+      filename: 'test.txt',
+      contentType: 'text/plain',
+    })
+    const wrapper = mountDialog(beforeExport)
+    const submit = wrapper.find('[data-test="card-export-submit"]')
+
+    await submit.trigger('click')
+    await flushPromises()
+
+    expect(exportCardsForProject).not.toHaveBeenCalled()
+    expect(messageError).toHaveBeenCalledTimes(1)
+    expect(messageError).toHaveBeenLastCalledWith(
+      'Eksport został zablokowany: nie udało się zapisać zmian.',
+    )
+    expect(messageError.mock.calls.flat().join(' ')).not.toContain('technical')
+
+    await submit.trigger('click')
+    await flushPromises()
+
+    expect(beforeExport).toHaveBeenCalledTimes(2)
+    expect(exportCardsForProject).toHaveBeenCalledTimes(1)
+    expect(messageSuccess).toHaveBeenCalledWith('Wyeksportowano 1 kartę.')
+  })
 })

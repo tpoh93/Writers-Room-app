@@ -2,34 +2,35 @@
 
 | row | scenario | observed result | artifact reference | status |
 |-----|----------|-----------------|-------------------|--------|
-| WR-01 | Project → scene → writing card creation | NOT VERIFIED | /tmp/writer-ready-fixture-ids.json | NOT VERIFIED |
-| WR-02 | Local draft timing | NOT VERIFIED | browser console / recovery store | NOT VERIFIED |
-| WR-03 | Backend autosave cadence | NOT VERIFIED | browser console / network | NOT VERIFIED |
-| WR-04 | Manual save through Zapisz | NOT VERIFIED | browser UI | NOT VERIFIED |
-| WR-05 | Manual save through Cmd/Ctrl+S | NOT VERIFIED | browser UI | NOT VERIFIED |
-| WR-06 | Scene/card change | NOT VERIFIED | browser navigation | NOT VERIFIED |
-| WR-07 | Project change | NOT VERIFIED | browser navigation | NOT VERIFIED |
-| WR-08 | Controlled close | NOT VERIFIED | browser view close | NOT VERIFIED |
-| WR-09 | Force-close recovery | NOT VERIFIED | browser force-close | NOT VERIFIED |
-| WR-10 | Network failure simulation | NOT VERIFIED | browser save error | NOT VERIFIED |
-| WR-11 | Backend/persistence failure | NOT VERIFIED | browser save error | NOT VERIFIED |
-| WR-12 | Reopen canonical content | NOT VERIFIED | browser reopen | NOT VERIFIED |
-| WR-13 | Recovery case A | NOT VERIFIED | browser recovery UI | NOT VERIFIED |
-| WR-14 | Recovery case B | NOT VERIFIED | browser recovery UI | NOT VERIFIED |
-| WR-15 | Recovery case C, both variants | NOT VERIFIED | browser recovery UI | NOT VERIFIED |
-| WR-16 | Rebase after older save response | NOT VERIFIED | browser reopen | NOT VERIFIED |
-| WR-17 | Version-history policy | NOT VERIFIED | browser history | NOT VERIFIED |
-| WR-18 | TXT export | NOT VERIFIED | downloaded TXT | NOT VERIFIED |
-| WR-19 | Markdown export | NOT VERIFIED | downloaded Markdown | NOT VERIFIED |
-| WR-20 | JSON export | NOT VERIFIED | downloaded JSON | NOT VERIFIED |
-| WR-21 | Polish fixture full-artifact CJK scan | NOT VERIFIED | downloaded artifact scan | NOT VERIFIED |
-| WR-22 | Export with unsaved text / failed flush | NOT VERIFIED | browser blocked export | NOT VERIFIED |
-| WR-23 | Compose restart | NOT VERIFIED | docker compose restart | NOT VERIFIED |
-| WR-24 | Backup → mutate → guarded restore | NOT VERIFIED | backup/restore log | NOT VERIFIED |
-| WR-25 | Evidence closure | NOT VERIFIED | matrix review | NOT VERIFIED |
+| WR-01 | Project → scene → writing card creation | Browser-created temporary project 2 and hierarchy: CodeMirror card 10; Markdown card 11 and SceneCard 12 nested below 10. Both approved editors were visibly editable; SceneCard opened structured GenericCardEditor reference behavior, not writer-ready. Temporary project removed afterward. | /tmp/novelforge-run-b1c-evidence/observations.md; project 2, cards 10–12; project POST reqid 282 | PASS |
+| WR-02 | Local draft timing | Imported completed smoke evidence: both approved editors wrote the exact visible text, title and both templates into the 3-second recovery record; no PUT preceded recovery and no stale or empty snapshot was observed. | /tmp/novelforge-wr02-03-smoke/observations.md; project 1, cards 1–2 | PASS |
+| WR-03 | Backend autosave cadence | Imported completed smoke evidence: CodeMirror reqid 49 and Markdown reqid 85 were HTTP 200 complete current snapshots; each reached and retained `Zapisano` for 32 seconds and a newer edit returned to `Niezapisane`. | /tmp/novelforge-wr03-smoke/; project 1, cards 1–2; reqid 49, 85 | PASS |
+| WR-04 | Manual save through Zapisz | Both editors: visible dirty edit, exactly one complete HTTP-200 writer PUT, then `Zapisano`, `Ostatni zapis`, and disabled `Zapisz`. CodeMirror reqid 160; Markdown reqid 171. | /tmp/novelforge-run-b1-evidence/WR-01-17-continuation-observations.md; project 1, cards 1–2; reqid 160, 171 | PASS |
+| WR-05 | Manual save through Cmd/Ctrl+S | Both editors: Meta+S produced one complete HTTP-200 writer PUT with title/content/generation/review, then `Zapisano` and disabled `Zapisz`. CodeMirror reqid 161; Markdown reqid 172. | /tmp/novelforge-run-b1-evidence/WR-01-17-continuation-observations.md; project 1, cards 1–2; reqid 161, 172 | PASS |
+| WR-06 | Scene/card change | Success: dirty card 1 flushed by PUT reqid 424 HTTP 200 before card 2 opened. Offline: selecting card 2 stayed on dirty card 1 with `Niezapisane`/`Ponów`; reqids 483/484 failed and exact failed-save recovery remained. | /tmp/novelforge-run-b1c-evidence/observations.md; project 1, cards 1–2; reqid 424, 483, 484; key `nf:v1:writer-recovery:1:1` | PASS |
+| WR-07 | Project change | NOT VERIFIED: no browser-visible project-switch control remained available while an active writer session was mounted. The visible logo transition first left the editor (see WR-08) rather than exercising the required project-change flush pair. | /tmp/novelforge-run-b1c-evidence/observations.md | NOT VERIFIED |
+| WR-08 | Controlled close | FAIL: the visible NovelForge-logo transition to `Biblioteka projektów` proceeded with a dirty card both Offline and online; no block/confirmation occurred, and the online draft had no preceding PUT. Recovery record remained. | /tmp/novelforge-run-b1c-evidence/observations.md; project 1, card 1; key `nf:v1:writer-recovery:1:1` | FAIL |
+| WR-09 | Force-close recovery | NOT VERIFIED: ordinary recovery UI was observed after the logo transition, but no supported force-close/browser-close scenario was executed. | /tmp/novelforge-run-b1c-evidence/observations.md | NOT VERIFIED |
+| WR-10 | Network failure simulation | DevTools Offline left CodeMirror draft visible as `Niezapisane` with `Ponów`; local key `nf:v1:writer-recovery:1:1` retained the complete current snapshot and `reason: failed-save`. | /tmp/novelforge-run-b1-evidence/WR-01-17-continuation-observations.md; project 1, card 1; localStorage evidence | PASS |
+| WR-11 | Backend/persistence failure | NOT VERIFIED: available DevTools exposed network Offline emulation only; it did not provide deterministic writer-PUT HTTP-500 response interception. | Chrome DevTools capability limitation | NOT VERIFIED |
+| WR-12 | Reopen canonical content | NOT VERIFIED: canonical content was restored, but this run did not complete the required local-only draft decline/removal then independent API-and-visible reopen proof. | /tmp/novelforge-run-b1c-evidence/observations.md | NOT VERIFIED |
+| WR-13 | Recovery case A | NOT VERIFIED: redundant-draft suppression/removal was not exercised. | /tmp/novelforge-run-b1c-evidence/checklist.md | NOT VERIFIED |
+| WR-14 | Recovery case B | NOT VERIFIED: ordinary recovery dialog showed canonical/draft and `Anuluj` preserved the key, but `Odzyskaj` and `Odrzuć draft` outcomes were not completed. | /tmp/novelforge-run-b1c-evidence/observations.md; project 1, card 1; key `nf:v1:writer-recovery:1:1` | NOT VERIFIED |
+| WR-15 | Recovery case C, both variants | NOT VERIFIED: neither exact conflict fingerprint variant was exercised. | /tmp/novelforge-run-b1c-evidence/checklist.md | NOT VERIFIED |
+| WR-16 | Rebase after older save response | NOT VERIFIED: available DevTools lacked deterministic writer-PUT response-delay/interception control for the B-in-flight/C-edit race. | Chrome DevTools capability limitation | NOT VERIFIED |
+| WR-17 | Version-history policy | NOT VERIFIED: no complete direct UI observation of recovered/restored saves, autosave/technical-flush exclusions, duplicate suppression, and 20-entry cap occurred. | /tmp/novelforge-run-b1c-evidence/checklist.md | NOT VERIFIED |
+| WR-18 | TXT export | Browser exported and the opened artifact contained all three cards in deterministic order, Polish generated labels, and unchanged synthetic content; CJK scan was zero. | /tmp/novelforge-run-b-evidence/WR-18-export.txt | PASS |
+| WR-19 | Markdown export | Browser exported and the opened artifact contained all three cards in deterministic order, Polish generated labels, and unchanged synthetic content; CJK scan was zero. | /tmp/novelforge-run-b-evidence/WR-19-export.md | PASS |
+| WR-20 | JSON export | Format switching to JSON was not completed reliably through the available DevTools interaction surface. | Chrome DevTools interaction limitation | NOT VERIFIED |
+| WR-21 | Polish fixture full-artifact CJK scan | TXT and Markdown artifacts had zero CJK matches; no deliberate author-CJK case was present in this reset fixture. | /tmp/novelforge-run-b-evidence/WR-18-export.txt; /tmp/novelforge-run-b-evidence/WR-19-export.md | PASS |
+| WR-22 | Export with unsaved text / failed flush | Not re-executed in this repeat. | Repeat Run B stopped before this row | NOT VERIFIED |
+| WR-23 | Compose restart | Not re-executed because WR-01–WR-22 were not completed in this repeat. | Repeat Run B stopped before this row | NOT VERIFIED |
+| WR-24 | Backup → mutate → guarded restore | NOT VERIFIED / DEFERRED TO TASK 11 | Task 11 explicitly out of scope | NOT VERIFIED |
+| WR-25 | Evidence closure | NOT VERIFIED / DEFERRED TO TASK 12 | Task 12 explicitly out of scope | NOT VERIFIED |
 
 ## Notes
 - All rows start as NOT VERIFIED.
 - Only observed evidence becomes PASS.
 - Author-CJK preserved in fixtures.
 - Evidence paths outside repo unless required.
+- Repeat Run B on 2026-07-29 stopped after the independently observed WR-01–WR-04 and WR-18–WR-21 results because WR-02/WR-03 were FAIL and WR-20 remained NOT VERIFIED; WR-05–WR-17 and WR-22–WR-23 were not re-executed in this repeat.

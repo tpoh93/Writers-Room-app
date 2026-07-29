@@ -1,4 +1,8 @@
-import type { WriterSnapshot } from '../services/writerSnapshot'
+import type {
+  JsonValue,
+  WriterContextTemplates,
+  WriterSnapshot,
+} from '../services/writerSnapshot'
 
 export const WRITER_READY_FIXTURE = {
   project: {
@@ -52,3 +56,24 @@ export const WRITER_READY_FIXTURE = {
 } as const
 
 export type WriterReadyCardId = keyof typeof WRITER_READY_FIXTURE.cards
+
+type WriterReadySnapshotOverrides = Partial<Omit<WriterSnapshot, 'content' | 'contextTemplates'>> & {
+  content?: JsonValue
+  contextTemplates?: Partial<WriterContextTemplates>
+}
+
+export function createWriterReadySnapshot(
+  overrides: WriterReadySnapshotOverrides = {}
+): WriterSnapshot {
+  const chapter = WRITER_READY_FIXTURE.cards.chapter
+  return {
+    projectId: overrides.projectId ?? 1,
+    cardId: overrides.cardId ?? chapter.id,
+    title: overrides.title ?? chapter.title,
+    content: overrides.content ?? chapter.content,
+    contextTemplates: {
+      generation: overrides.contextTemplates?.generation ?? chapter.ai_context_template,
+      review: overrides.contextTemplates?.review ?? chapter.ai_context_template_review,
+    },
+  }
+}

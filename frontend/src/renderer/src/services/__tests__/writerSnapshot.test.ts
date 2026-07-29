@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { CardRead } from '@renderer/api/cards'
 import {
   canonicalizeJson,
+  canonicalizeWriterSnapshot,
+  createChapterWriterContent,
   createWriterSnapshot,
   fingerprintWriterSnapshot,
   snapshotsEqual,
@@ -55,6 +57,50 @@ describe('writerSnapshot', () => {
   it('creates a complete snapshot from the persisted card fields', () => {
     expect(createWriterSnapshot(card())).toEqual(base)
     expect(snapshotsEqual(base, { ...base, projectId: 2, cardId: 3 })).toBe(true)
+  })
+
+  it.each([null, undefined])('normalizes %s API templates to complete strings', (missingTemplate) => {
+    const persistedCard = {
+      ...card(),
+      ai_context_template: missingTemplate,
+      ai_context_template_review: missingTemplate,
+    } as CardRead
+
+    const snapshot = createWriterSnapshot(persistedCard)
+
+    expect(snapshot.contextTemplates).toEqual({ generation: '', review: '' })
+    expect(canonicalizeWriterSnapshot(snapshot)).toContain(
+      '"contextTemplates":{"generation":"","review":""}',
+    )
+  })
+
+  it('serializes chapter and markdown boundary content without weakening undefined rejection', () => {
+    const chapterContent = createChapterWriterContent({
+      content: 'Syntetyczny akapit.',
+      word_count: 22,
+      volume_number: undefined,
+      chapter_number: undefined,
+      title: 'Scena główna',
+      entity_list: [],
+    }, 'Syntetyczny akapit.')
+    const chapterSnapshot = { ...base, content: chapterContent }
+    const markdownSnapshot = createWriterSnapshot({
+      ...card(),
+      content: { content: 'Drugi syntetyczny akapit.' },
+      ai_context_template: undefined,
+      ai_context_template_review: null,
+    } as CardRead)
+
+    expect(() => canonicalizeWriterSnapshot(chapterSnapshot)).not.toThrow()
+    expect(chapterContent).not.toHaveProperty('volume_number')
+    expect(chapterContent).not.toHaveProperty('chapter_number')
+    expect(() => canonicalizeWriterSnapshot(markdownSnapshot)).not.toThrow()
+
+    const invalidAuthorContent = createChapterWriterContent({
+      content: 'Tekst autora',
+      author_metadata: { invalid: undefined } as unknown as WriterSnapshot['content'],
+    }, 'Tekst autora')
+    expect(() => canonicalizeWriterSnapshot({ ...base, content: invalidAuthorContent })).toThrow(TypeError)
   })
 
   it('rejects values outside JSON', () => {

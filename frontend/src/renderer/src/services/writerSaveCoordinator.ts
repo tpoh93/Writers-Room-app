@@ -21,35 +21,46 @@ export function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
 }
 
-export interface WriterSaveCoordinatorOptions {
+export interface WriterSaveCoordinatorOptions<TTimer = ReturnType<typeof setTimeout>> {
   initial: WriterSnapshot
   drafts: RecoveryDraftStore
   now: () => Date
   save?: (snapshot: WriterSnapshot) => Promise<WriterSnapshot>
-  setTimeoutFn?: typeof setTimeout
-  clearTimeoutFn?: typeof clearTimeout
+  setTimeoutFn?: (handler: () => void, delay: number) => TTimer
+  clearTimeoutFn?: (timer: TTimer) => void
   onStateChange?: (state: WriterSaveState, error: Error | null) => void
+  onCurrentSnapshotConfirmed?: (snapshot: WriterSnapshot) => void
   onHistoryEligible?: (snapshot: WriterSnapshot, reason: WriterHistoryReason) => void
 }
 
-export class WriterSaveCoordinator {
-  private readonly setTimer: typeof setTimeout
-  private readonly clearTimer: typeof clearTimeout
+export function bindWriterTimerFunctions<TTimer>(timerTarget: {
+  setTimeout: (handler: () => void, delay?: number) => TTimer
+  clearTimeout: (timer: TTimer) => void
+}): Pick<WriterSaveCoordinatorOptions<TTimer>, 'setTimeoutFn' | 'clearTimeoutFn'> {
+  return {
+    setTimeoutFn: (handler, timeout) => timerTarget.setTimeout(handler, timeout),
+    clearTimeoutFn: (timer) => timerTarget.clearTimeout(timer),
+  }
+}
+
+export class WriterSaveCoordinator<TTimer = ReturnType<typeof setTimeout>> {
+  private readonly setTimer: (handler: () => void, delay: number) => TTimer
+  private readonly clearTimer: (timer: TTimer) => void
   private current: WriterSnapshot
   private confirmed: WriterSnapshot
-  private idleTimer: ReturnType<typeof setTimeout> | null = null
-  private maxWaitTimer: ReturnType<typeof setTimeout> | null = null
-  private autosaveTimer: ReturnType<typeof setTimeout> | null = null
+  private idleTimer: TTimer | null = null
+  private maxWaitTimer: TTimer | null = null
+  private autosaveTimer: TTimer | null = null
   private state: WriterSaveState = 'saved'
   private inFlight = false
   private failedAttempt: WriterSaveAttempt | null = null
   private disposed = false
 
-  constructor(private readonly options: WriterSaveCoordinatorOptions) {
+  constructor(private readonly options: WriterSaveCoordinatorOptions<TTimer>) {
     this.current = options.initial
     this.confirmed = options.initial
-    this.setTimer = options.setTimeoutFn ?? setTimeout
-    this.clearTimer = options.clearTimeoutFn ?? clearTimeout
+    this.setTimer = options.setTimeoutFn ?? ((handler, delay) => setTimeout(handler, delay) as TTimer)
+    this.clearTimer = options.clearTimeoutFn ?? ((timer) => clearTimeout(timer as ReturnType<typeof setTimeout>))
   }
 
   update(snapshot: WriterSnapshot): void {
@@ -140,6 +151,7 @@ export class WriterSaveCoordinator {
       }
       const confirmsCurrent = snapshotsEqual(this.current, confirmed)
       if (confirmsCurrent) {
+        this.options.onCurrentSnapshotConfirmed?.(confirmed)
         this.options.drafts.remove(this.current.projectId, this.current.cardId)
         this.clearRecoveryTimers()
         this.clearAutosaveTimer()

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, ref } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
@@ -7,10 +7,11 @@ import type { CardRead } from '@renderer/api/cards'
 import type { WriterEditorAdapter } from '@renderer/composables/useWriterCardSession'
 import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
 
-const { updateWriterCard, getCardsForProject, resolveContentEditor } = vi.hoisted(() => ({
+const { updateWriterCard, getCardsForProject, resolveContentEditor, writerEditorApi } = vi.hoisted(() => ({
   updateWriterCard: vi.fn(),
   getCardsForProject: vi.fn(),
   resolveContentEditor: vi.fn(),
+  writerEditorApi: { applyContent: null as null | ((content: string) => void), useRealEditors: false },
 }))
 vi.mock('vue-element-plus-x', () => ({ XMarkdown: { template: '<div />' } }))
 vi.mock('@renderer/api/schema', () => ({ schemaService: { loadSchemas: vi.fn(), refreshSchemas: vi.fn(), getSchema: vi.fn() } }))
@@ -23,13 +24,15 @@ vi.mock('@renderer/api/cards', async () => {
 
 vi.mock('@renderer/components/editors/contentEditorRegistry', async () => {
   const { defineComponent, h, ref, watch } = await import('vue')
+  const { default: CodeMirrorEditor } = await vi.importActual<typeof import('@renderer/components/editors/CodeMirrorEditor.vue')>('@renderer/components/editors/CodeMirrorEditor.vue')
+  const { default: MarkdownTextEditor } = await vi.importActual<typeof import('@renderer/components/editors/MarkdownTextEditor.vue')>('@renderer/components/editors/MarkdownTextEditor.vue')
   const WriterEditorStub = defineComponent({
     name: 'WriterEditorStub',
     props: {
       card: { type: Object, required: true },
       contextTemplates: { type: Object, required: false },
     },
-    emits: ['update:dirty', 'manual-save'],
+    emits: ['update:dirty', 'manual-save', 'writer-change'],
     setup(props, { emit, expose }) {
       const currentSnapshot = ref({
         projectId: (props.card as any).project_id,
@@ -52,13 +55,34 @@ vi.mock('@renderer/components/editors/contentEditorRegistry', async () => {
         getSnapshot,
         setSavedBaseline: () => emit('update:dirty', false),
         setSnapshot: (nextSnapshot: WriterSnapshot) => { currentSnapshot.value = nextSnapshot },
+        applyEditorContent: (content: string) => {
+          currentSnapshot.value = {
+            ...currentSnapshot.value,
+            content: { ...currentSnapshot.value.content, content },
+          }
+          emit('writer-change', currentSnapshot.value)
+        },
       })
+      writerEditorApi.applyContent = (content: string) => {
+        currentSnapshot.value = {
+          ...currentSnapshot.value,
+          content: { ...currentSnapshot.value.content, content },
+        }
+        emit('writer-change', currentSnapshot.value)
+      }
       return () => h('div', { 'data-test': 'writer-editor-stub' })
     },
   })
   return {
     resolveContentEditor: (editorName: string) => {
       resolveContentEditor(editorName)
+      if (writerEditorApi.useRealEditors) {
+        return editorName === 'CodeMirrorEditor'
+          ? CodeMirrorEditor
+          : editorName === 'MarkdownTextEditor'
+            ? MarkdownTextEditor
+            : null
+      }
       return editorName === 'MarkdownTextEditor' || editorName === 'CodeMirrorEditor' ? WriterEditorStub : null
     },
   }
@@ -66,6 +90,8 @@ vi.mock('@renderer/components/editors/contentEditorRegistry', async () => {
 
 import { useWriterCardSession } from '@renderer/composables/useWriterCardSession'
 import { useEditorStore } from '@renderer/stores/useEditorStore'
+import CodeMirrorEditor from '@renderer/components/editors/CodeMirrorEditor.vue'
+import MarkdownTextEditor from '@renderer/components/editors/MarkdownTextEditor.vue'
 import GenericCardEditor from '../GenericCardEditor.vue'
 import WriterRecoveryDialog from '../WriterRecoveryDialog.vue'
 import { RecoveryDraftStore } from '@renderer/services/recoveryDraftStore'
@@ -81,6 +107,20 @@ const snapshot: WriterSnapshot = {
   contextTemplates: { generation: 'Generowanie', review: 'Redakcja' },
 }
 
+const WriterHeaderStateProbe = defineComponent({
+  name: 'WriterHeaderStateProbe',
+  props: {
+    dirty: { type: Boolean, required: true },
+    canSave: { type: Boolean, required: true },
+  },
+  setup(props) {
+    return () => h('div', [
+      h('span', { 'data-test': 'writer-save-status' }, props.dirty ? 'Niezapisane' : 'Zapisano'),
+      h('button', { 'data-test': 'writer-save-button', disabled: !props.canSave }, 'Zapisz'),
+    ])
+  },
+})
+
 async function waitForWriterEditorStub(wrapper: ReturnType<typeof mount>): Promise<void> {
   for (let attempt = 0; attempt < 10; attempt += 1) {
     await flushPromises()
@@ -94,9 +134,12 @@ describe('GenericCardEditor writer-ready session', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    writerEditorApi.applyContent = null
+    writerEditorApi.useRealEditors = false
     getCardsForProject.mockResolvedValue([])
     localStorage.clear()
   })
+
   it.each(['Zapisz + CodeMirror', 'Cmd/Ctrl+S + CodeMirror', 'Zapisz + MarkdownTextEditor', 'Cmd/Ctrl+S + MarkdownTextEditor'])('%s uses one manual save command', async () => {
     const changedSnapshot = { ...snapshot, content: { content: 'Tekst po edycji' } }
     updateWriterCard.mockResolvedValueOnce({ id: 2, project_id: 1, title: 'Scena', content: changedSnapshot.content })
@@ -120,6 +163,229 @@ describe('GenericCardEditor writer-ready session', () => {
     }))
     expect(adapter.value.setSavedBaseline).toHaveBeenCalledWith(expect.objectContaining(changedSnapshot))
     session.dispose()
+  })
+
+  it.each(['CodeMirrorEditor', 'MarkdownTextEditor'])('%s forwards each post-edit snapshot to recovery and autosave without manual save', async (editorComponent) => {
+    vi.useFakeTimers()
+    const changedContent = 'Tekst po zmianie bez ręcznego zapisu'
+    updateWriterCard.mockResolvedValueOnce({ id: 2, project_id: 1, title: 'Scena', content: { content: changedContent } })
+    const wrapper = mount(GenericCardEditor, {
+      props: {
+        card: {
+          id: 2,
+          project_id: 1,
+          title: 'Scena',
+          content: snapshot.content,
+          ai_context_template: 'Generowanie',
+          ai_context_template_review: 'Redakcja',
+          card_type: {
+            id: 1,
+            name: editorComponent === 'CodeMirrorEditor' ? '章节正文' : '通用文本',
+            editor_component: editorComponent,
+          },
+        } as CardRead,
+      },
+      global: {
+        plugins: [createPinia(), i18n, [ElementPlus, { locale: elementPlusLocale }]],
+        stubs: {
+          AIPerCardParams: true, CardReferenceSelectorDialog: true, CardVersionsDialog: true,
+          ContextDrawer: true, EditorHeader: true, GenerationPanel: true, InitialPromptDialog: true,
+          ModelDrivenForm: true, SchemaStudio: true, SectionedForm: true, SimpleMarkdown: true,
+        },
+      },
+    })
+    await waitForWriterEditorStub(wrapper)
+
+    expect(writerEditorApi.applyContent).toEqual(expect.any(Function))
+    writerEditorApi.applyContent?.(changedContent)
+
+    await vi.advanceTimersByTimeAsync(3_000)
+    expect(new RecoveryDraftStore(localStorage, () => new Date()).read(1, 2)).toMatchObject({
+      content: { content: changedContent },
+      contextTemplates: snapshot.contextTemplates,
+      reason: 'local-idle',
+    })
+
+    await vi.advanceTimersByTimeAsync(27_000)
+    expect(updateWriterCard).toHaveBeenCalledWith(2, expect.objectContaining({
+      title: 'Scena',
+      content: { content: changedContent },
+      ai_context_template: 'Generowanie',
+      ai_context_template_review: 'Redakcja',
+    }))
+
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it.each([
+    ['CodeMirrorEditor', CodeMirrorEditor],
+    ['MarkdownTextEditor', MarkdownTextEditor],
+  ] as const)('%s emits the complete post-edit writer snapshot', async (_name, Editor) => {
+    const card = {
+      id: 2,
+      project_id: 1,
+      title: 'Scena',
+      content: { content: 'Tekst' },
+      card_type_id: 1,
+      created_at: '2026-07-29T00:00:00Z',
+      display_order: 0,
+      ai_modified: false,
+      needs_confirmation: false,
+      ai_context_template: 'Generowanie',
+      ai_context_template_review: 'Redakcja',
+      card_type: {
+        id: 1,
+        name: _name === 'CodeMirrorEditor' ? '章节正文' : '通用文本',
+        editor_component: _name,
+        is_ai_enabled: false,
+        is_singleton: false,
+        built_in: true,
+      },
+    } as CardRead
+    const wrapper = mount(Editor, {
+      props: { card, contextTemplates: snapshot.contextTemplates },
+      global: { plugins: [createPinia(), i18n, [ElementPlus, { locale: elementPlusLocale }]] },
+    })
+    await flushPromises()
+    await nextTick()
+    if (_name === 'CodeMirrorEditor') {
+      expect(wrapper.find('.cm-content').exists()).toBe(true)
+    }
+
+    const changedContent = `Tekst po zmianie ${_name}`
+    ;(wrapper.vm as any).setSnapshot({ ...snapshot, content: { content: changedContent } })
+    await flushPromises()
+
+    expect(wrapper.emitted('writer-change')?.at(-1)).toEqual([
+      expect.objectContaining({ content: expect.objectContaining({ content: changedContent }) }),
+    ])
+  })
+
+  it.each([
+    ['CodeMirrorEditor', CodeMirrorEditor],
+    ['MarkdownTextEditor', MarkdownTextEditor],
+  ] as const)('%s carries the real post-edit snapshot through GenericCardEditor recovery and autosave', async (editorComponent, Editor) => {
+    vi.useFakeTimers()
+    writerEditorApi.useRealEditors = true
+    const changedContent = `Tekst integracyjny ${editorComponent}`
+    updateWriterCard.mockResolvedValueOnce({ id: 2, project_id: 1, title: 'Scena', content: { content: changedContent } })
+    const wrapper = mount(GenericCardEditor, {
+      props: {
+        card: {
+          id: 2, project_id: 1, title: 'Scena', content: snapshot.content,
+          ai_context_template: 'Generowanie', ai_context_template_review: 'Redakcja',
+          card_type: { id: 1, name: editorComponent === 'CodeMirrorEditor' ? '章节正文' : '通用文本', editor_component: editorComponent },
+        } as CardRead,
+      },
+      global: {
+        plugins: [createPinia(), i18n, [ElementPlus, { locale: elementPlusLocale }]],
+        stubs: {
+          AIPerCardParams: true, CardReferenceSelectorDialog: true, CardVersionsDialog: true,
+          ContextDrawer: true, EditorHeader: true, GenerationPanel: true, InitialPromptDialog: true,
+          ModelDrivenForm: true, SchemaStudio: true, SectionedForm: true, SimpleMarkdown: true,
+        },
+      },
+    })
+    for (let attempt = 0; attempt < 10 && !wrapper.findComponent(Editor).exists(); attempt += 1) {
+      await flushPromises()
+      await nextTick()
+    }
+    const editor = wrapper.findComponent(Editor)
+    expect(editor.exists()).toBe(true)
+    await nextTick()
+    ;(editor.vm as any).setSnapshot({ ...snapshot, content: { content: changedContent } })
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(3_000)
+    expect(new RecoveryDraftStore(localStorage, () => new Date()).read(1, 2)).toMatchObject({
+      content: { content: changedContent },
+      contextTemplates: snapshot.contextTemplates,
+      reason: 'local-idle',
+    })
+    await vi.advanceTimersByTimeAsync(27_000)
+    expect(updateWriterCard.mock.calls.map(([, payload]) => (payload as any).content)).toEqual([
+      expect.objectContaining({ content: changedContent }),
+    ])
+    expect(updateWriterCard).toHaveBeenCalledWith(2, expect.objectContaining({
+      content: expect.objectContaining({ content: changedContent }),
+      ai_context_template: 'Generowanie',
+      ai_context_template_review: 'Redakcja',
+    }))
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it.each([
+    ['CodeMirrorEditor', CodeMirrorEditor],
+    ['MarkdownTextEditor', MarkdownTextEditor],
+  ] as const)('%s reconciles the visible saved state and editor baseline after autosave', async (editorComponent, Editor) => {
+    vi.useFakeTimers()
+    writerEditorApi.useRealEditors = true
+    const changedContent = `Tekst po autosave ${editorComponent}`
+    updateWriterCard.mockImplementationOnce((_cardId, payload) => Promise.resolve({
+      id: 2,
+      project_id: 1,
+      title: 'Scena',
+      content: (payload as { content: WriterSnapshot['content'] }).content,
+    }))
+    const wrapper = mount(GenericCardEditor, {
+      props: {
+        card: {
+          id: 2, project_id: 1, title: 'Scena', content: snapshot.content,
+          ai_context_template: 'Generowanie', ai_context_template_review: 'Redakcja',
+          card_type: { id: 1, name: editorComponent === 'CodeMirrorEditor' ? '章节正文' : '通用文本', editor_component: editorComponent },
+        } as CardRead,
+      },
+      global: {
+        plugins: [createPinia(), i18n, [ElementPlus, { locale: elementPlusLocale }]],
+        stubs: {
+          AIPerCardParams: true, CardReferenceSelectorDialog: true, CardVersionsDialog: true,
+          ContextDrawer: true, EditorHeader: WriterHeaderStateProbe, GenerationPanel: true, InitialPromptDialog: true,
+          ModelDrivenForm: true, SchemaStudio: true, SectionedForm: true, SimpleMarkdown: true,
+        },
+      },
+    })
+    for (let attempt = 0; attempt < 10 && !wrapper.findComponent(Editor).exists(); attempt += 1) {
+      await flushPromises()
+      await nextTick()
+    }
+    const editor = wrapper.findComponent(Editor)
+    expect(editor.exists()).toBe(true)
+    await nextTick()
+
+    ;(editor.vm as any).setSnapshot({ ...snapshot, content: { content: changedContent } })
+    await flushPromises()
+    await nextTick()
+    expect(wrapper.get('[data-test="writer-save-status"]').text()).toBe('Niezapisane')
+    expect(wrapper.get('[data-test="writer-save-button"]').attributes('disabled')).toBeUndefined()
+
+    await vi.advanceTimersByTimeAsync(3_000)
+    await vi.advanceTimersByTimeAsync(27_000)
+    await flushPromises()
+    await nextTick()
+
+    expect(updateWriterCard).toHaveBeenCalledWith(2, expect.objectContaining({
+      content: expect.objectContaining({ content: changedContent }),
+      ai_context_template: 'Generowanie',
+      ai_context_template_review: 'Redakcja',
+    }))
+    expect((editor.vm as any).getSnapshot()).toMatchObject({ content: expect.objectContaining({ content: changedContent }) })
+    const statusAfterAutosave = wrapper.get('[data-test="writer-save-status"]').text()
+    const saveDisabledAfterAutosave = wrapper.get('[data-test="writer-save-button"]').attributes('disabled')
+
+    ;(editor.vm as any).setSnapshot({ ...snapshot, content: { content: `${changedContent} ponownie` } })
+    await flushPromises()
+    await nextTick()
+    const statusAfterNewEdit = wrapper.get('[data-test="writer-save-status"]').text()
+    const saveDisabledAfterNewEdit = wrapper.get('[data-test="writer-save-button"]').attributes('disabled')
+
+    wrapper.unmount()
+    vi.useRealTimers()
+    expect(statusAfterAutosave).toBe('Zapisano')
+    expect(saveDisabledAfterAutosave).toBeDefined()
+    expect(statusAfterNewEdit).toBe('Niezapisane')
+    expect(saveDisabledAfterNewEdit).toBeUndefined()
   })
 
   it.each(['CodeMirrorEditor', 'MarkdownTextEditor'])('%s keeps newer C visibly dirty when delayed B confirms', async () => {

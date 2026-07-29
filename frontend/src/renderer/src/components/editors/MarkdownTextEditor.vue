@@ -36,7 +36,7 @@ import { useI18n } from 'vue-i18n'
 import { XMarkdown } from 'vue-element-plus-x'
 import type { CardRead } from '@renderer/api/cards'
 import { useAppStore } from '@renderer/stores/useAppStore'
-import { getCardContextTemplates, type ContextTemplates } from '@renderer/services/contextSlots'
+import { cloneContextTemplates, getCardContextTemplates, type ContextTemplates } from '@renderer/services/contextSlots'
 import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
 
 const { t } = useI18n()
@@ -48,6 +48,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:dirty', value: boolean): void
+  (e: 'writer-change', snapshot: WriterSnapshot): void
   (e: 'manual-save'): void
 }>()
 
@@ -88,6 +89,7 @@ watch(
 
 watch(textContent, (next) => {
   emit('update:dirty', next !== originalContent.value)
+  emit('writer-change', getSnapshot())
 })
 
 function getSnapshot(): WriterSnapshot {
@@ -99,7 +101,9 @@ function getSnapshot(): WriterSnapshot {
       ...(typeof props.card.content === 'object' && props.card.content ? props.card.content : {}),
       content: textContent.value,
     },
-    contextTemplates: props.contextTemplates ?? getCardContextTemplates(props.card),
+    contextTemplates: cloneContextTemplates(
+      props.contextTemplates ?? getCardContextTemplates(props.card),
+    ),
   }
 }
 

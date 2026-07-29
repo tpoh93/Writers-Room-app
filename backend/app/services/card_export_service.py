@@ -28,6 +28,11 @@ class CardExportService:
         "md": "text/markdown; charset=utf-8",
         "json": "application/json; charset=utf-8",
     }
+    _GENERATED_CARD_TYPE_LABELS = {
+        "章节正文": "Treść rozdziału",
+        "通用文本": "Tekst ogólny",
+        "场景卡": "Karta sceny",
+    }
 
     def __init__(self, db: Session):
         self.db = db
@@ -136,7 +141,7 @@ class CardExportService:
         if request.scope == "single" and cards:
             scope_segment = f"single-{int(cards[0].id or 0)}"
         elif request.scope == "type" and cards:
-            type_name = getattr(cards[0].card_type, "name", "") or str(cards[0].card_type_id)
+            type_name = self._generated_card_type_name(cards[0])
             scope_segment = f"type-{self._sanitize_filename(type_name)}"
 
         ext = request.format
@@ -181,7 +186,7 @@ class CardExportService:
                 [
                     "=" * 72,
                     f"[{index}] {card.title}",
-                    f"Typ: {self._card_type_name(card)}",
+                    f"Typ: {self._generated_card_type_name(card)}",
                     f"ID: {card.id}",
                     f"ID rodzica: {card.parent_id}",
                     f"Data utworzenia: {card.created_at.isoformat() if card.created_at else ''}",
@@ -213,7 +218,7 @@ class CardExportService:
 
         for index, card in enumerate(cards, start=1):
             lines.append(f"## {index}. {card.title}")
-            lines.append(f"- Typ: {self._card_type_name(card)}")
+            lines.append(f"- Typ: {self._generated_card_type_name(card)}")
             lines.append(f"- ID: {card.id}")
             lines.append(f"- ID rodzica: {card.parent_id}")
             lines.append(f"- Data utworzenia: {card.created_at.isoformat() if card.created_at else ''}")
@@ -238,7 +243,7 @@ class CardExportService:
             return "Jedna karta"
         if request.scope == "type":
             if cards:
-                return f"Karty typu ({self._card_type_name(cards[0])})"
+                return f"Karty typu ({self._generated_card_type_name(cards[0])})"
             return "Karty typu"
         return request.scope
 
@@ -259,6 +264,10 @@ class CardExportService:
         if card_type and getattr(card_type, "name", None):
             return str(card_type.name)
         return str(card.card_type_id)
+
+    def _generated_card_type_name(self, card: Card) -> str:
+        canonical_name = self._card_type_name(card)
+        return self._GENERATED_CARD_TYPE_LABELS.get(canonical_name, canonical_name)
 
     def _format_content(self, content: Any) -> str:
         if content is None:

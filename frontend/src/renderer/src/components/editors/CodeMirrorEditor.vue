@@ -1198,8 +1198,8 @@ import AIPerCardParams from '../common/AIPerCardParams.vue'
 import ContinuationBudgetDialog, { type ContinuationWordControlMode } from './dialogs/ContinuationBudgetDialog.vue'
 import SelectionPipelineDialog from '../pipelines/SelectionPipelineDialog.vue'
 import { resolveTemplate } from '@renderer/services/contextResolver'
-import { getCardContextTemplates, getContextTemplateByKind, normalizeContextTemplateKind, type ContextTemplateKind, type ContextTemplates } from '@renderer/services/contextSlots'
-import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
+import { cloneContextTemplates, getCardContextTemplates, getContextTemplateByKind, normalizeContextTemplateKind, type ContextTemplateKind, type ContextTemplates } from '@renderer/services/contextSlots'
+import { createChapterWriterContent, type JsonValue, type WriterSnapshot } from '@renderer/services/writerSnapshot'
 import { notifyTaskDone } from '@renderer/utils/taskDoneNotifier'
 import { captureSelection, validateSnapshot, type SelectionSnapshot } from '@renderer/utils/selectionPatch'
 import { applySelectionPipelineReplacement } from '@renderer/utils/selectionPipelineEditor'
@@ -1227,6 +1227,7 @@ const emit = defineEmits<{
 	(e: 'save'): void
 	(e: 'switch-tab', tab: string): void
 	(e: 'update:dirty', value: boolean): void
+	(e: 'writer-change', snapshot: WriterSnapshot): void
 	(e: 'manual-save'): void
 	(e: 'update:generation-context-kind', value: ContextTemplateKind): void
 	(e: 'update:review-context-kind', value: ContextTemplateKind): void
@@ -2242,6 +2243,7 @@ function initEditor() {
 							content: (localCard.content as any)?.content || ''
 						})
 					}
+					emit('writer-change', getSnapshot())
 				})
 			]
 		})
@@ -4110,11 +4112,13 @@ function getSnapshot(): WriterSnapshot {
 		projectId: props.card.project_id,
 		cardId: props.card.id,
 		title: localCard.title,
-		content: {
-			...localCard.content,
-			content: getText(),
-		},
-		contextTemplates: props.contextTemplates ?? getCardContextTemplates(props.card),
+		content: createChapterWriterContent(
+			localCard.content as Record<string, JsonValue | undefined>,
+			getText(),
+		),
+		contextTemplates: cloneContextTemplates(
+			props.contextTemplates ?? getCardContextTemplates(props.card),
+		),
 	}
 }
 
