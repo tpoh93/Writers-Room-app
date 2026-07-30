@@ -70,6 +70,32 @@ def export_text(session: Session, *, scope: str = "all", format: str = "txt", **
     ).content.decode("utf-8")
 
 
+def add_card_with_type(
+    session: Session,
+    *,
+    type_name: str,
+    title: str,
+    content: dict[str, object],
+    display_order: int,
+) -> Card:
+    project = session.query(Project).one()
+    card_type = CardType(name=type_name, model_name="Text")
+    session.add(card_type)
+    session.commit()
+    session.refresh(card_type)
+    card = Card(
+        title=title,
+        content=content,
+        project_id=project.id,
+        card_type_id=card_type.id,
+        display_order=display_order,
+    )
+    session.add(card)
+    session.commit()
+    session.refresh(card)
+    return card
+
+
 @pytest.mark.parametrize("format", ["txt", "md"])
 def test_polish_fixture_has_polish_generated_copy_and_no_cjk(format: str, session: Session) -> None:
     artifact = export_text(session, format=format)
@@ -78,6 +104,35 @@ def test_polish_fixture_has_polish_generated_copy_and_no_cjk(format: str, sessio
     assert "Zakres eksportu" in artifact
     assert "Liczba kart" in artifact
     assert "Pierwszy syntetyczny akapit." in artifact
+    assert re.search(r"[\u4e00-\u9fff]", artifact) is None
+
+
+@pytest.mark.parametrize("format", ["txt", "md"])
+def test_known_canonical_type_names_use_polish_generated_labels_without_cjk(
+    format: str,
+    session: Session,
+) -> None:
+    for order, (type_name, title) in enumerate(
+        [
+            ("章节正文", "Scena główna"),
+            ("通用文本", "Scena poboczna"),
+            ("场景卡", "Karta referencyjna"),
+        ],
+        start=10,
+    ):
+        add_card_with_type(
+            session,
+            type_name=type_name,
+            title=title,
+            content={"content": f"Syntetyczna treść {order}."},
+            display_order=order,
+        )
+
+    artifact = export_text(session, format=format)
+
+    assert "Treść rozdziału" in artifact
+    assert "Tekst ogólny" in artifact
+    assert "Karta sceny" in artifact
     assert re.search(r"[\u4e00-\u9fff]", artifact) is None
 
 
@@ -100,10 +155,17 @@ def test_all_scopes_preserve_deterministic_card_order(format: str, session: Sess
 
 def test_author_cjk_is_preserved_while_json_keeps_technical_field_names(session: Session) -> None:
     project = session.query(Project).one()
-    card_type = session.query(CardType).one()
+    card_type = CardType(name="场景卡", model_name="SceneCard")
+    session.add(card_type)
+    session.commit()
+    session.refresh(card_type)
     author_card = Card(
         title="作者标题",
-        content={"content": "作者保留的引文"},
+        content={
+            "content": "作者保留的引文",
+            "name": "作者姓名",
+            "quote": "作者原始引文",
+        },
         project_id=project.id,
         card_type_id=card_type.id,
         display_order=3,
@@ -118,6 +180,12 @@ def test_author_cjk_is_preserved_while_json_keeps_technical_field_names(session:
 
     assert "作者标题" in text
     assert "作者保留的引文" in markdown
+    assert "Karta sceny" in text
     assert payload["cards"][0]["title"] == "作者标题"
-    assert payload["cards"][0]["content"] == {"content": "作者保留的引文"}
+    assert payload["cards"][0]["content"] == {
+        "content": "作者保留的引文",
+        "name": "作者姓名",
+        "quote": "作者原始引文",
+    }
+    assert payload["cards"][0]["card_type_name"] == "场景卡"
     assert set(payload) >= {"project", "scope", "format", "exported_at", "total_cards", "cards"}

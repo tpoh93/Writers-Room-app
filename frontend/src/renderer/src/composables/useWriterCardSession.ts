@@ -6,10 +6,10 @@ import {
   type WriterFlushReason,
   type WriterSaveResult,
   type WriterSaveState,
+  bindWriterTimerFunctions,
   WriterSaveCoordinator,
 } from '@renderer/services/writerSaveCoordinator'
 import type { WriterSnapshot } from '@renderer/services/writerSnapshot'
-import { snapshotsEqual } from '@renderer/services/writerSnapshot'
 import { recordVersionIfEligible } from '@renderer/services/versionService'
 import { useEditorStore } from '@renderer/stores/useEditorStore'
 import { compareRecoveryDraft, type RecoveryComparison } from '@renderer/services/writerRecovery'
@@ -23,7 +23,7 @@ export interface WriterEditorAdapter {
 export interface WriterCardSession {
   state: Ref<WriterSaveState>
   error: Ref<Error | null>
-  onEditorChange(): void
+  onEditorChange(snapshot?: WriterSnapshot): void
   manualSave(): Promise<WriterSaveResult>
   retry(): Promise<WriterSaveResult>
   flush(reason: WriterFlushReason): Promise<WriterSaveResult>
@@ -57,6 +57,7 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
       initial: adapter.value.getSnapshot(),
       drafts: new RecoveryDraftStore(localStorage, () => new Date()),
       now: () => new Date(),
+      ...bindWriterTimerFunctions(window),
       save: async (snapshot) => {
         const payload: CardUpdate = {
           title: snapshot.title,
@@ -71,6 +72,10 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
         if (disposed || activeToken !== token) return
         state.value = nextState
         error.value = nextError
+      },
+      onCurrentSnapshotConfirmed: (snapshot) => {
+        if (disposed || activeToken !== token || !adapter.value) return
+        adapter.value.setSavedBaseline(snapshot)
       },
       onHistoryEligible: (snapshot, reason) => {
         if (disposed || activeToken !== token) return
@@ -112,45 +117,30 @@ export function useWriterCardSession(card: Ref<CardRead>, adapter: Ref<WriterEdi
     return coordinator ?? createCoordinator()
   }
 
-  function onEditorChange(): void {
+  function onEditorChange(snapshot?: WriterSnapshot): void {
     const active = requireCoordinator()
-    if (active && adapter.value) active.update(adapter.value.getSnapshot())
+    if (active && adapter.value) active.update(snapshot ?? adapter.value.getSnapshot())
   }
 
   async function manualSave(): Promise<WriterSaveResult> {
-    const token = activeToken
     onEditorChange()
     const active = requireCoordinator()
-    const result = active ? await active.manualSave() : { ok: false, error: new Error('Writer session is unavailable') }
-    applyConfirmedBaseline(token, result)
-    return result
+    return active ? await active.manualSave() : { ok: false, error: new Error('Writer session is unavailable') }
   }
 
   async function retry(): Promise<WriterSaveResult> {
-    const token = activeToken
     onEditorChange()
-    const result = await (requireCoordinator()?.retry() ?? Promise.resolve({ ok: false, error: new Error('Writer session is unavailable') }))
-    applyConfirmedBaseline(token, result)
-    return result
+    return requireCoordinator()?.retry() ?? Promise.resolve({ ok: false, error: new Error('Writer session is unavailable') })
   }
 
   async function flush(reason: WriterFlushReason): Promise<WriterSaveResult> {
-    const token = activeToken
     onEditorChange()
-    const result = await (requireCoordinator()?.flush(reason) ?? Promise.resolve({ ok: false, error: new Error('Writer session is unavailable') }))
-    applyConfirmedBaseline(token, result)
-    return result
+    return requireCoordinator()?.flush(reason) ?? Promise.resolve({ ok: false, error: new Error('Writer session is unavailable') })
   }
 
   function persistRecoveryDraft(reason: RecoveryDraftReason): void {
     onEditorChange()
     requireCoordinator()?.persistRecoveryDraft(reason)
-  }
-
-  function applyConfirmedBaseline(token: number, result: WriterSaveResult): void {
-    if (disposed || activeToken !== token || !result.ok || result.current === false || !result.snapshot || !adapter.value) return
-    if (!snapshotsEqual(adapter.value.getSnapshot(), result.snapshot)) return
-    adapter.value.setSavedBaseline(result.snapshot)
   }
 
   function checkRecovery(canonical: WriterSnapshot): RecoveryComparison | null {

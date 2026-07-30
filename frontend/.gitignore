@@ -5,6 +5,7 @@ dist/
 dist-web/
 out/
 scripts/*.cjs
+!scripts/write-build-meta.cjs
 
 # IDE配置
 .vscode/

@@ -1,7 +1,7 @@
 import { resolve } from 'path'
 
 import vue from '@vitejs/plugin-vue'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [vue()],
@@ -16,5 +16,6 @@ export default defineConfig({
     globals: true,
     restoreMocks: true,
     clearMocks: true,
+    exclude: [...configDefaults.exclude, 'scripts/__tests__/**/*.test.cjs'],
   },
 })

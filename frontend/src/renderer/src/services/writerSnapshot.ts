@@ -53,6 +53,19 @@ export function createWriterSnapshot(
   }
 }
 
+export function createChapterWriterContent(
+  content: Record<string, JsonValue | undefined>,
+  textContent: string,
+): JsonValue {
+  const snapshotContent: Record<string, JsonValue | undefined> = {
+    ...content,
+    content: textContent,
+  }
+  if (snapshotContent.volume_number === undefined) delete snapshotContent.volume_number
+  if (snapshotContent.chapter_number === undefined) delete snapshotContent.chapter_number
+  return snapshotContent as Record<string, JsonValue>
+}
+
 export function canonicalizeWriterSnapshot(snapshot: WriterSnapshot): string {
   return JSON.stringify(
     canonicalizeJson({

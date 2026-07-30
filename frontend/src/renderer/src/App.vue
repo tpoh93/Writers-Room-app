@@ -29,6 +29,7 @@ const editorStore = useEditorStore()
 
 const { currentView, settingsDialogVisible } = storeToRefs(appStore)
 const { currentProject } = storeToRefs(projectStore)
+let controlledCloseInFlight = false
 
 async function handleProjectSelected(project: Project) {
   if (!await editorStore.requireWriterFlush('project-change')) {
@@ -40,12 +41,18 @@ async function handleProjectSelected(project: Project) {
 }
 
 async function handleBackToDashboard() {
-  if (!await editorStore.requireWriterFlush('controlled-close')) {
-    ElMessage.error(i18n.global.t('writerReady.flushControlledCloseFailed'))
-    return
+  if (controlledCloseInFlight) return
+  controlledCloseInFlight = true
+  try {
+    if (!await editorStore.requireWriterFlush('controlled-close')) {
+      ElMessage.error(i18n.global.t('writerReady.flushControlledCloseFailed'))
+      return
+    }
+    projectStore.reset()
+    appStore.goToDashboard()
+  } finally {
+    controlledCloseInFlight = false
   }
-  projectStore.reset()
-  appStore.goToDashboard()
 }
 
 function handleOpenSettings() {
@@ -108,7 +115,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="app-layout">
-    <Header v-if="!isNoHeader" />
+    <Header v-if="!isNoHeader" @back-to-dashboard="handleBackToDashboard" />
     <main class="main-content">
       <Dashboard v-if="currentView === 'dashboard'" @project-selected="handleProjectSelected" />
       <Editor

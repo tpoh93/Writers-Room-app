@@ -9,6 +9,7 @@ import KnowledgeManager from '../setting/KnowledgeManager.vue'
 import { useI18n } from 'vue-i18n'
 
 const appStore = useAppStore()
+const emit = defineEmits<{ backToDashboard: [] }>()
 const { t } = useI18n()
 const projectStore = useProjectStore()
 const updateStore = useUpdateStore()
@@ -29,7 +30,7 @@ function openWorkflowManager() {
 
 function handleLogoClick() {
   if (currentView.value !== 'dashboard') {
-    appStore.goToDashboard()
+    emit('backToDashboard')
   }
 }
 

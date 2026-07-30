@@ -250,7 +250,7 @@ def create_default_card_types(session: Session) -> None:
             "default_ai_context_template_review": None,
         },
         "角色卡": {"default_ai_context_template": None},
-        "场景卡": {"default_ai_context_template": None},
+        "场景卡": {"editor_component": "GenericCardEditor", "default_ai_context_template": None},
         "组织卡": {"default_ai_context_template": None},
         "物品卡": {"default_ai_context_template": None, "is_ai_enabled": False},
         "概念卡": {"default_ai_context_template": None, "is_ai_enabled": False},

@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RecoveryDraftStore } from '../recoveryDraftStore'
 import {
+  bindWriterTimerFunctions,
   type WriterHistoryReason,
   type WriterSaveState,
   WriterSaveCoordinator,
 } from '../writerSaveCoordinator'
 import type { WriterSnapshot } from '../writerSnapshot'
+import { WRITER_READY_FIXTURE, createWriterReadySnapshot } from '../../test-support/writerReadyFixtures'
 
 const initial: WriterSnapshot = {
   projectId: 1,
@@ -79,6 +81,18 @@ describe('WriterSaveCoordinator atomic canonical save', () => {
     }
   )
 
+  it('submits one dirty controlled-close flush without a technical history entry', async () => {
+    const { coordinator, history, save } = createCoordinator()
+    const snapshot = changed()
+    coordinator.update(snapshot)
+
+    await expect(coordinator.flush('controlled-close')).resolves.toMatchObject({ ok: true, snapshot })
+
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(save).toHaveBeenCalledWith(snapshot)
+    expect(history).toEqual([])
+  })
+
   it.each([
     ['manual', (coordinator: WriterSaveCoordinator) => coordinator.manualSave(), 'manual', true],
     ['recovered draft', (coordinator: WriterSaveCoordinator) => coordinator.flush('recovered-draft'), 'recovered-draft', true],
@@ -119,6 +133,49 @@ describe('WriterSaveCoordinator backend autosave', () => {
   })
 
   afterEach(() => vi.useRealTimers())
+
+  it('runs recovery and autosave through browser-bound timers and cancels them on dispose', async () => {
+    const fakeSetTimeout = globalThis.setTimeout.bind(globalThis)
+    const fakeClearTimeout = globalThis.clearTimeout.bind(globalThis)
+    const timerTarget = {
+      setTimeout(this: unknown, callback: () => void, delay?: number) {
+        if (this !== timerTarget) throw new TypeError('Illegal invocation')
+        return fakeSetTimeout(callback, delay)
+      },
+      clearTimeout(this: unknown, timer: ReturnType<typeof setTimeout>) {
+        if (this !== timerTarget) throw new TypeError('Illegal invocation')
+        fakeClearTimeout(timer)
+      },
+    }
+    const save = vi.fn(async (snapshot: WriterSnapshot) => snapshot)
+    const drafts = new RecoveryDraftStore(localStorage, () => new Date())
+    const coordinator = new WriterSaveCoordinator({
+      initial,
+      save,
+      drafts,
+      now: () => new Date(),
+      ...bindWriterTimerFunctions(timerTarget),
+    })
+    const snapshot = changed()
+
+    coordinator.update(snapshot)
+    await vi.advanceTimersByTimeAsync(2_999)
+    expect(drafts.read(1, 2)).toBeNull()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(drafts.read(1, 2)).toMatchObject({
+      content: snapshot.content,
+      reason: 'local-idle',
+    })
+
+    await vi.advanceTimersByTimeAsync(27_000)
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(save).toHaveBeenLastCalledWith(snapshot)
+
+    coordinator.update({ ...snapshot, content: { content: 'Anulowana zmiana' } })
+    coordinator.dispose()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(save).toHaveBeenCalledTimes(1)
+  })
 
   it('saves first at thirty seconds and repeats every thirty seconds while dirty', async () => {
     const save = vi.fn(async (snapshot: WriterSnapshot) => snapshot)
@@ -199,5 +256,73 @@ describe('WriterSaveCoordinator disposal', () => {
     expect(states).toEqual(['dirty', 'saving'])
     expect(history).toEqual([])
     expect(drafts.read(1, 2)).toBeNull()
+  })
+})
+
+describe('WriterSaveCoordinator writer-ready fixture integration', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('saves an ordinary complete Polish fixture snapshot through the real coordinator', async () => {
+    const markdown = WRITER_READY_FIXTURE.cards.markdown
+    const fixtureInitial = createWriterReadySnapshot({
+      cardId: markdown.id,
+      title: markdown.title,
+      content: markdown.content,
+      contextTemplates: {
+        generation: markdown.ai_context_template,
+        review: markdown.ai_context_template_review,
+      },
+    })
+    const changedFixture = createWriterReadySnapshot({
+      cardId: markdown.id,
+      title: 'Scena poboczna po zmianie',
+      content: { content: 'Drugi syntetyczny akapit po zmianie.' },
+      contextTemplates: {
+        generation: 'Zmieniony szablon generowania',
+        review: 'Zmieniony szablon recenzji',
+      },
+    })
+    const save = vi.fn(async (snapshot: WriterSnapshot) => snapshot)
+    const coordinator = new WriterSaveCoordinator({
+      initial: fixtureInitial,
+      save,
+      drafts: new RecoveryDraftStore(localStorage, () => new Date()),
+      now: () => new Date(),
+    })
+
+    coordinator.update(changedFixture)
+    await expect(coordinator.manualSave()).resolves.toMatchObject({ ok: true, snapshot: changedFixture })
+
+    expect(save).toHaveBeenCalledWith(changedFixture)
+  })
+
+  it('preserves intentional author-CJK as author content through the real coordinator', async () => {
+    const fixtureInitial = createWriterReadySnapshot()
+    const authorSnapshot = createWriterReadySnapshot({
+      cardId: WRITER_READY_FIXTURE.cards.authorCJK.id,
+      title: WRITER_READY_FIXTURE.cards.authorCJK.title,
+      content: WRITER_READY_FIXTURE.cards.authorCJK.content,
+      contextTemplates: {
+        generation: WRITER_READY_FIXTURE.cards.authorCJK.ai_context_template,
+        review: WRITER_READY_FIXTURE.cards.authorCJK.ai_context_template_review,
+      },
+    })
+    const save = vi.fn(async (snapshot: WriterSnapshot) => snapshot)
+    const coordinator = new WriterSaveCoordinator({
+      initial: fixtureInitial,
+      save,
+      drafts: new RecoveryDraftStore(localStorage, () => new Date()),
+      now: () => new Date(),
+    })
+
+    coordinator.update(authorSnapshot)
+    await coordinator.manualSave()
+
+    expect(save).toHaveBeenCalledWith(authorSnapshot)
+    expect(save.mock.calls[0]?.[0]).toMatchObject({
+      title: '中文作者',
+      content: { content: '中文作者内容' },
+      contextTemplates: { generation: '中文模板', review: '中文评论' },
+    })
   })
 })
