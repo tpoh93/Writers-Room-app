@@ -27,10 +27,10 @@ The runner is the only fixture lifecycle procedure. It loads `compose.yaml` and 
 
 ## B+ status
 
-- B+1: IN PROGRESS — implementation and no-Docker verification are the active work.
+- B+1: COMPLETE — implementation, no-Docker verification, and isolated Compose smoke passed.
 - B+2: NOT STARTED — deterministic fault controls require a separate plan.
 - B+3: NOT STARTED — matrix reconciliation and batched QA require a separate plan.
 
-The current writer-ready working matrix remains the source for matrix classification; do not duplicate its rows here. WR-08 is a historical FAIL resolved by checkpoint `19af546c069f9dd4e472a58e586124eb363ab927`. The active QA batch is none until B+1 is complete. The only open product/spec decision is WR-07.
+Compose smoke: PASS. The current writer-ready working matrix remains the source for matrix classification; do not duplicate its rows here. WR-08 is a historical FAIL resolved by checkpoint `19af546c069f9dd4e472a58e586124eb363ab927`. The active QA batch is none. The only open product/spec decision is WR-07.
 
-Next step: complete B+1 and Docker smoke gate.
+Next step: owner review of separate B+2 plan.
