@@ -83,8 +83,35 @@ const BUILTIN_DISPLAY_NAMES: Record<string, string> = {
   '情感关系标签': 'Tagi relacji emocjonalnych',
 }
 
+const BUILTIN_PROMPT_DISPLAY_NAMES: Record<string, string> = {
+  '金手指生成': 'Zaproponuj specjalny atut bohatera',
+  '一句话梗概': 'Utwórz logline',
+  '一段话大纲': 'Utwórz zarys fabuły',
+  '世界观设定': 'Zbuduj świat przedstawiony',
+  '核心蓝图': 'Utwórz rdzeń historii',
+  '分卷大纲': 'Utwórz zarys tomu',
+  '阶段大纲': 'Utwórz zarys etapu',
+  '章节大纲': 'Utwórz zarys rozdziału',
+  '内容生成': 'Wygeneruj treść',
+  '写作指南': 'Utwórz założenia pisarskie',
+  '章节审核': 'Oceń rozdział',
+  '灵感对话': 'Rozmowa o pomysłach',
+}
+
 export function getCardDisplayTitle(title: string): string {
   return LEGACY_CARD_TITLES.has(title) ? i18n.global.t('editor.defaultCardTitle') : title
+}
+
+/**
+ * Maps only titles that are demonstrably bootstrap defaults: a built-in card's
+ * persisted title is identical to its canonical built-in type.  Any other
+ * author-entered title, including CJK, remains verbatim.
+ */
+export function getBuiltInCardDefaultTitle(title: string, cardTypeName: string | undefined): string {
+  if (title === cardTypeName && title in BUILTIN_DISPLAY_NAMES) {
+    return BUILTIN_DISPLAY_NAMES[title]
+  }
+  return getCardDisplayTitle(title)
 }
 
 export function getCardTypeDisplayName(name: string): string {
@@ -120,6 +147,10 @@ export function getRelationStanceDisplayName(stance: string): string {
 
 export function getSchemaDisplayText(text: string | undefined): string | undefined {
   return text === undefined ? undefined : BUILTIN_DISPLAY_NAMES[text] || text
+}
+
+export function getPromptDisplayName(name: string | undefined): string | undefined {
+  return name === undefined ? undefined : BUILTIN_PROMPT_DISPLAY_NAMES[name] || name
 }
 
 type WorkflowNodeForDisplay = {

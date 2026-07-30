@@ -198,7 +198,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getCardDisplayTitle, getCardTypeDisplayName } from '@renderer/i18n'
+import { getCardDisplayTitle, getCardTypeDisplayName, getPromptDisplayName } from '@renderer/i18n'
 import { storeToRefs } from 'pinia'
 import { useCardStore } from '@renderer/stores/useCardStore'
 import { useAIStore } from '@renderer/stores/useAIStore'
@@ -554,7 +554,7 @@ const selectedModelName = computed(() => {
 const paramSummary = computed(() => {
   const p = perCardParams.value || editingParams.value
   const model = t('chapterEditor.modelSummary', { value: selectedModelName.value || t('editor.notSet') })
-  const prompt = t('genericCard.promptSummary', { value: p?.prompt_name || t('editor.notSet') })
+  const prompt = t('genericCard.promptSummary', { value: getPromptDisplayName(p?.prompt_name) || t('editor.notSet') })
   const temperature = p?.temperature != null ? t('chapterEditor.temperatureSummary', { value: p.temperature }) : ''
   const m = p?.max_tokens != null ? `max_tokens:${p.max_tokens}` : ''
   return [model, prompt, temperature, m].filter(Boolean).join(' · ')

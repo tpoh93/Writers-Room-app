@@ -815,6 +815,10 @@ const pl = {
     itemSummary: 'Podsumowanie przedmiotów',
     conceptSummary: 'Podsumowanie pojęć',
     noFacts: 'Brak kluczowych faktów. Informacje o powiązanych elementach nie zostały jeszcze zebrane.',
+    previewIntro: 'Poniżej znajdują się informacje i fragmenty kontekstu, które zostaną użyte podczas pracy z kartą.',
+    previewSections: 'Uwzględnione sekcje: {sections}.',
+    technicalView: 'Widok techniczny',
+    technicalHint: 'Ten widok diagnostyczny pokazuje surowy zapis kontekstu. Nie zmienia danych przekazywanych do modelu ani wykonania workflowu.',
     characters: 'Postacie',
     scenes: 'Sceny',
     organizations: 'Organizacje',
@@ -845,6 +849,7 @@ const pl = {
     noOutline: 'Brak dostępnego konspektu',
   },
   ideas: {
+    returnToProject: 'Wróć do projektu',
     transferToProject: 'Przenieś lub skopiuj do projektu',
     copy: 'Kopiuj',
     move: 'Przenieś',

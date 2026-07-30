@@ -7,6 +7,8 @@ import { useCardStore } from '@renderer/stores/useCardStore'
 import { getProjects } from '@renderer/api/projects'
 import { getCardsForProject, copyCard, moveCard, type CardRead } from '@renderer/api/cards'
 import Editor from './Editor.vue'
+import { getCardTypeDisplayName } from '@renderer/i18n'
+import { returnFromIdeas } from '@renderer/services/ideasNavigation'
 
 const { t } = useI18n()
 
@@ -110,6 +112,7 @@ async function confirmTransfer() {
   <div class="ideas-home">
     <div class="topbar" v-if="currentProject">
       <div class="left">
+        <el-button size="small" @click="returnFromIdeas">{{ t('ideas.returnToProject') }}</el-button>
         <el-button size="small" @click="openTransferDialog">{{ t('ideas.transferToProject') }}</el-button>
       </div>
       <div class="right"></div>
@@ -139,7 +142,7 @@ async function confirmTransfer() {
         <el-table-column type="selection" width="48" />
         <el-table-column prop="title" :label="t('editor.titleColumn')" min-width="220" />
         <el-table-column :label="t('editor.typeColumn')" min-width="160">
-          <template #default="{ row }">{{ row.card_type?.name }}</template>
+          <template #default="{ row }">{{ getCardTypeDisplayName(row.card_type?.name || '') }}</template>
         </el-table-column>
         <el-table-column :label="t('editor.createdAtColumn')" min-width="180">
           <template #default="{ row }">{{ (row as any).created_at }}</template>

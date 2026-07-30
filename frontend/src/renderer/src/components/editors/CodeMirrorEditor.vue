@@ -1168,6 +1168,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getPromptDisplayName } from '@renderer/i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import SimpleMarkdown from '../common/SimpleMarkdown.vue'
@@ -1352,7 +1353,7 @@ const selectedModelName = computed(() => {
 const paramSummary = computed(() => {
 	const p = perCardParams.value || editingParams.value
 	const model = t('chapterEditor.modelSummary', { value: selectedModelName.value || t('editor.notSet') })
-	const prompt = t('chapterEditor.taskSummary', { value: p?.prompt_name || t('editor.notSet') })
+	const prompt = t('chapterEditor.taskSummary', { value: getPromptDisplayName(p?.prompt_name) || t('editor.notSet') })
 	const temperature = p?.temperature != null ? t('chapterEditor.temperatureSummary', { value: p.temperature }) : ''
 	const m = p?.max_tokens != null ? `max_tokens:${p.max_tokens}` : ''
 	return [model, prompt, temperature, m].filter(Boolean).join(' · ')

@@ -62,7 +62,7 @@
             </el-form-item>
             <el-form-item :label="t('settings.prompt')">
               <el-select v-model="aiParams.prompt_name" filterable :placeholder="t('settings.selectPrompt')" style="width:100%">
-                <el-option v-for="p in prompts" :key="p.name" :label="p.name" :value="p.name" />
+                <el-option v-for="p in prompts" :key="p.name" :label="getPromptDisplayName(p.name)" :value="p.name" />
               </el-select>
             </el-form-item>
             <div class="ai-grid">
@@ -105,6 +105,7 @@ import { useI18n } from 'vue-i18n'
 import {
   getCardTypeDisplayDescription,
   getCardTypeDisplayName,
+  getPromptDisplayName,
 } from '@renderer/i18n'
 import type { components } from '@renderer/types/generated'
 import { useCardStore } from '@renderer/stores/useCardStore'

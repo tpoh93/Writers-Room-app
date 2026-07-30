@@ -9,10 +9,12 @@ import EditorHeader from '@renderer/components/common/EditorHeader.vue'
 import i18n, {
   elementPlusLocale,
   getCardDisplayTitle,
+  getBuiltInCardDefaultTitle,
   getCardTypeDisplayDescription,
   getCardTypeDisplayName,
   getProjectDisplayName,
   getProjectTemplateDisplayName,
+  getPromptDisplayName,
   getRelationKindDisplayName,
   getRelationStanceDisplayName,
   getSchemaDisplayText,
@@ -154,6 +156,15 @@ describe('Polish interface localization', () => {
     )
     expect(getSchemaDisplayText('story_tags')).toBe('Tagi historii')
     expect(getCardTypeDisplayName('Tytuł autora po chińsku')).toBe('Tytuł autora po chińsku')
+  })
+
+  it('maps only recognized built-in defaults and prompts at the display boundary', () => {
+    expect(getBuiltInCardDefaultTitle('作品标签', '作品标签')).toBe('Tagi utworu')
+    expect(getBuiltInCardDefaultTitle('作品标签', '角色卡')).toBe('作品标签')
+    expect(getBuiltInCardDefaultTitle('Tytuł autora po chińsku', '作品标签')).toBe('Tytuł autora po chińsku')
+    expect(getPromptDisplayName('金手指生成')).toBe('Zaproponuj specjalny atut bohatera')
+    expect(getPromptDisplayName('一段话大纲')).toBe('Utwórz zarys fabuły')
+    expect(getPromptDisplayName('Prompt autora')).toBe('Prompt autora')
   })
 
   it('does not emit a localized card title when only the raw prop changes', async () => {

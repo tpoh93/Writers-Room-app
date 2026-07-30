@@ -16,6 +16,10 @@
     </el-form>
 
     <div v-if="assembled" class="assembled">
+      <p class="preview-intro">{{ t('contextPanel.previewIntro') }}</p>
+      <p v-if="authorPreview.sections.length" class="preview-summary">
+        {{ t('contextPanel.previewSections', { sections: authorPreview.sections.map(section => section.title).join(', ') }) }}
+      </p>
       <div class="facts-structured" v-if="assembled.facts_structured">
         <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.fact_summaries) && ((assembled.facts_structured as any)?.fact_summaries?.length > 0)">{{ t('contextPanel.keyFacts') }}</div>
         <ul class="list" v-if="Array.isArray((assembled.facts_structured as any)?.fact_summaries) && ((assembled.facts_structured as any)?.fact_summaries?.length > 0)">
@@ -92,19 +96,25 @@
         </ul>
         
       </div>
-      <pre class="pre" v-if="!assembled.facts_structured && assembled.facts_subgraph">{{ assembled.facts_subgraph }}</pre>
-      <div v-if="!assembled.facts_structured && !assembled.facts_subgraph">{{ t('contextPanel.noFacts') }}</div>
+      <div v-if="!assembled.facts_structured">{{ t('contextPanel.noFacts') }}</div>
+      <el-collapse v-if="assembled.facts_subgraph" class="technical-preview">
+        <el-collapse-item :title="t('contextPanel.technicalView')" name="technical">
+          <p class="technical-hint">{{ t('contextPanel.technicalHint') }}</p>
+          <pre class="pre">{{ assembled.facts_subgraph }}</pre>
+        </el-collapse-item>
+      </el-collapse>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { assembleContext, type AssembleContextResponse } from '@renderer/api/ai'
 import { ElMessage } from 'element-plus'
 import { getCardsForProject, type CardRead } from '@renderer/api/cards'
 import { getRelationKindDisplayName, getRelationStanceDisplayName } from '@renderer/i18n'
+import { buildAuthorContextPreview } from '@renderer/services/contextPreview'
 
 const { t } = useI18n()
 
@@ -119,6 +129,10 @@ const emit = defineEmits<{
 
 const assembling = ref(false)
 const assembled = ref<AssembleContextResponse | null>(null)
+const authorPreview = computed(() => buildAuthorContextPreview(
+  assembled.value?.facts_structured,
+  assembled.value?.facts_subgraph,
+))
 // 回显入口已移除
 
 type Group = { label: string; values: string[] }
@@ -258,7 +272,9 @@ async function assemble() {
 .controls { padding: 12px 16px; border-bottom: 1px solid var(--el-border-color-light); }
 .actions { display: flex; gap: 8px; }
 .assembled { padding: 16px; overflow: auto; color: var(--el-text-color-primary); font-size: 14px; line-height: 1.8; }
-.pre { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 13px; color: var(--el-text-color-primary); }
+.preview-intro { margin: 0 0 12px; color: var(--el-text-color-regular); }
+.preview-summary { margin: 0 0 12px; color: var(--el-text-color-secondary); font-size: 13px; }
+.pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; max-width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 13px; color: var(--el-text-color-primary); }
 .facts-structured { margin-bottom: 8px; }
 .facts-title { font-weight: 600; margin: 6px 0; color: var(--el-text-color-primary); }
 .list { margin: 0; padding-left: 16px; }
@@ -270,4 +286,6 @@ async function assemble() {
 .dialog-text { white-space: pre-wrap; line-height: 1.8; font-size: 13.5px; color: var(--el-text-color-primary); }
 .badges { margin-left: 8px; }
 .raw-toggle { margin: 6px 0; }
+.technical-preview { margin-top: 16px; }
+.technical-hint { margin: 0 0 8px; color: var(--el-text-color-regular); font-size: 13px; }
 </style> 

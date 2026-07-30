@@ -75,7 +75,7 @@
              @click="handleNodeClick({ id: card.id, title: card.title, card_type: card.card_type })"
            >
               <el-icon class="card-icon"><component :is="getIconByCardType(card.card_type?.name)" /></el-icon>
-              <span class="search-item-title">{{ getCardDisplayTitle(card.title) }}</span>
+              <span class="search-item-title">{{ getBuiltInCardDefaultTitle(card.title, card.card_type?.name) }}</span>
            </div>
            <el-empty v-if="!searchLoading && searchResults.length === 0" :description="t('editor.noSearchResults')" :image-size="60" />
         </div>
@@ -114,7 +114,7 @@
                     {{
                       data.__isGroup
                         ? getCardTypeDisplayName(node.label || data.title)
-                        : getCardDisplayTitle(node.label || data.title)
+                        : getBuiltInCardDefaultTitle(node.label || data.title, data.card_type?.name)
                     }}
                   </span>
                   <span v-if="data.children && data.children.length > 0" class="child-count">{{ data.children.length }}</span>
@@ -276,7 +276,12 @@
         <el-input v-model="newCardForm.title" :placeholder="t('editor.cardTitlePlaceholder')"></el-input>
       </el-form-item>
       <el-form-item :label="t('editor.cardType')">
-        <el-select v-model="newCardForm.card_type_id" :placeholder="t('editor.cardTypePlaceholder')" style="width: 100%">
+        <el-select
+          v-model="newCardForm.card_type_id"
+          :placeholder="t('editor.cardTypePlaceholder')"
+          style="width: 100%"
+          @change="prefillBuiltInCardTitle"
+        >
           <el-option
             v-for="type in cardStore.cardTypes"
             :key="type.id"
@@ -329,7 +334,7 @@
     <el-table :data="filteredImportCards" height="360px" border @selection-change="onImportSelectionChange">
       <el-table-column type="selection" width="48" />
       <el-table-column :label="t('editor.titleColumn')" min-width="220">
-        <template #default="{ row }">{{ getCardDisplayTitle(row.title) }}</template>
+        <template #default="{ row }">{{ getBuiltInCardDefaultTitle(row.title, row.card_type?.name) }}</template>
       </el-table-column>
       <el-table-column :label="t('editor.typeColumn')" min-width="160">
         <template #default="{ row }">{{ getCardTypeDisplayName(row.card_type?.name || '') }}</template>
@@ -366,6 +371,7 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 import { debounce } from 'lodash-es'
 import { useI18n } from 'vue-i18n'
 import {
+  getBuiltInCardDefaultTitle,
   getCardDisplayTitle,
   getCardTypeDisplayName,
   getProjectDisplayName,
@@ -581,6 +587,7 @@ const newCardForm = reactive<Partial<CardCreate>>({
   card_type_id: undefined,
   parent_id: '' as any
 })
+const lastAutoFilledTitle = ref('')
 
 // 卡片多选状态
 const selectedCardIds = ref<number[]>([])
@@ -663,7 +670,10 @@ async function onCardsPaneDrop(e: DragEvent) {
    const typeId = e.dataTransfer?.getData('application/x-card-type-id')
    if (typeId) {
      // 从类型列表拖拽到空白区域，在根创建新卡片
-     newCardForm.title = (cardStore.cardTypes.find(ct => ct.id === Number(typeId))?.name || '新卡片')
+     newCardForm.title = getCardTypeDisplayName(
+       cardStore.cardTypes.find(ct => ct.id === Number(typeId))?.name || '新卡片',
+     )
+     lastAutoFilledTitle.value = newCardForm.title
      newCardForm.card_type_id = Number(typeId)
      newCardForm.parent_id = '' as any
      handleCreateCard()
@@ -1260,6 +1270,7 @@ async function handleCreateCard() {
   isCreateCardDialogVisible.value = false;
   // Reset form
   Object.assign(newCardForm, { title: '', card_type_id: undefined, parent_id: '' as any });
+  lastAutoFilledTitle.value = ''
 }
 
 // 根据卡片类型返回图标组件
@@ -1356,10 +1367,13 @@ async function onCardSchemaSaved() {
 }
 
 function openCreateCardDialog(options?: { title?: string; cardTypeName?: string; parentId?: number | null }) {
-  newCardForm.title = options?.title || ''
+  const cardType = options?.cardTypeName
+    ? cardStore.cardTypes.find(ct => ct.name === options.cardTypeName)
+    : undefined
+  newCardForm.title = options?.title || (cardType ? getCardTypeDisplayName(cardType.name) : '')
+  lastAutoFilledTitle.value = newCardForm.title
   newCardForm.parent_id = options?.parentId == null ? '' as any : options.parentId as any
   if (options?.cardTypeName) {
-    const cardType = cardStore.cardTypes.find(ct => ct.name === options.cardTypeName)
     newCardForm.card_type_id = cardType?.id
   } else {
     newCardForm.card_type_id = undefined
@@ -1367,6 +1381,14 @@ function openCreateCardDialog(options?: { title?: string; cardTypeName?: string;
   activeTab.value = 'editor'
   isCreateCardDialogVisible.value = true
   blankMenuVisible.value = false
+}
+
+function prefillBuiltInCardTitle(typeId: number) {
+  const cardType = cardStore.cardTypes.find(type => type.id === typeId)
+  if (!cardType || (newCardForm.title && newCardForm.title !== lastAutoFilledTitle.value)) return
+
+  newCardForm.title = getCardTypeDisplayName(cardType.name)
+  lastAutoFilledTitle.value = newCardForm.title
 }
 
 // 打开"新建卡片"对话框并预填父ID
@@ -1937,6 +1959,8 @@ function onSwitchRightTab(e: CustomEvent) {
   padding: 16px 8px; /* 留出边距 */
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
   background-color: transparent; /* 透明背景 */
 }
 
@@ -1969,6 +1993,10 @@ function onSwitchRightTab(e: CustomEvent) {
 }
 .custom-tree-node.full-row .label {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .custom-tree-node.full-row.selected {
   background-color: var(--el-color-primary-light-9);
@@ -1986,7 +2014,7 @@ function onSwitchRightTab(e: CustomEvent) {
 .types-list { list-style: none; padding: 0; margin: 0; }
 .type-item { padding: 6px 8px; cursor: grab; display: flex; align-items: center; color: var(--el-text-color-primary); font-size: 13px; border-radius: 4px; }
 .type-item:hover { background: var(--el-fill-color-light); color: var(--el-color-primary); }
-.type-name { flex: 1; }
+.type-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 
 .inner-resizer { height: 6px; cursor: row-resize; background: var(--el-fill-color-light); border-top: 1px solid var(--el-border-color-light); border-bottom: 1px solid var(--el-border-color-light); transition: height .12s ease, background-color .12s ease, border-color .12s ease; }
 .inner-resizer:hover { height: 8px; background: var(--el-fill-color); border-top: 1px solid var(--el-border-color); border-bottom: 1px solid var(--el-border-color); }
@@ -2170,6 +2198,44 @@ function onSwitchRightTab(e: CustomEvent) {
 .right-tabs :deep(.el-tab-pane) {
   height: 100%;
   overflow-y: auto;
+}
+
+/* On compact desktops the editor must retain a usable writing column.  The
+   navigation is still available through the card-library tab, so it may yield
+   its space to the active editor and context preview. */
+@media (max-width: 1024px) {
+  .card-navigation-sidebar {
+    width: 0 !important;
+    padding: 0 !important;
+  }
+
+  .left-resizer,
+  .sidebar-edge-toggle {
+    display: none;
+  }
+
+  .assistant-sidebar {
+    width: min(340px, 48vw) !important;
+  }
+
+  .right-tabs :deep(.el-tabs__item) {
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 720px) {
+  .assistant-sidebar {
+    width: 50vw !important;
+    min-width: 280px;
+  }
+
+  .right-tabs :deep(.el-tabs__header) {
+    padding-inline: 6px;
+  }
+
+  .right-tabs :deep(.el-tabs__item) {
+    padding: 0 7px;
+  }
 }
 
 .search-results-list {

@@ -29,3 +29,10 @@ Status: completed against the isolated synthetic fixture; normal-stack health wa
 - No private prose, payload, screenshot, or marker value is included in this record.
 - Pixel-level screenshot export was unavailable in the browser tooling, so this evidence relies on runtime accessibility snapshots and test/runtime results.
 - The visible sample-node category remains a minor product-content follow-up; it was not expanded within DOGFOOD-01.
+
+## Context preview contract
+
+- The default **Podgląd kontekstu** is an author-facing Polish summary. It explains which context sections and excerpts will be used, while rendering author content without rewriting it.
+- The default view never exposes template syntax, JSON paths, internal IDs, or transport-only field names. It is a presentation layer over the same assembled context; switching views must not alter the context sent to the model or workflow execution.
+- **Widok techniczny** is a separate, collapsed-by-default diagnostic disclosure. It is visually distinct, scrollable for long content, and is the only place where raw template syntax and technical keys may be shown.
+- Rendering either view is local UI work only: it adds no content-bearing logging or requests. Both views wrap long text safely and retain vertical scrolling on narrow viewports.
