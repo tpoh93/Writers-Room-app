@@ -8,6 +8,8 @@
 
 **Tech Stack:** FastAPI/Starlette ASGI middleware, Python `asyncio`, pytest/TestClient, Bash, Docker Compose, curl.
 
+**Execution record:** Tasks 1–4 are complete: implementation used RED/GREEN tests, no-Docker verification passed, and the isolated B+2 smoke passed. Task 5 remains pending for B+3 browser evidence and Task 10 closure.
+
 ## Global Constraints
 
 - The only acceptance Compose project is `writer-ready-fixture` on `127.0.0.1:18080`.

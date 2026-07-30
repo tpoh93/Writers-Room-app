@@ -34,7 +34,7 @@ The runner is the only fixture lifecycle procedure. It loads `compose.yaml` and 
 ## B+ status
 
 - B+1: COMPLETE — implementation, no-Docker verification, and isolated Compose smoke passed.
-- B+2: IN PROGRESS — fixture-only one-shot HTTP 500, response delay, hold/release and clear controls are covered by no-Docker tests; isolated Compose smoke remains required before completion.
+- B+2: COMPLETE — fixture-only one-shot HTTP 500, response delay, hold/release and clear controls passed no-Docker tests and an isolated Compose smoke. The smoke observed 500 then 200 for successive synthetic writer PUTs, a 0.262 s response for a 0.25 s delay, a visible held request, explicit release, clear, reset and fixture verification.
 - B+3: NOT STARTED — matrix reconciliation and batched QA require a separate plan.
 
 Compose smoke: PASS. The current writer-ready working matrix remains the source for matrix classification; do not duplicate its rows here. WR-08 is a historical FAIL resolved by checkpoint `19af546c069f9dd4e472a58e586124eb363ab927`. The active QA batch is none. The only open product/spec decision is WR-07.
@@ -45,4 +45,4 @@ These commands exist only in the `writer-ready-fixture` backend, which is explic
 
 Always run `metadata` successfully before browser evidence and use `fault-clear` before fixture cleanup or after an interrupted scenario.
 
-Next step: run the isolated B+2 Compose smoke, then begin the B+3 recovery batch with fresh matching metadata.
+Next step: begin the B+3 recovery batch with fresh matching metadata.

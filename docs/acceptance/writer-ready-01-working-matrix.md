@@ -34,3 +34,7 @@
 - Author-CJK preserved in fixtures.
 - Evidence paths outside repo unless required.
 - Repeat Run B on 2026-07-29 stopped after the independently observed WR-01–WR-04 and WR-18–WR-21 results because WR-02/WR-03 were FAIL and WR-20 remained NOT VERIFIED; WR-05–WR-17 and WR-22–WR-23 were not re-executed in this repeat.
+
+## B+2 operational evidence
+
+The isolated `writer-ready-fixture` passed the deterministic fault-control smoke after matching runtime metadata and synthetic seed/verify. One armed writer PUT returned HTTP 500 and the following PUT returned HTTP 200; a configured 0.25-second delay returned in 0.262 seconds; a held request reported `requestState: held`, completed only after explicit release, then clear/reset/verify succeeded. This establishes the B+2 harness, not browser acceptance PASS for WR-11 or WR-16; those rows require B+3 observations.
