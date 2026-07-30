@@ -81,6 +81,18 @@ describe('WriterSaveCoordinator atomic canonical save', () => {
     }
   )
 
+  it('submits one dirty controlled-close flush without a technical history entry', async () => {
+    const { coordinator, history, save } = createCoordinator()
+    const snapshot = changed()
+    coordinator.update(snapshot)
+
+    await expect(coordinator.flush('controlled-close')).resolves.toMatchObject({ ok: true, snapshot })
+
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(save).toHaveBeenCalledWith(snapshot)
+    expect(history).toEqual([])
+  })
+
   it.each([
     ['manual', (coordinator: WriterSaveCoordinator) => coordinator.manualSave(), 'manual', true],
     ['recovered draft', (coordinator: WriterSaveCoordinator) => coordinator.flush('recovered-draft'), 'recovered-draft', true],
