@@ -26,7 +26,7 @@
       <div class="cards-pane" :style="{ height: `calc(100% - ${typesPaneHeight + innerResizerThickness}px)` }" @dragover.prevent @drop="onCardsPaneDrop">
         <div class="cards-title">
           <div class="cards-title-head">
-            <div class="cards-title-text">{{ t('editor.currentProject', { name: projectStore.currentProject?.name }) }}</div>
+            <div class="cards-title-text">{{ t('editor.currentProject', { name: getProjectDisplayName(projectStore.currentProject?.name) }) }}</div>
             <div v-if="selectedCardIds.length > 0" class="cards-selection-chip">{{ t('editor.selectedCount', { count: selectedCardIds.length }) }}</div>
           </div>
           <div class="cards-title-actions">
@@ -348,7 +348,7 @@
   <CardExportDialog
     v-model="exportDialogVisible"
     :project-id="projectStore.currentProject?.id"
-    :project-name="projectStore.currentProject?.name"
+    :project-name="getProjectDisplayName(projectStore.currentProject?.name)"
     :cards="cards as any"
     :card-types="cardStore.cardTypes as any"
     :initial-card-id="selectedCardIds.length === 1 ? selectedCardIds[0] : ((activeCard as any)?.id ?? null)"
@@ -368,6 +368,7 @@ import { useI18n } from 'vue-i18n'
 import {
   getCardDisplayTitle,
   getCardTypeDisplayName,
+  getProjectDisplayName,
 } from '@renderer/i18n'
 import { 
   Box,

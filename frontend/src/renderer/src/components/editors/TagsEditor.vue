@@ -79,7 +79,7 @@
               <el-button @click="randomizeRelationship" type="primary" plain size="small">{{ t('tags.randomize') }}</el-button>
             </div>
                           <el-radio-group v-model="localData.affection">
-                <el-radio v-for="tag in relationshipOptions" :key="tag" :value="tag" border>{{ tag }}</el-radio>
+                <el-radio v-for="tag in relationshipOptions" :key="tag" :value="tag" border>{{ getRelationKindDisplayName(tag) }}</el-radio>
               </el-radio-group>
           </div>
         </el-scrollbar>
@@ -94,6 +94,7 @@ import { useI18n } from 'vue-i18n'
 import { ElCard, ElButton } from 'element-plus'
 import type { components } from '@renderer/types/generated'
 import { useCardStore } from '@renderer/stores/useCardStore'
+import { getRelationKindDisplayName } from '@renderer/i18n'
 import { ElMessage } from 'element-plus'
 // 引入原子组件
 import { 

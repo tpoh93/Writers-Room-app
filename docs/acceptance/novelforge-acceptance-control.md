@@ -58,4 +58,6 @@ Always run `metadata` successfully before browser evidence and use `fault-clear`
 
 `task11-drill` is the only Task 11 operational procedure. It uses the canonical synthetic seeder IDs, makes an online `/backups` backup, mutates the four writer fields, stops only the fixture backend, performs forced restore with a `/data/pre-restore` safety backup, force-recreates a fresh fixture backend/frontend, compares a fresh GET, restarts both fixture services, and verifies the fixture. It neither addresses `writers-room` nor removes volumes.
 
-Next step: review the draft PR; do not merge without explicit approval.
+The Writer Ready acceptance PR was merged to `main` as PR #10 on 2026-07-30.
+This control remains limited to the isolated fixture; it must not be used for
+DOGFOOD-01 normal-stack writing.

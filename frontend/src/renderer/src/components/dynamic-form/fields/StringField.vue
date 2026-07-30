@@ -23,6 +23,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { JSONSchema } from '@renderer/api/schema'
+import { getSchemaDisplayText } from '@renderer/i18n'
 
 const { t } = useI18n()
 
@@ -56,6 +57,7 @@ const isLongText = computed(() => {
 })
 
 const placeholder = computed(() => {
-  return props.schema.description || t('dynamicForm.enterPlaceholder', { label: props.label })
+  return getSchemaDisplayText(props.schema.description)
+    || t('dynamicForm.enterPlaceholder', { label: props.label })
 })
 </script>

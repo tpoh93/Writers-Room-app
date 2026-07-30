@@ -1404,7 +1404,6 @@ watch(() => props.card?.content, (newContent) => {
 		// 只有当内容真的不同，且不是由当前编辑器触发的保存时，才更新
 		// （通过比较 originalContent 判断：如果相同说明是外部修改）
 		if (newText !== currentText && newText !== originalContent.value) {
-			console.log('🔄 [CodeMirror] 检测到外部内容更新，同步到编辑器')
 
 			// 更新编辑器内容
 			setText(newText)
@@ -1424,14 +1423,12 @@ watch(() => props.card?.content, (newContent) => {
 			// 更新字数
 			wordCount.value = computeWordCount(newText)
 
-			console.log('✅ [CodeMirror] 编辑器内容已同步')
 			return
 		}
 
 		// 即使正文文本未变化，也要同步 entity_list 等字段，保证预览始终读取最新章节挂载实体。
 		localCard.content = syncedContent
-	} catch (e) {
-		console.error('❌ [CodeMirror] 同步内容失败:', e)
+	} catch {
 	}
 }, { deep: true })
 
@@ -1569,14 +1566,12 @@ function setHighlight(from: number, to: number) {
 	if (!view) return
 	// CodeMirror 不允许空范围的 decoration
 	if (from >= to) {
-		console.log('⚠️ [Highlight] 跳过空范围高亮:', { from, to })
 		return
 	}
 	currentHighlight.value = { from, to }
 	view.dispatch({
 		effects: setHighlightEffect.of({ mode: 'single', from, to })
 	})
-	console.log('✨ [Highlight] 设置高亮:', { from, to })
 }
 
 // 清除高亮
@@ -1586,7 +1581,6 @@ function clearHighlight() {
 	view.dispatch({
 		effects: setHighlightEffect.of(null)
 	})
-	console.log('🧹 [Highlight] 清除高亮')
 }
 
 // 更新高亮范围（用于 AI 输出时）
@@ -2257,9 +2251,6 @@ function initEditor() {
 		const editorDom = cmRoot.value.querySelector('.cm-editor') as HTMLElement
 		if (editorDom) {
 			editorDom.addEventListener('contextmenu', handleEditorContextMenu)
-			console.log('✅ [ContextMenu] 右键菜单监听器已添加')
-		} else {
-			console.warn('⚠️ [ContextMenu] 未找到 .cm-editor 元素')
 		}
 	}
 }
@@ -2738,12 +2729,9 @@ async function executeExpand() {
 
 // 右键菜单处理函数
 function handleEditorContextMenu(e: MouseEvent) {
-	console.log(' [ContextMenu] 右键事件触发')
-
 	// 检查是否有选中文本
 	const selection = getSelectionWithLineInfo()
 	if (!selection || !selection.text.trim()) {
-		console.log('⚠️ [ContextMenu] 没有选中文本，使用默认菜单')
 		return // 没有选中文本，使用默认右键菜单
 	}
 
@@ -2796,7 +2784,6 @@ function expandContextMenu() {
 		if (input) {
 			input.focus()
 		} else {
-			console.warn('⚠️ [ContextMenu] 未找到输入框')
 		}
 	})
 }
@@ -3175,7 +3162,6 @@ function executeAIGeneration(
 					setText(text)
 				}
 			} catch {}
-			console.log('✅ [AI] 生成完成，高亮已保留（点击编辑器任意位置可清除）')
 			if (replaceMode) {
 				ElMessage.success(t('chapterEditor.taskSuggestionReady', { task: taskName }))
 			} else {

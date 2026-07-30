@@ -11,6 +11,7 @@
  */
 
 import { schemaService } from '@renderer/api/schema'
+import { getSchemaDisplayText } from '@renderer/i18n'
 
 
 export interface ParsedField {
@@ -50,8 +51,8 @@ export function parseSchemaFields(schema: any, path = '$.content', maxDepth = 5)
       const resolvedSchema = resolveSchemaRef(fieldSchema as any, defs)
       
       const fieldType = resolvedSchema.type || 'unknown'
-      const fieldTitle = resolvedSchema.title || fieldName
-      const fieldDescription = resolvedSchema.description || ''
+      const fieldTitle = getSchemaDisplayText(resolvedSchema.title) || fieldName
+      const fieldDescription = getSchemaDisplayText(resolvedSchema.description) || ''
       const fieldPath = `${path}.${fieldName}`
       
       const fieldInfo: ParsedField = {
@@ -259,4 +260,3 @@ export function resolveActualSchema(schema: any, parentSchema?: any): any {
 
   return resolved
 }
-

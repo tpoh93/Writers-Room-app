@@ -1271,7 +1271,6 @@ async function performGeneration(
           if (success) {
             // 如果后端回传了最终完整数据（包含默认值注入），则合并更新
             if (finalData) {
-              console.log('Received final data from backend:', finalData)
               const { mergeWith, isArray } = await import('lodash-es')
               const arrayOverwrite = (objValue: any, srcValue: any) => {
                 if (isArray(objValue) || isArray(srcValue)) {

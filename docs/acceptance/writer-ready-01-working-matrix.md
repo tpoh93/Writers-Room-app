@@ -38,4 +38,6 @@
 
 The isolated `writer-ready-fixture` passed the deterministic fault-control smoke after matching runtime metadata and synthetic seed/verify. One armed writer PUT returned HTTP 500 and the following PUT returned HTTP 200; a configured 0.25-second delay returned in 0.262 seconds; a held request reported `requestState: held`, completed only after explicit release, then clear/reset/verify succeeded. B+3 then observed browser-side HTTP 500/200 and delayed writer PUT behavior against the metadata-matched fixture.
 
-Next step: review the draft PR; do not merge without explicit approval.
+This matrix was closed and merged to `main` in PR #10 on 2026-07-30. It
+remains historical acceptance evidence; DOGFOOD-01 uses the normal local stack
+and real user data only after a separate, fresh backup.

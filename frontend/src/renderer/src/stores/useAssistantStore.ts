@@ -258,7 +258,6 @@ export const useAssistantStore = defineStore('assistant', () => {
   function updateActiveCard(card: CardRead | null, projectId: number) {
     if (!card) {
       activeCardContext.value = null
-      console.log('📋 [AssistantStore] 清空活动卡片')
       return
     }
     
@@ -273,8 +272,6 @@ export const useAssistantStore = defineStore('assistant', () => {
       last_seen: now,
       access_count: 1
     }
-    
-    console.log('📋 [AssistantStore] 更新活动卡片:', info)
     
     // 更新活动卡片
     activeCardContext.value = info
@@ -349,8 +346,7 @@ export const useAssistantStore = defineStore('assistant', () => {
   function saveProjectStructureToCache(structure: ProjectStructureContext) {
     try {
       localStorage.setItem(projectStructureKey(structure.project_id), JSON.stringify(structure))
-    } catch (e) {
-      console.warn('保存项目结构缓存失败', e)
+    } catch {
     }
   }
   
@@ -449,7 +445,6 @@ export const useAssistantStore = defineStore('assistant', () => {
         const updated = buildProjectStructure(projectId, projectName, cards, cardTypes, currentCardId)
         projectStructure.value = updated
         saveProjectStructureToCache(updated)
-        console.log('📋 [AssistantStore] 使用缓存的项目结构（已更新当前卡片）')
         return
       }
     }
@@ -458,7 +453,6 @@ export const useAssistantStore = defineStore('assistant', () => {
     const structure = buildProjectStructure(projectId, projectName, cards, cardTypes, currentCardId)
     projectStructure.value = structure
     saveProjectStructureToCache(structure)
-    console.log('📋 [AssistantStore] 已构建项目结构:', structure)
   }
   
   /**
@@ -491,8 +485,7 @@ export const useAssistantStore = defineStore('assistant', () => {
   function saveOperationsToCache(projectId: number, operations: UserOperation[]) {
     try {
       localStorage.setItem(projectOperationsKey(projectId), JSON.stringify(operations))
-    } catch (e) {
-      console.warn('保存操作历史失败', e)
+    } catch {
     }
   }
   
@@ -516,7 +509,6 @@ export const useAssistantStore = defineStore('assistant', () => {
     // 保存到缓存
     saveOperationsToCache(projectId, recentOperations.value)
     
-    console.log('📝 [AssistantStore] 记录操作:', operation)
   }
   
   /**

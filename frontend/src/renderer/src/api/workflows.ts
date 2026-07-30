@@ -158,36 +158,27 @@ export async function runCodeWorkflowStream(
   resume: boolean = false,
   runId?: number
 ): Promise<{ runId: { value: number }; eventSource: EventSource }> {
-  console.log('[API] 开始执行工作流:', workflowId, 'resume:', resume, 'runId:', runId)
-  
   // 构建 URL
   let url = `${API_BASE_URL}/workflows/${workflowId}/execute-stream`
   if (resume && runId) {
     url += `?resume=true&run_id=${runId}`
   }
   
-  console.log('[API] 连接 SSE:', url)
-
   // EventSource 不支持 AbortController，直接使用 close() 方法中断
   const eventSource = new EventSource(url)
   // 使用对象包装 runId，使其可以被外部引用更新
   const runIdRef = { value: runId || 0 }
 
-  eventSource.onopen = () => {
-    console.log('[API] SSE 连接成功')
-  }
+  eventSource.onopen = () => {}
 
   eventSource.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
-      console.log('[API] 收到消息:', data)
-      
       // 处理不同类型的事件
       switch (data.type) {
         case 'run_started':
           // 保存 run_id
           runIdRef.value = data.run_id
-          console.log('[API] 运行已启动, run_id:', runIdRef.value)
           // 调用回调
           callbacks.onRunStarted?.(runIdRef.value)
           break
@@ -209,7 +200,6 @@ export async function runCodeWorkflowStream(
           break
           
         case 'paused':
-          console.log('[API] 工作流已暂停')
           callbacks.onEnd?.()
           eventSource.close()
           break
@@ -220,19 +210,16 @@ export async function runCodeWorkflowStream(
           break
           
         default:
-          console.warn('[API] 未知事件类型:', data.type)
+          // Unknown event payloads are intentionally not logged: they may contain user data.
       }
-    } catch (error) {
-      console.error('[API] 解析消息失败:', error)
+    } catch {
+      // Do not log raw SSE payloads or parser errors.
     }
   }
 
-  eventSource.onerror = (error) => {
-    console.error('[API] SSE 错误:', error)
-    
+  eventSource.onerror = () => {
     // 检查 readyState 判断是否是正常关闭
     if (eventSource.readyState === EventSource.CLOSED) {
-      console.log('[API] SSE 连接已关闭（可能是暂停或完成）')
       // 不调用 onError，避免误报错误
       return
     }

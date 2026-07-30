@@ -4,6 +4,10 @@ Status:
 
   INCOMPLETE — SAFE ACCOUNT HANDOFF
 
+Historical status only. This handoff was superseded by the completed Task 10–12
+closure and the merge of PR #10 into `main` on 2026-07-30. It remains as an
+audit record and must not be treated as current work instructions.
+
 Repository:
 
   tpoh93/Writers-Room-app

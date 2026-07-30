@@ -33,12 +33,63 @@ const LEGACY_CARD_TITLES = new Set(['新卡片', '新建卡片'])
 const LEGACY_CARD_TYPE_NAME = '新类型'
 const LEGACY_CARD_TYPE_DESCRIPTION_SUFFIX = '的默认卡片类型'
 
+// These values are persisted by the built-in upstream templates.  They are
+// deliberately mapped only at the display boundary: user-authored text and
+// API/schema identifiers must pass through unchanged.
+const BUILTIN_DISPLAY_NAMES: Record<string, string> = {
+  '通用文本': 'Tekst ogólny',
+  '作品标签': 'Tagi utworu',
+  '金手指': 'Specjalny atut bohatera',
+  '一句话梗概': 'Logline',
+  '故事大纲': 'Zarys fabuły',
+  '世界观设定': 'Świat przedstawiony',
+  '核心蓝图': 'Rdzeń historii',
+  '分卷大纲': 'Zarys tomu',
+  '写作指南': 'Założenia pisarskie',
+  '阶段大纲': 'Zarys etapu',
+  '章节大纲': 'Zarys rozdziału',
+  '章节正文': 'Treść rozdziału',
+  '内容审核卡片': 'Karta oceny treści',
+  '角色卡': 'Karta postaci',
+  '场景卡': 'Karta sceny',
+  '组织卡': 'Karta organizacji',
+  '物品卡': 'Karta przedmiotu',
+  '概念卡': 'Karta pojęcia',
+  '文件夹': 'Folder',
+  '同盟': 'Sojusz',
+  '队友': 'Towarzysze',
+  '同门': 'Wspólna szkoła lub tradycja',
+  '敌对': 'Wrogość',
+  '亲属': 'Pokrewieństwo',
+  '师徒': 'Mistrz i uczeń',
+  '对手': 'Rywalizacja',
+  '伙伴': 'Partnerstwo',
+  '友好': 'Przyjazne',
+  '中立': 'Neutralne',
+  '敌意': 'Wrogie',
+  '项目创建·雪花创作法': 'Tworzenie projektu · metoda płatka śniegu',
+  '主题': 'Motyw',
+  'theme': 'Motyw',
+  '目标读者': 'Docelowy odbiorca',
+  'audience': 'Docelowy odbiorca',
+  '叙事人称': 'Perspektywa narracyjna',
+  'narrative_person': 'Perspektywa narracyjna',
+  '故事标签': 'Tagi historii',
+  'story_tags': 'Tagi historii',
+  '情感关系': 'Relacje emocjonalne',
+  'affection': 'Relacje emocjonalne',
+  '主题类别，格式：大类-子类': 'Kategoria motywu, format: kategoria główna – podkategoria',
+  '写作人称（第一人称/第三人称）': 'Osoba narracji: pierwsza lub trzecia',
+  '情感关系标签': 'Tagi relacji emocjonalnych',
+}
+
 export function getCardDisplayTitle(title: string): string {
   return LEGACY_CARD_TITLES.has(title) ? i18n.global.t('editor.defaultCardTitle') : title
 }
 
 export function getCardTypeDisplayName(name: string): string {
   if (name === LEGACY_CARD_TYPE_NAME) return i18n.global.t('editor.defaultTypeName')
+  if (BUILTIN_DISPLAY_NAMES[name]) return BUILTIN_DISPLAY_NAMES[name]
   return LEGACY_CARD_TITLES.has(name) ? i18n.global.t('editor.defaultCardTitle') : name
 }
 
@@ -49,6 +100,26 @@ export function getCardTypeDisplayDescription(description: string, typeName: str
     })
   }
   return description
+}
+
+export function getProjectTemplateDisplayName(name: string): string {
+  return BUILTIN_DISPLAY_NAMES[name] || name
+}
+
+export function getProjectDisplayName(name: string | undefined): string | undefined {
+  return name === '__free__' ? i18n.global.t('header.ideasTitle') : name
+}
+
+export function getRelationKindDisplayName(kind: string): string {
+  return BUILTIN_DISPLAY_NAMES[kind] || kind
+}
+
+export function getRelationStanceDisplayName(stance: string): string {
+  return BUILTIN_DISPLAY_NAMES[stance] || stance
+}
+
+export function getSchemaDisplayText(text: string | undefined): string | undefined {
+  return text === undefined ? undefined : BUILTIN_DISPLAY_NAMES[text] || text
 }
 
 type WorkflowNodeForDisplay = {

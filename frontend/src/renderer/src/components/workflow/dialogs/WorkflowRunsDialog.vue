@@ -257,7 +257,7 @@ async function loadRuns(silent = false) {
     }
   } catch (error: any) {
     if (!silent) {
-      ElMessage.error(t('workflow.runsLoadError', { error: error.message || error }))
+      ElMessage.error(t('workflow.runsLoadError'))
     }
   } finally {
     if (!silent) {
@@ -281,9 +281,8 @@ async function loadProgress(runId: number) {
       }, 0)
       progressCache.value[runId] = Math.round(totalProgress / status.nodes.length)
     }
-  } catch (error) {
+  } catch {
     // 静默失败，避免干扰用户
-    console.warn(`[WorkflowRunsDialog] 加载进度失败: runId=${runId}`, error)
   }
 }
 
@@ -297,7 +296,7 @@ async function pauseRun(runId: number) {
     ElMessage.success(t('workflow.pauseSuccess'))
     loadRuns()
   } catch (error: any) {
-    ElMessage.error(t('workflow.pauseError', { error: error.message || error }))
+    ElMessage.error(t('workflow.pauseError'))
   }
 }
 
@@ -307,7 +306,7 @@ async function resumeRun(runId: number) {
     ElMessage.success(t('workflow.resumeSuccess'))
     loadRuns()
   } catch (error: any) {
-    ElMessage.error(t('workflow.resumeError', { error: error.message || error }))
+    ElMessage.error(t('workflow.resumeError'))
   }
 }
 
@@ -321,7 +320,7 @@ async function resumeRunFromDialog(run: WorkflowRun) {
     
     ElMessage.success(t('workflow.resumePending'))
   } catch (error: any) {
-    ElMessage.error(t('workflow.resumeError', { error: error.message || error }))
+    ElMessage.error(t('workflow.resumeError'))
   }
 }
 
@@ -336,7 +335,7 @@ async function cancelRun(runId: number) {
     loadRuns()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(t('workflow.cancelError', { error: error.message || error }))
+      ElMessage.error(t('workflow.cancelError'))
     }
   }
 }
@@ -349,7 +348,7 @@ async function viewNodeStatus(runId: number) {
     const status = await request.get<RunStatusResponse>(`/workflows/runs/${runId}/status`, {}, '/api')
     nodeStatuses.value = status.nodes || []
   } catch (error: any) {
-    ElMessage.error(t('workflow.nodesLoadError', { error: error.message || error }))
+    ElMessage.error(t('workflow.nodesLoadError'))
   } finally {
     loadingNodeStatus.value = false
   }
@@ -368,7 +367,7 @@ async function deleteRun(runId: number) {
     loadRuns()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(t('workflow.deleteRunError', { error: error.message || error }))
+      ElMessage.error(t('workflow.deleteRunError'))
     }
   }
 }
@@ -410,9 +409,7 @@ function formatTime(time?: string | number): string {
   // 如果是数字（Unix 时间戳），需要乘以 1000 转换为毫秒
   // 但如果数字很小（< 100000000），说明可能是错误的数据
   if (typeof time === 'number') {
-    console.warn('[formatTime] 收到数字类型的时间戳:', time)
     if (time < 100000000) {
-      console.error('[formatTime] 时间戳异常小，可能是错误数据')
       return t('workflow.invalidData')
     }
     time = time * 1000 // 转换为毫秒
@@ -422,14 +419,12 @@ function formatTime(time?: string | number): string {
   
   // 检查日期是否有效
   if (isNaN(date.getTime())) {
-    console.error('[formatTime] 无效的日期:', time)
     return t('workflow.invalidDate')
   }
   
   // 检查日期是否在合理范围内（2020-2030）
   const year = date.getFullYear()
   if (year < 2020 || year > 2030) {
-    console.error('[formatTime] 日期超出合理范围:', date.toISOString(), '原始值:', time)
     return t('workflow.dateOutOfRange')
   }
   

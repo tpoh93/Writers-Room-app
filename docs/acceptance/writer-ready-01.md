@@ -47,4 +47,7 @@
 - The operational drill only addressed `writer-ready-fixture` at `127.0.0.1:18080`; no volume deletion or normal-stack operation occurred.
 - Raw test and Compose output remain outside the repository; the references above contain only synthetic fixture identifiers and durable contracts.
 
-Next step: review the draft PR; do not merge without explicit approval.
+Writer Ready acceptance was merged to `main` in PR #10 on 2026-07-30. The
+next operational activity is DOGFOOD-01, performed only against the normal
+local stack after a fresh user-data backup; it is not an acceptance-fixture
+run.

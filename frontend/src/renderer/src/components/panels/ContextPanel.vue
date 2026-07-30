@@ -25,8 +25,8 @@
         <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.relation_summaries) && ((assembled.facts_structured as any)?.relation_summaries?.length > 0)">{{ t('contextPanel.relationSummary') }}</div>
         <ul class="list" v-if="Array.isArray((assembled.facts_structured as any)?.relation_summaries) && ((assembled.facts_structured as any)?.relation_summaries?.length > 0)">
           <li v-for="(r, idx) in ((assembled.facts_structured as any)?.relation_summaries as any[] || [])" :key="idx" class="relation-item">
-            <div class="relation-head">{{ (r as any).a }} ↔ {{ (r as any).b }}（{{ (r as any).kind }}）
-              <el-tag v-if="(r as any).stance" size="small" style="margin-left:6px;">{{ (r as any).stance }}</el-tag>
+            <div class="relation-head">{{ (r as any).a }} ↔ {{ (r as any).b }} ({{ getRelationKindDisplayName((r as any).kind || '') }})
+              <el-tag v-if="(r as any).stance" size="small" style="margin-left:6px;">{{ getRelationStanceDisplayName((r as any).stance) }}</el-tag>
             </div>
             <div v-if="(r as any).description" class="muted" style="margin: 2px 0;">{{ (r as any).description }}</div>
             <div v-if="(r as any).a_to_b_addressing || (r as any).b_to_a_addressing" class="muted addressing">
@@ -104,6 +104,7 @@ import { useI18n } from 'vue-i18n'
 import { assembleContext, type AssembleContextResponse } from '@renderer/api/ai'
 import { ElMessage } from 'element-plus'
 import { getCardsForProject, type CardRead } from '@renderer/api/cards'
+import { getRelationKindDisplayName, getRelationStanceDisplayName } from '@renderer/i18n'
 
 const { t } = useI18n()
 

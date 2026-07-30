@@ -121,27 +121,16 @@ let lastCompletedCount = 0
 
 watch(() => completedRuns.value.length, (newVal, oldVal) => {
   const previous = oldVal ?? 0
-  console.log('[WorkflowStatusBar] completedRuns 变化:', oldVal, '->', newVal)
   if (newVal > previous && newVal > lastCompletedCount) {
-    console.log('[WorkflowStatusBar] 触发闪烁动画')
     isFlashing.value = true
     lastCompletedCount = newVal
     if (flashTimer) clearTimeout(flashTimer)
     flashTimer = setTimeout(() => {
       isFlashing.value = false
-      console.log('[WorkflowStatusBar] 闪烁动画结束')
     }, 2000)
   }
 }, { immediate: true })
 
-// 调试日志
-watch(() => activeRuns.value, (runs) => {
-  console.log('[WorkflowStatusBar] activeRuns 更新:', runs)
-}, { deep: true })
-
-watch(() => activeRunCount.value, (count) => {
-  console.log('[WorkflowStatusBar] activeRunCount 更新:', count)
-})
 </script>
 
 <template>

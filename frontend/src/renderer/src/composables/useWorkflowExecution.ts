@@ -72,7 +72,6 @@ export function useWorkflowExecution() {
       )
     }
 
-    console.log(`[WorkflowExecution] 状态转换: ${currentState} -> ${newState}`)
     execution.state = newState
   }
 
@@ -84,7 +83,6 @@ export function useWorkflowExecution() {
   function start(workflowId: number, runId: number) {
     // 如果当前是完成或失败状态，先重置再开始（自动清空之前的结果）
     if (execution.state === WorkflowState.COMPLETED || execution.state === WorkflowState.FAILED) {
-      console.log(`[WorkflowExecution] 从 ${execution.state} 状态重新开始，自动清空结果`)
     }
     
     transitionTo(WorkflowState.RUNNING)
@@ -98,7 +96,6 @@ export function useWorkflowExecution() {
    * @param runId 新的运行ID
    */
   function updateRunId(runId: number) {
-    console.log(`[WorkflowExecution] 更新 runId: ${execution.runId} -> ${runId}`)
     execution.runId = runId
   }
 

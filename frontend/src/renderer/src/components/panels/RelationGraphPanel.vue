@@ -3,10 +3,10 @@
     <div class="toolbar">
       <el-input v-model="filters.keyword" :placeholder="t('relationGraph.searchPlaceholder')" clearable class="w-keyword" @keyup.enter="reload" />
       <el-select v-model="filters.kind" clearable :placeholder="t('relationGraph.kind')" class="w-select">
-        <el-option v-for="k in kindOptions" :key="k" :label="k" :value="k" />
+        <el-option v-for="k in kindOptions" :key="k" :label="getRelationKindDisplayName(k)" :value="k" />
       </el-select>
       <el-select v-model="filters.stance" clearable :placeholder="t('relationGraph.stance')" class="w-select">
-        <el-option v-for="s in stanceOptions" :key="s" :label="s" :value="s" />
+        <el-option v-for="s in stanceOptions" :key="s" :label="getRelationStanceDisplayName(s)" :value="s" />
       </el-select>
       <el-button type="primary" @click="reload">{{ t('common.search') }}</el-button>
       <el-button @click="resetFilters">{{ t('common.reset') }}</el-button>
@@ -28,8 +28,12 @@
       <el-table-column type="selection" width="48" />
       <el-table-column prop="source" label="A" min-width="140" />
       <el-table-column prop="target" label="B" min-width="140" />
-      <el-table-column prop="kind_cn" :label="t('relationGraph.relation')" width="120" />
-      <el-table-column prop="stance" :label="t('relationGraph.stance')" width="100" />
+      <el-table-column prop="kind_cn" :label="t('relationGraph.relation')" min-width="170">
+        <template #default="{ row }">{{ getRelationKindDisplayName(row.kind_cn || row.kind || '') }}</template>
+      </el-table-column>
+      <el-table-column prop="stance" :label="t('relationGraph.stance')" min-width="130">
+        <template #default="{ row }">{{ getRelationStanceDisplayName(row.stance || '') }}</template>
+      </el-table-column>
       <el-table-column prop="fact" :label="t('relationGraph.fact')" min-width="260" show-overflow-tooltip />
       <el-table-column :label="t('relationGraph.updatedAt')" width="180">
         <template #default="{ row }">
@@ -60,13 +64,13 @@
         <el-form-item :label="t('relationGraph.entityA')"><el-input v-model="form.source" /></el-form-item>
         <el-form-item :label="t('relationGraph.kind')">
           <el-select v-model="form.kind_cn" :placeholder="t('relationGraph.selectKind')">
-            <el-option v-for="k in kindOptions" :key="k" :label="k" :value="k" />
+            <el-option v-for="k in kindOptions" :key="k" :label="getRelationKindDisplayName(k)" :value="k" />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('relationGraph.entityB')"><el-input v-model="form.target" /></el-form-item>
         <el-form-item :label="t('relationGraph.stance')">
           <el-select v-model="form.stance" clearable>
-            <el-option v-for="s in stanceOptions" :key="s" :label="s" :value="s" />
+            <el-option v-for="s in stanceOptions" :key="s" :label="getRelationStanceDisplayName(s)" :value="s" />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('relationGraph.fact')"><el-input v-model="form.fact" type="textarea" :rows="2" /></el-form-item>
@@ -87,7 +91,7 @@
 
     <el-dialog v-model="batchKindVisible" :title="t('relationGraph.batchKindTitle')" width="420px">
       <el-select v-model="batchKind" :placeholder="t('relationGraph.selectNewKind')" style="width: 100%">
-        <el-option v-for="k in kindOptions" :key="k" :label="k" :value="k" />
+        <el-option v-for="k in kindOptions" :key="k" :label="getRelationKindDisplayName(k)" :value="k" />
       </el-select>
       <template #footer>
         <el-button @click="batchKindVisible = false">{{ t('common.cancel') }}</el-button>
@@ -97,7 +101,7 @@
 
     <el-dialog v-model="batchStanceVisible" :title="t('relationGraph.batchStanceTitle')" width="420px">
       <el-select v-model="batchStance" clearable :placeholder="t('relationGraph.selectNewStance')" style="width: 100%">
-        <el-option v-for="s in stanceOptions" :key="s" :label="s" :value="s" />
+        <el-option v-for="s in stanceOptions" :key="s" :label="getRelationStanceDisplayName(s)" :value="s" />
       </el-select>
       <template #footer>
         <el-button @click="batchStanceVisible = false">{{ t('common.cancel') }}</el-button>
@@ -162,6 +166,7 @@ import {
   type RelationGraphRecord,
   type RelationGraphStance,
 } from '@renderer/api/relationGraph'
+import { getRelationKindDisplayName, getRelationStanceDisplayName } from '@renderer/i18n'
 
 const props = defineProps<{ refreshSeq?: number }>()
 

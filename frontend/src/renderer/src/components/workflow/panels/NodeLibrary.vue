@@ -165,8 +165,7 @@ async function loadNodeTypes() {
   try {
     const response = await request.get('/nodes/types', undefined, '/api', { showLoading: false })
     nodeTypes.value = response.node_types || []
-  } catch (error) {
-    console.error('加载节点类型失败:', error)
+  } catch {
   } finally {
     loading.value = false
   }
@@ -244,6 +243,13 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 13px;
+}
+
+.category-title > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .category-title .el-icon {

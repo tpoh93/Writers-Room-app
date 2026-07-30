@@ -11,6 +11,11 @@ import i18n, {
   getCardDisplayTitle,
   getCardTypeDisplayDescription,
   getCardTypeDisplayName,
+  getProjectDisplayName,
+  getProjectTemplateDisplayName,
+  getRelationKindDisplayName,
+  getRelationStanceDisplayName,
+  getSchemaDisplayText,
   getWorkflowNodeDisplay,
 } from '@renderer/i18n'
 import {
@@ -109,6 +114,46 @@ describe('Polish interface localization', () => {
 
     expect(currentSession.value.title).toBe('新对话')
     expect(getAssistantSessionDisplayTitle(currentSession.value.title)).toBe('Nowa rozmowa')
+  })
+
+  it('maps built-in canonical values for display without changing unknown author values', () => {
+    expect(Object.fromEntries([
+      ['通用文本', 'Tekst ogólny'], ['作品标签', 'Tagi utworu'], ['金手指', 'Specjalny atut bohatera'],
+      ['一句话梗概', 'Logline'], ['故事大纲', 'Zarys fabuły'], ['世界观设定', 'Świat przedstawiony'],
+      ['核心蓝图', 'Rdzeń historii'], ['分卷大纲', 'Zarys tomu'], ['写作指南', 'Założenia pisarskie'],
+      ['阶段大纲', 'Zarys etapu'], ['章节大纲', 'Zarys rozdziału'], ['章节正文', 'Treść rozdziału'],
+      ['内容审核卡片', 'Karta oceny treści'], ['角色卡', 'Karta postaci'], ['场景卡', 'Karta sceny'],
+      ['组织卡', 'Karta organizacji'], ['物品卡', 'Karta przedmiotu'], ['概念卡', 'Karta pojęcia'], ['文件夹', 'Folder'],
+    ].map(([raw]) => [raw, getCardTypeDisplayName(raw)]))).toEqual({
+      '通用文本': 'Tekst ogólny', '作品标签': 'Tagi utworu', '金手指': 'Specjalny atut bohatera',
+      '一句话梗概': 'Logline', '故事大纲': 'Zarys fabuły', '世界观设定': 'Świat przedstawiony',
+      '核心蓝图': 'Rdzeń historii', '分卷大纲': 'Zarys tomu', '写作指南': 'Założenia pisarskie',
+      '阶段大纲': 'Zarys etapu', '章节大纲': 'Zarys rozdziału', '章节正文': 'Treść rozdziału',
+      '内容审核卡片': 'Karta oceny treści', '角色卡': 'Karta postaci', '场景卡': 'Karta sceny',
+      '组织卡': 'Karta organizacji', '物品卡': 'Karta przedmiotu', '概念卡': 'Karta pojęcia', '文件夹': 'Folder',
+    })
+    expect(Object.fromEntries([
+      ['同盟', 'Sojusz'], ['队友', 'Towarzysze'], ['同门', 'Wspólna szkoła lub tradycja'], ['敌对', 'Wrogość'],
+      ['亲属', 'Pokrewieństwo'], ['师徒', 'Mistrz i uczeń'], ['对手', 'Rywalizacja'], ['伙伴', 'Partnerstwo'],
+    ].map(([raw]) => [raw, getRelationKindDisplayName(raw)]))).toEqual({
+      '同盟': 'Sojusz', '队友': 'Towarzysze', '同门': 'Wspólna szkoła lub tradycja', '敌对': 'Wrogość',
+      '亲属': 'Pokrewieństwo', '师徒': 'Mistrz i uczeń', '对手': 'Rywalizacja', '伙伴': 'Partnerstwo',
+    })
+    expect(Object.fromEntries([
+      ['友好', 'Przyjazne'], ['中立', 'Neutralne'], ['敌意', 'Wrogie'],
+    ].map(([raw]) => [raw, getRelationStanceDisplayName(raw)]))).toEqual({
+      '友好': 'Przyjazne', '中立': 'Neutralne', '敌意': 'Wrogie',
+    })
+    expect(getProjectTemplateDisplayName('项目创建·雪花创作法')).toBe(
+      'Tworzenie projektu · metoda płatka śniegu',
+    )
+    expect(getProjectDisplayName('__free__')).toBe('Pracownia pomysłów')
+    expect(getSchemaDisplayText('主题')).toBe('Motyw')
+    expect(getSchemaDisplayText('主题类别，格式：大类-子类')).toBe(
+      'Kategoria motywu, format: kategoria główna – podkategoria',
+    )
+    expect(getSchemaDisplayText('story_tags')).toBe('Tagi historii')
+    expect(getCardTypeDisplayName('Tytuł autora po chińsku')).toBe('Tytuł autora po chińsku')
   })
 
   it('does not emit a localized card title when only the raw prop changes', async () => {
