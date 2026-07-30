@@ -87,6 +87,17 @@ run_seed() {
   fi
 }
 
+fault_request() {
+  local method="$1"
+  local endpoint="$2"
+  curl -fsS -X "$method" "${base_url}/api/acceptance/writer-put-fault${endpoint}"
+}
+
+require_positive_delay_seconds() {
+  local seconds="${1:-}"
+  [[ "$seconds" =~ ^([1-9][0-9]*(\.[0-9]+)?|0\.[0-9]*[1-9][0-9]*|\.[0-9]*[1-9][0-9]*)$ ]]
+}
+
 compare_metadata() {
   local headers body curl_status
   headers="$(mktemp)"
@@ -145,11 +156,44 @@ case "$command" in
     require_docker
     compare_metadata
     ;;
+  fault-status)
+    require_docker
+    wait_ready
+    fault_request GET ""
+    ;;
+  fault-http-500)
+    require_docker
+    wait_ready
+    fault_request POST "/http-500"
+    ;;
+  fault-delay)
+    if [[ "$#" -ne 2 ]] || ! require_positive_delay_seconds "${2:-}"; then
+      die 2 "Usage: $0 fault-delay <seconds>"
+    fi
+    require_docker
+    wait_ready
+    fault_request POST "/delay?seconds=$2"
+    ;;
+  fault-hold)
+    require_docker
+    wait_ready
+    fault_request POST "/hold"
+    ;;
+  fault-release)
+    require_docker
+    wait_ready
+    fault_request POST "/release"
+    ;;
+  fault-clear)
+    require_docker
+    wait_ready
+    fault_request DELETE ""
+    ;;
   down)
     require_docker
     compose_fixture '' down --remove-orphans
     ;;
   *)
-    die 2 "Usage: $0 {up|rebuild-frontend|status|ready|seed-writer-ready|verify-writer-ready|metadata|down}"
+    die 2 "Usage: $0 {up|rebuild-frontend|status|ready|seed-writer-ready|verify-writer-ready|metadata|fault-status|fault-http-500|fault-delay|fault-hold|fault-release|fault-clear|down}"
     ;;
 esac

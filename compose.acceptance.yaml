@@ -1,4 +1,7 @@
 services:
+  backend:
+    environment:
+      NOVELFORGE_ACCEPTANCE_FAULTS: "1"
   frontend:
     build:
       args:

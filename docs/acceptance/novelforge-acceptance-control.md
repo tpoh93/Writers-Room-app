@@ -20,6 +20,12 @@ Runner never invokes stash, reset or clean. Protected stash identity is a local 
 ./scripts/novelforge-acceptance.sh metadata
 ./scripts/novelforge-acceptance.sh seed-writer-ready
 ./scripts/novelforge-acceptance.sh verify-writer-ready
+./scripts/novelforge-acceptance.sh fault-status
+./scripts/novelforge-acceptance.sh fault-http-500
+./scripts/novelforge-acceptance.sh fault-delay 1
+./scripts/novelforge-acceptance.sh fault-hold
+./scripts/novelforge-acceptance.sh fault-release
+./scripts/novelforge-acceptance.sh fault-clear
 ./scripts/novelforge-acceptance.sh down
 ```
 
@@ -28,9 +34,15 @@ The runner is the only fixture lifecycle procedure. It loads `compose.yaml` and 
 ## B+ status
 
 - B+1: COMPLETE — implementation, no-Docker verification, and isolated Compose smoke passed.
-- B+2: NOT STARTED — deterministic fault controls require a separate plan.
+- B+2: IN PROGRESS — fixture-only one-shot HTTP 500, response delay, hold/release and clear controls are covered by no-Docker tests; isolated Compose smoke remains required before completion.
 - B+3: NOT STARTED — matrix reconciliation and batched QA require a separate plan.
 
 Compose smoke: PASS. The current writer-ready working matrix remains the source for matrix classification; do not duplicate its rows here. WR-08 is a historical FAIL resolved by checkpoint `19af546c069f9dd4e472a58e586124eb363ab927`. The active QA batch is none. The only open product/spec decision is WR-07.
 
-Next step: owner review of separate B+2 plan.
+## B+2 fixture fault controls
+
+These commands exist only in the `writer-ready-fixture` backend, which is explicitly enabled by `compose.acceptance.yaml`. The normal `writers-room` stack has neither an active controller route nor a fault mode. Each arm applies to one next `PUT /api/cards/{id}` only: `fault-http-500` returns 500 before persistence; `fault-delay <seconds>` delays the response after persistence; `fault-hold` holds the response after persistence until `fault-release`. `fault-clear` removes an armed fault and releases any held response. Every command prints its JSON status; run `fault-status` before and after a scenario.
+
+Always run `metadata` successfully before browser evidence and use `fault-clear` before fixture cleanup or after an interrupted scenario.
+
+Next step: run the isolated B+2 Compose smoke, then begin the B+3 recovery batch with fresh matching metadata.

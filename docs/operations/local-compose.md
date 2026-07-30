@@ -149,12 +149,20 @@ For integration and browser acceptance, use the isolated Compose project `writer
 ./scripts/novelforge-acceptance.sh metadata
 ./scripts/novelforge-acceptance.sh seed-writer-ready
 ./scripts/novelforge-acceptance.sh verify-writer-ready
+./scripts/novelforge-acceptance.sh fault-status
+./scripts/novelforge-acceptance.sh fault-http-500
+./scripts/novelforge-acceptance.sh fault-delay 1
+./scripts/novelforge-acceptance.sh fault-hold
+./scripts/novelforge-acceptance.sh fault-release
+./scripts/novelforge-acceptance.sh fault-clear
 ./scripts/novelforge-acceptance.sh down
 ```
 
 Shell owns fixture lifecycle and provenance. Chrome DevTools is limited to UI and browser-network observation; it is not an authority for container state or build provenance. See [`novelforge-acceptance-control.md`](../acceptance/novelforge-acceptance-control.md) for B+1, B+2 and B+3 status and the current matrix classification.
 
-Next step: follow the B+1 control procedure before any fixture acceptance observation.
+The B+2 fault commands are fixture-only. `fault-http-500` consumes the next writer PUT before persistence; `fault-delay <seconds>` and `fault-hold` consume the next writer PUT after persistence and delay or hold its response. Use `fault-release` to release a hold and `fault-clear` to remove an armed fault or release a held request. Every command prints the controller status. Do not use these routes or commands with normal `writers-room`.
+
+Next step: run the current acceptance-control procedure and confirm metadata before recording any fixture observation.
 
 Check health from inside each container:
 

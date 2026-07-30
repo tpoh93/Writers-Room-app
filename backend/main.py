@@ -81,6 +81,11 @@ app.add_middleware(
 # 包含API路由
 app.include_router(api_router, prefix=settings.app.api_prefix)
 
+if os.getenv("NOVELFORGE_ACCEPTANCE_FAULTS") == "1":
+    from app.acceptance.writer_put_faults import install_writer_put_fault_controls
+
+    install_writer_put_fault_controls(app, api_prefix=settings.app.api_prefix)
+
 
 @app.get("/")
 def read_root():
