@@ -38,6 +38,11 @@ The runner is the only fixture lifecycle procedure. It loads `compose.yaml` and 
 - B+2: COMPLETE — fixture-only one-shot HTTP 500, response delay, hold/release and clear controls passed no-Docker tests and an isolated Compose smoke. The smoke observed 500 then 200 for successive synthetic writer PUTs, a 0.262 s response for a 0.25 s delay, a visible held request, explicit release, clear, reset and fixture verification.
 - B+3: COMPLETE — recovery, failure/export/restart batches used the matching `61f5fa9cf9900cc32eefea87f51abd5bd4ab996d` fixture build. Browser observations, focused Writer Ready tests and the isolated restart are recorded in the working matrix.
 
+## Task closure status
+
+- Task 10: COMPLETE — WR-01–WR-23 PASS.
+- Task 11: COMPLETE — matching `401782d` fixture drill made `/backups/novelforge-20260730T125617606144Z-task11.db`, mutated the canonical synthetic writer card, forced guarded restore with safety backup `/data/pre-restore/novelforge-20260730T125620305718Z-pre-restore.db`, force-recreated a fresh backend/frontend, compared the exact four writer fields through a fresh GET, restarted and re-verified the fixture.
+
 Compose smoke: PASS. The current writer-ready working matrix remains the source for matrix classification; do not duplicate its rows here. WR-08 is a historical FAIL resolved by checkpoint `19af546c069f9dd4e472a58e586124eb363ab927`; B+3 reconciles it to PASS without repeating its already completed browser scenario. The active QA batch is none.
 
 ## WR-07 accepted flow
@@ -52,4 +57,4 @@ Always run `metadata` successfully before browser evidence and use `fault-clear`
 
 `task11-drill` is the only Task 11 operational procedure. It uses the canonical synthetic seeder IDs, makes an online `/backups` backup, mutates the four writer fields, stops only the fixture backend, performs forced restore with a `/data/pre-restore` safety backup, force-recreates a fresh fixture backend/frontend, compares a fresh GET, restarts both fixture services, and verifies the fixture. It neither addresses `writers-room` nor removes volumes.
 
-Next step: begin Task 11 only under its separately approved scope.
+Next step: complete Task 12 final acceptance and delivery gate.

@@ -25,7 +25,7 @@
 | WR-21 | Polish fixture full-artifact CJK scan | TXT and Markdown artifacts had zero CJK matches; no deliberate author-CJK case was present in this reset fixture. | /tmp/novelforge-run-b-evidence/WR-18-export.txt; /tmp/novelforge-run-b-evidence/WR-19-export.md | PASS |
 | WR-22 | Export with unsaved text / failed flush | PASS: deterministic fixture 500 plus focused dialog regressions prove a failed writer flush prevents export/download and surfaces the Polish failure; a later success clears it. | B+3 matching metadata `61f5fa9`; `CardExportDialog.writerReady.test.ts` (3 passing cases) | PASS |
 | WR-23 | Compose restart | PASS: canonical runner performed `down`, `up`, `metadata`, `seed-writer-ready`, and `verify-writer-ready`; readiness and synthetic fixture verification passed after restart. | B+3 matching metadata `61f5fa9`; isolated writer-ready-fixture restart | PASS |
-| WR-24 | Backup → mutate → guarded restore | NOT VERIFIED / DEFERRED TO TASK 11 | Task 11 explicitly out of scope | NOT VERIFIED |
+| WR-24 | Backup → mutate → guarded restore | PASS: real fixture `Project`, `Card`, and `CardType` data were backed up, the canonical writer card's title/content/generation/review fields were mutated, and forced restore created a safety backup. A fresh backend/frontend and fresh GET restored all four fields exactly; subsequent restart and fixture verify passed. | Task 11 matching metadata `401782d`; `/backups/novelforge-20260730T125617606144Z-task11.db`; `/data/pre-restore/novelforge-20260730T125620305718Z-pre-restore.db`; real-model pytest | PASS |
 | WR-25 | Evidence closure | NOT VERIFIED / DEFERRED TO TASK 12 | Task 12 explicitly out of scope | NOT VERIFIED |
 
 ## Notes
@@ -38,4 +38,4 @@
 
 The isolated `writer-ready-fixture` passed the deterministic fault-control smoke after matching runtime metadata and synthetic seed/verify. One armed writer PUT returned HTTP 500 and the following PUT returned HTTP 200; a configured 0.25-second delay returned in 0.262 seconds; a held request reported `requestState: held`, completed only after explicit release, then clear/reset/verify succeeded. B+3 then observed browser-side HTTP 500/200 and delayed writer PUT behavior against the metadata-matched fixture.
 
-Next step: begin Task 11 only under its separately approved scope.
+Next step: complete Task 12 final acceptance and delivery gate.
