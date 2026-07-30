@@ -30,6 +30,7 @@
 | scripts/tests/test-novelforge-acceptance.sh | Create | Fake Docker/curl/Python runner tests, no Docker daemon. |
 | frontend/scripts/write-build-meta.cjs | Create | Decode, validate, and write Vite public metadata during image build. |
 | frontend/scripts/__tests__/write-build-meta.test.cjs | Create | Node tests for writer contract. |
+| frontend/.gitignore | Modify | Explicitly retain the acceptance metadata writer despite the generic CJS ignore rule. |
 | frontend/Dockerfile.web | Modify | Declare build metadata argument and generate asset before Vite. |
 | frontend/nginx.conf | Modify | Serve exact metadata URL with no-store and no SPA fallback. |
 | compose.acceptance.yaml | Create | Acceptance-only frontend build argument and fixture configuration overlay; it leaves base Compose usable without metadata. |
@@ -121,6 +122,7 @@ Proposed commit when authorized: test: add acceptance build provenance generator
 
 - Create: frontend/scripts/write-build-meta.cjs
 - Create: frontend/scripts/__tests__/write-build-meta.test.cjs
+- Modify: frontend/.gitignore
 - Modify: frontend/Dockerfile.web
 - Create: compose.acceptance.yaml
 - Modify: frontend/nginx.conf
@@ -167,6 +169,8 @@ Expected: all exit 0; normal base Compose requires no acceptance argument, the a
 Run: git diff --check
 
 Proposed commit when authorized: feat: expose acceptance build metadata
+
+The Task 2 checkpoint includes `frontend/.gitignore` because it adds the narrow `!scripts/write-build-meta.cjs` exception required to track the approved writer. It also includes this plan update.
 
 ## Task 3: Write fake-Docker runner contract before implementation
 

@@ -6,6 +6,10 @@ COPY package*.json ./
 RUN npm ci --ignore-scripts
 
 COPY . .
+ARG NOVELFORGE_BUILD_META_B64=""
+RUN if [ -n "$NOVELFORGE_BUILD_META_B64" ]; then \
+      node scripts/write-build-meta.cjs "$NOVELFORGE_BUILD_META_B64" src/renderer/public/build-meta.json; \
+    fi
 RUN npm run build:web:container
 
 FROM nginx:1.27-alpine
