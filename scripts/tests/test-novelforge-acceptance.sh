@@ -31,6 +31,11 @@ case "$1" in
     shift
     printf 'compose %s\n' "$*" >> "$FAKE_CALLS"
     printf 'environment APP_BIND_ADDRESS=%s APP_PORT=%s NOVELFORGE_BUILD_META_B64=%s\n' "${APP_BIND_ADDRESS:-}" "${APP_PORT:-}" "${NOVELFORGE_BUILD_META_B64:-}" >> "$FAKE_CALLS"
+    if [[ " $* " == *" exec -T backend python -m app.cli.backup --label task11 "* ]]; then
+      printf '%s\n' '/backups/novelforge-task11.db'
+    elif [[ " $* " == *" run --rm backend python -m app.cli.restore /backups/novelforge-task11.db --force "* ]]; then
+      printf '%s\n' '/data/pre-restore/novelforge-task11.db'
+    fi
     exit "${FAKE_COMPOSE_STATUS:-0}"
     ;;
   *) exit 97 ;;
@@ -70,6 +75,10 @@ cat > "$bin/python3" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "$1" == *seed-writer-ready-fixture.py ]]; then
+  printf '%s\n' "$*" >> "$FAKE_SEEDS"
+  exit 0
+fi
+if [[ "$1" == *novelforge-task11-drill.py ]]; then
   printf '%s\n' "$*" >> "$FAKE_SEEDS"
   exit 0
 fi
@@ -119,6 +128,21 @@ run seed-writer-ready
 run verify-writer-ready
 rg -q -- '--base-url http://127.0.0.1:18080 --reset --ids-file ' "$seeds"
 rg -q -- '--base-url http://127.0.0.1:18080 --ids-file .* --verify' "$seeds"
+
+: > "$calls"
+: > "$seeds"
+task11_output="$(run task11-drill)"
+printf '%s\n' "$task11_output" | rg -q '"backupPath":"/backups/novelforge-task11.db"'
+printf '%s\n' "$task11_output" | rg -q '"safetyBackupPath":"/data/pre-restore/novelforge-task11.db"'
+rg -q '^compose -f compose.yaml -f compose.acceptance.yaml -p writer-ready-fixture exec -T backend python -m app.cli.backup --label task11$' "$calls"
+rg -q '^compose -f compose.yaml -f compose.acceptance.yaml -p writer-ready-fixture stop backend$' "$calls"
+rg -q '^compose -f compose.yaml -f compose.acceptance.yaml -p writer-ready-fixture run --rm backend python -m app.cli.restore /backups/novelforge-task11.db --force$' "$calls"
+rg -q '^compose -f compose.yaml -f compose.acceptance.yaml -p writer-ready-fixture up -d --force-recreate backend frontend$' "$calls"
+rg -q '^compose -f compose.yaml -f compose.acceptance.yaml -p writer-ready-fixture restart backend frontend$' "$calls"
+rg -q -- '--base-url http://127.0.0.1:18080 --ids-file .* capture ' "$seeds"
+rg -q -- '--base-url http://127.0.0.1:18080 --ids-file .* mutate ' "$seeds"
+rg -q -- '--base-url http://127.0.0.1:18080 --ids-file .* assert-snapshot ' "$seeds"
+assert_fixture_calls
 
 : > "$curl_calls"
 fault_response='{"enabled":true,"armed":"http-500","requestState":"idle","delaySeconds":null}'
@@ -171,7 +195,7 @@ assert_documentation_contract() {
   local control="$repo_root/docs/acceptance/novelforge-acceptance-control.md"
   local operations="$repo_root/docs/operations/local-compose.md"
   for document in "$control" "$operations"; do
-    for command in up rebuild-frontend status ready seed-writer-ready verify-writer-ready metadata fault-status fault-http-500 fault-delay fault-hold fault-release fault-clear down; do
+    for command in up rebuild-frontend status ready seed-writer-ready verify-writer-ready metadata fault-status fault-http-500 fault-delay fault-hold fault-release fault-clear task11-drill down; do
       rg -q "scripts/novelforge-acceptance.sh ${command}" "$document"
     done
     rg -q 'writer-ready-fixture' "$document"

@@ -93,6 +93,65 @@ fault_request() {
   curl -fsS -X "$method" "${base_url}/api/acceptance/writer-put-fault${endpoint}"
 }
 
+require_idle_fault_status() {
+  local status_json="$1"
+  if ! printf '%s' "$status_json" | rg -q '"armed":"none".*"requestState":"idle"'; then
+    die 73 "FAULT_NOT_CLEAN"
+  fi
+}
+
+task11_helper() {
+  python3 scripts/novelforge-task11-drill.py \
+    --base-url "$base_url" \
+    --ids-file "$ids_file" \
+    "$@"
+}
+
+run_task11_drill() {
+  local workspace before_snapshot mutated_snapshot backup_path safety_backup
+  local restore_status fault_status
+  workspace="$(mktemp -d)"
+  trap 'rm -rf "$workspace"' RETURN
+  before_snapshot="$workspace/before.json"
+  mutated_snapshot="$workspace/mutated.json"
+
+  wait_ready
+  compare_metadata
+  fault_status="$(fault_request DELETE "")"
+  require_idle_fault_status "$fault_status"
+  run_seed reset
+  run_seed verify
+
+  task11_helper capture "$before_snapshot"
+  backup_path="$(compose_fixture '' exec -T backend python -m app.cli.backup --label task11)"
+  [[ "$backup_path" =~ ^/backups/[A-Za-z0-9._-]+\.db$ ]] || die 74 "TASK11_BACKUP_PATH_INVALID"
+
+  task11_helper mutate "$mutated_snapshot"
+  task11_helper assert-snapshot "$mutated_snapshot"
+
+  compose_fixture '' stop backend
+  set +e
+  safety_backup="$(compose_fixture '' run --rm backend python -m app.cli.restore "$backup_path" --force)"
+  restore_status=$?
+  set -e
+  if (( restore_status != 0 )); then
+    compose_fixture '' up -d --force-recreate backend frontend || true
+    return "$restore_status"
+  fi
+  [[ "$safety_backup" =~ ^/data/pre-restore/[A-Za-z0-9._-]+\.db$ ]] || die 74 "TASK11_SAFETY_BACKUP_PATH_INVALID"
+
+  compose_fixture '' up -d --force-recreate backend frontend
+  wait_ready
+  task11_helper assert-snapshot "$before_snapshot"
+
+  compose_fixture '' restart backend frontend
+  wait_ready
+  run_seed verify
+  fault_status="$(fault_request GET "")"
+  require_idle_fault_status "$fault_status"
+  printf '{"backupPath":"%s","safetyBackupPath":"%s","restoredFields":["title","content","ai_context_template","ai_context_template_review"]}\n' "$backup_path" "$safety_backup"
+}
+
 require_positive_delay_seconds() {
   local seconds="${1:-}"
   [[ "$seconds" =~ ^([1-9][0-9]*(\.[0-9]+)?|0\.[0-9]*[1-9][0-9]*|\.[0-9]*[1-9][0-9]*)$ ]]
@@ -189,11 +248,15 @@ case "$command" in
     wait_ready
     fault_request DELETE ""
     ;;
+  task11-drill)
+    require_docker
+    run_task11_drill
+    ;;
   down)
     require_docker
     compose_fixture '' down --remove-orphans
     ;;
   *)
-    die 2 "Usage: $0 {up|rebuild-frontend|status|ready|seed-writer-ready|verify-writer-ready|metadata|fault-status|fault-http-500|fault-delay|fault-hold|fault-release|fault-clear|down}"
+    die 2 "Usage: $0 {up|rebuild-frontend|status|ready|seed-writer-ready|verify-writer-ready|metadata|fault-status|fault-http-500|fault-delay|fault-hold|fault-release|fault-clear|task11-drill|down}"
     ;;
 esac

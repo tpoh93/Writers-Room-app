@@ -155,12 +155,15 @@ For integration and browser acceptance, use the isolated Compose project `writer
 ./scripts/novelforge-acceptance.sh fault-hold
 ./scripts/novelforge-acceptance.sh fault-release
 ./scripts/novelforge-acceptance.sh fault-clear
+./scripts/novelforge-acceptance.sh task11-drill
 ./scripts/novelforge-acceptance.sh down
 ```
 
 Shell owns fixture lifecycle and provenance. Chrome DevTools is limited to UI and browser-network observation; it is not an authority for container state or build provenance. See [`novelforge-acceptance-control.md`](../acceptance/novelforge-acceptance-control.md) for B+1, B+2 and B+3 status and the current matrix classification.
 
 The B+2 fault commands are fixture-only. `fault-http-500` consumes the next writer PUT before persistence; `fault-delay <seconds>` and `fault-hold` consume the next writer PUT after persistence and delay or hold its response. Use `fault-release` to release a hold and `fault-clear` to remove an armed fault or release a held request. Every command prints the controller status. Do not use these routes or commands with normal `writers-room`.
+
+`task11-drill` is fixture-only guarded backup/restore evidence: it takes an online `/backups` SQLite backup, mutates the canonical synthetic writer card, stops only fixture backend, records the forced restore safety backup under `/data/pre-restore`, starts fresh fixture services, compares the four writer fields through a fresh GET, then restart-verifies the fixture. It never uses port 8080, `writers-room`, `down -v`, or volume deletion.
 
 Next step: run the current acceptance-control procedure and confirm metadata before recording any fixture observation.
 

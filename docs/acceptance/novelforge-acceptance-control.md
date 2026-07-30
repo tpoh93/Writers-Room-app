@@ -26,6 +26,7 @@ Runner never invokes stash, reset or clean. Protected stash identity is a local 
 ./scripts/novelforge-acceptance.sh fault-hold
 ./scripts/novelforge-acceptance.sh fault-release
 ./scripts/novelforge-acceptance.sh fault-clear
+./scripts/novelforge-acceptance.sh task11-drill
 ./scripts/novelforge-acceptance.sh down
 ```
 
@@ -48,5 +49,7 @@ WR-07 does not require a permanent project-switcher inside an active editor. The
 These commands exist only in the `writer-ready-fixture` backend, which is explicitly enabled by `compose.acceptance.yaml`. The normal `writers-room` stack has neither an active controller route nor a fault mode. Each arm applies to one next `PUT /api/cards/{id}` only: `fault-http-500` returns 500 before persistence; `fault-delay <seconds>` delays the response after persistence; `fault-hold` holds the response after persistence until `fault-release`. `fault-clear` removes an armed fault and releases any held response. Every command prints its JSON status; run `fault-status` before and after a scenario.
 
 Always run `metadata` successfully before browser evidence and use `fault-clear` before fixture cleanup or after an interrupted scenario.
+
+`task11-drill` is the only Task 11 operational procedure. It uses the canonical synthetic seeder IDs, makes an online `/backups` backup, mutates the four writer fields, stops only the fixture backend, performs forced restore with a `/data/pre-restore` safety backup, force-recreates a fresh fixture backend/frontend, compares a fresh GET, restarts both fixture services, and verifies the fixture. It neither addresses `writers-room` nor removes volumes.
 
 Next step: begin Task 11 only under its separately approved scope.
