@@ -139,18 +139,22 @@ docker compose ps
 
 ### Synthetic writer-ready-fixture on isolated port 18080
 
-For integration and browser acceptance (Task 10), use the isolated Compose project `writer-ready-fixture` on port 18080 only:
+For integration and browser acceptance, use the isolated Compose project `writer-ready-fixture` on `127.0.0.1:18080` only. The B+1 runner is the acceptance procedure; it always loads `compose.yaml` and `compose.acceptance.yaml`. Raw fixture Compose lifecycle commands are not an acceptance procedure.
 
 ```bash
-docker compose -p writer-ready-fixture down -v --remove-orphans
-APP_BIND_ADDRESS=127.0.0.1 APP_PORT=18080 docker compose -p writer-ready-fixture up --build -d
-docker compose -p writer-ready-fixture ps
-curl -fsS http://127.0.0.1:18080/healthz/ready
-python3 scripts/seed-writer-ready-fixture.py --base-url http://127.0.0.1:18080 --reset --ids-file /tmp/writer-ready-fixture-ids.json
-python3 scripts/seed-writer-ready-fixture.py --base-url http://127.0.0.1:18080 --ids-file /tmp/writer-ready-fixture-ids.json --verify
+./scripts/novelforge-acceptance.sh up
+./scripts/novelforge-acceptance.sh rebuild-frontend
+./scripts/novelforge-acceptance.sh status
+./scripts/novelforge-acceptance.sh ready
+./scripts/novelforge-acceptance.sh metadata
+./scripts/novelforge-acceptance.sh seed-writer-ready
+./scripts/novelforge-acceptance.sh verify-writer-ready
+./scripts/novelforge-acceptance.sh down
 ```
 
-This project never interferes with the main stack on port 8080. Never prune or delete unrelated Compose projects. Do not run `docker compose down -v` on the main stack while this fixture is active.
+Shell owns fixture lifecycle and provenance. Chrome DevTools is limited to UI and browser-network observation; it is not an authority for container state or build provenance. See [`novelforge-acceptance-control.md`](../acceptance/novelforge-acceptance-control.md) for B+1, B+2 and B+3 status and the current matrix classification.
+
+Next step: follow the B+1 control procedure before any fixture acceptance observation.
 
 Check health from inside each container:
 

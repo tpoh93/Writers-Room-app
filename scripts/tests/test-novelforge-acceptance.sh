@@ -140,3 +140,37 @@ for mode in mismatch missing invalid no_store; do
     test "$status" = 72
   fi
 done
+
+assert_documentation_contract() {
+  local control="$repo_root/docs/acceptance/novelforge-acceptance-control.md"
+  local operations="$repo_root/docs/operations/local-compose.md"
+  for document in "$control" "$operations"; do
+    for command in up rebuild-frontend status ready seed-writer-ready verify-writer-ready metadata down; do
+      rg -q "scripts/novelforge-acceptance.sh ${command}" "$document"
+    done
+    rg -q 'writer-ready-fixture' "$document"
+    rg -q '127.0.0.1:18080' "$document"
+    rg -q 'compose.yaml' "$document"
+    rg -q 'compose.acceptance.yaml' "$document"
+    rg -q 'Shell' "$document"
+    rg -q 'Chrome DevTools' "$document"
+    rg -q 'B\+1' "$document"
+    rg -q 'B\+2' "$document"
+    rg -q 'B\+3' "$document"
+    test "$(rg -c '^Next step:' "$document")" = 1
+  done
+  rg -q '19af546c069f9dd4e472a58e586124eb363ab927' "$control"
+  rg -q 'git branch --show-current' "$control"
+  rg -q 'git rev-parse HEAD' "$control"
+  rg -q 'git status --short' "$control"
+  rg -q '/build-meta.json' "$control"
+  rg -q 'matrix' "$control"
+  rg -q 'active QA batch' "$control"
+  rg -q 'WR-07' "$control"
+  rg -q 'Runner never invokes stash, reset or clean\. Protected stash identity is a local execution-capsule constraint and must be verified before work\.' "$control"
+  if rg -n 'writer-ready-fixture.*down -v|docker compose -p writer-ready-fixture|dynamic SHA field|local stash index notation' "$control" "$operations"; then
+    exit 1
+  fi
+}
+
+assert_documentation_contract
