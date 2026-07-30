@@ -42,6 +42,7 @@ The runner is the only fixture lifecycle procedure. It loads `compose.yaml` and 
 
 - Task 10: COMPLETE — WR-01–WR-23 PASS.
 - Task 11: COMPLETE — matching `401782d` fixture drill made `/backups/novelforge-20260730T125617606144Z-task11.db`, mutated the canonical synthetic writer card, forced guarded restore with safety backup `/data/pre-restore/novelforge-20260730T125620305718Z-pre-restore.db`, force-recreated a fresh backend/frontend, compared the exact four writer fields through a fresh GET, restarted and re-verified the fixture.
+- Task 12: COMPLETE — final frontend, backend and harness regressions passed; matching `4465281` fixture smoke confirmed readiness, metadata, idle fault state, seed/verify and safe `down`. Final WR-01–WR-25 verdict is READY in `docs/acceptance/writer-ready-01.md`.
 
 Compose smoke: PASS. The current writer-ready working matrix remains the source for matrix classification; do not duplicate its rows here. WR-08 is a historical FAIL resolved by checkpoint `19af546c069f9dd4e472a58e586124eb363ab927`; B+3 reconciles it to PASS without repeating its already completed browser scenario. The active QA batch is none.
 
@@ -57,4 +58,4 @@ Always run `metadata` successfully before browser evidence and use `fault-clear`
 
 `task11-drill` is the only Task 11 operational procedure. It uses the canonical synthetic seeder IDs, makes an online `/backups` backup, mutates the four writer fields, stops only the fixture backend, performs forced restore with a `/data/pre-restore` safety backup, force-recreates a fresh fixture backend/frontend, compares a fresh GET, restarts both fixture services, and verifies the fixture. It neither addresses `writers-room` nor removes volumes.
 
-Next step: complete Task 12 final acceptance and delivery gate.
+Next step: review the draft PR; do not merge without explicit approval.
