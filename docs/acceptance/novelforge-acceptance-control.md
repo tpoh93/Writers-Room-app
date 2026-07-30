@@ -35,9 +35,13 @@ The runner is the only fixture lifecycle procedure. It loads `compose.yaml` and 
 
 - B+1: COMPLETE — implementation, no-Docker verification, and isolated Compose smoke passed.
 - B+2: COMPLETE — fixture-only one-shot HTTP 500, response delay, hold/release and clear controls passed no-Docker tests and an isolated Compose smoke. The smoke observed 500 then 200 for successive synthetic writer PUTs, a 0.262 s response for a 0.25 s delay, a visible held request, explicit release, clear, reset and fixture verification.
-- B+3: NOT STARTED — matrix reconciliation and batched QA require a separate plan.
+- B+3: COMPLETE — recovery, failure/export/restart batches used the matching `61f5fa9cf9900cc32eefea87f51abd5bd4ab996d` fixture build. Browser observations, focused Writer Ready tests and the isolated restart are recorded in the working matrix.
 
-Compose smoke: PASS. The current writer-ready working matrix remains the source for matrix classification; do not duplicate its rows here. WR-08 is a historical FAIL resolved by checkpoint `19af546c069f9dd4e472a58e586124eb363ab927`. The active QA batch is none. The only open product/spec decision is WR-07.
+Compose smoke: PASS. The current writer-ready working matrix remains the source for matrix classification; do not duplicate its rows here. WR-08 is a historical FAIL resolved by checkpoint `19af546c069f9dd4e472a58e586124eb363ab927`; B+3 reconciles it to PASS without repeating its already completed browser scenario. The active QA batch is none.
+
+## WR-07 accepted flow
+
+WR-07 does not require a permanent project-switcher inside an active editor. The supported scenario is: a user with a dirty writer takes the supported route to the library/dashboard; the required flush completes before the writer is left; a failed flush blocks that leave; only after a successful leave does the user select another project; the next project opens only after the previous writer flush completed. This is the accepted product decision for the matrix and does not authorize a new in-editor project-switcher UI.
 
 ## B+2 fixture fault controls
 
@@ -45,4 +49,4 @@ These commands exist only in the `writer-ready-fixture` backend, which is explic
 
 Always run `metadata` successfully before browser evidence and use `fault-clear` before fixture cleanup or after an interrupted scenario.
 
-Next step: begin the B+3 recovery batch with fresh matching metadata.
+Next step: begin Task 11 only under its separately approved scope.

@@ -9,7 +9,7 @@
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/__tests__/*.test.cjs",
     "test:watch": "vitest",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "vue-tsc --NoEmit -p tsconfig.web.json --composite false",
