@@ -17,86 +17,15 @@
 
     <div v-if="assembled" class="assembled">
       <p class="preview-intro">{{ t('contextPanel.previewIntro') }}</p>
-      <p v-if="authorPreview.sections.length" class="preview-summary">
-        {{ t('contextPanel.previewSections', { sections: authorPreview.sections.map(section => section.title).join(', ') }) }}
-      </p>
-      <div class="facts-structured" v-if="assembled.facts_structured">
-        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.fact_summaries) && ((assembled.facts_structured as any)?.fact_summaries?.length > 0)">{{ t('contextPanel.keyFacts') }}</div>
-        <ul class="list" v-if="Array.isArray((assembled.facts_structured as any)?.fact_summaries) && ((assembled.facts_structured as any)?.fact_summaries?.length > 0)">
-          <li v-for="(f, i0) in ((assembled.facts_structured as any)?.fact_summaries as string[] || [])" :key="i0">- {{ f }}</li>
-        </ul>
-
-        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.relation_summaries) && ((assembled.facts_structured as any)?.relation_summaries?.length > 0)">{{ t('contextPanel.relationSummary') }}</div>
-        <ul class="list" v-if="Array.isArray((assembled.facts_structured as any)?.relation_summaries) && ((assembled.facts_structured as any)?.relation_summaries?.length > 0)">
-          <li v-for="(r, idx) in ((assembled.facts_structured as any)?.relation_summaries as any[] || [])" :key="idx" class="relation-item">
-            <div class="relation-head">{{ (r as any).a }} ↔ {{ (r as any).b }} ({{ getRelationKindDisplayName((r as any).kind || '') }})
-              <el-tag v-if="(r as any).stance" size="small" style="margin-left:6px;">{{ getRelationStanceDisplayName((r as any).stance) }}</el-tag>
-            </div>
-            <div v-if="(r as any).description" class="muted" style="margin: 2px 0;">{{ (r as any).description }}</div>
-            <div v-if="(r as any).a_to_b_addressing || (r as any).b_to_a_addressing" class="muted addressing">
-              <span v-if="(r as any).a_to_b_addressing">{{ t('chapterEditor.addressAtoB') }}: {{ (r as any).a_to_b_addressing }}</span>
-              <span v-if="(r as any).b_to_a_addressing" style="margin-left:12px;">{{ t('chapterEditor.addressBtoA') }}: {{ (r as any).b_to_a_addressing }}</span>
-            </div>
-            <div v-if="Array.isArray((r as any)?.recent_dialogues) && ((r as any).recent_dialogues?.length > 0)" class="muted">
-              {{ t('contextPanel.dialogueExamples') }}:
-              <ul class="list">
-                <li v-for="(d, i3) in ((r as any).recent_dialogues as string[] || [])" :key="i3"><div class="dialog-text">{{ d }}</div></li>
-              </ul>
-            </div>
-            <div v-if="Array.isArray((r as any)?.recent_event_summaries) && ((r as any).recent_event_summaries?.length > 0)" class="muted">
-              {{ t('contextPanel.recentEvents') }}:
-              <ul class="list">
-                <li v-for="(ev, i4) in ((r as any).recent_event_summaries as any[] || [])" :key="i4">
-                  <span>{{ (ev as any).summary }}</span>
-                  <span class="badges" v-if="(ev as any).volume_number != null || (ev as any).chapter_number != null">
-                    <el-tag size="small" type="info" v-if="(ev as any).volume_number != null">{{ t('contextPanel.volumeNumber', { number: (ev as any).volume_number }) }}</el-tag>
-                    <el-tag size="small" type="info" v-if="(ev as any).chapter_number != null" style="margin-left:6px;">{{ t('contextPanel.chapterNumber', { number: (ev as any).chapter_number }) }}</el-tag>
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </li>
-        </ul>
-
-        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.item_summaries) && ((assembled.facts_structured as any)?.item_summaries?.length > 0)">{{ t('contextPanel.itemSummary') }}</div>
-        <ul class="list" v-if="Array.isArray((assembled.facts_structured as any)?.item_summaries) && ((assembled.facts_structured as any)?.item_summaries?.length > 0)">
-          <li v-for="(item, idx) in ((assembled.facts_structured as any)?.item_summaries as any[] || [])" :key="`item-${idx}`" class="relation-item">
-            <div class="relation-head">
-              {{ (item as any).name }}
-              <el-tag v-if="(item as any).category" size="small" style="margin-left:6px;">{{ (item as any).category }}</el-tag>
-            </div>
-            <div v-if="(item as any).description" class="muted" style="margin: 2px 0;">{{ (item as any).description }}</div>
-            <div v-if="(item as any).current_state" class="muted">{{ t('chapterEditor.currentState') }}: {{ (item as any).current_state }}</div>
-            <div v-if="(item as any).owner_hint" class="muted">{{ t('chapterEditor.ownerHint') }}: {{ (item as any).owner_hint }}</div>
-            <div v-if="(item as any).power_or_effect" class="muted">{{ t('chapterEditor.effect') }}: {{ (item as any).power_or_effect }}</div>
-            <div v-if="(item as any).constraints" class="muted">{{ t('chapterEditor.constraints') }}: {{ (item as any).constraints }}</div>
-            <div v-if="Array.isArray((item as any)?.important_events) && ((item as any).important_events?.length > 0)" class="muted">
-              {{ t('chapterEditor.importantEvents') }}:
-              <ul class="list">
-                <li v-for="(eventText, eventIdx) in ((item as any).important_events as string[] || [])" :key="eventIdx">{{ eventText }}</li>
-              </ul>
-            </div>
-          </li>
-        </ul>
-
-        <div class="facts-title" v-if="Array.isArray((assembled.facts_structured as any)?.concept_summaries) && ((assembled.facts_structured as any)?.concept_summaries?.length > 0)">{{ t('contextPanel.conceptSummary') }}</div>
-        <ul class="list" v-if="Array.isArray((assembled.facts_structured as any)?.concept_summaries) && ((assembled.facts_structured as any)?.concept_summaries?.length > 0)">
-          <li v-for="(concept, idx) in ((assembled.facts_structured as any)?.concept_summaries as any[] || [])" :key="`concept-${idx}`" class="relation-item">
-            <div class="relation-head">
-              {{ (concept as any).name }}
-              <el-tag v-if="(concept as any).category" size="small" style="margin-left:6px;">{{ (concept as any).category }}</el-tag>
-            </div>
-            <div v-if="(concept as any).description" class="muted" style="margin: 2px 0;">{{ (concept as any).description }}</div>
-            <div v-if="(concept as any).rule_definition" class="muted">{{ t('chapterEditor.ruleDefinition') }}: {{ (concept as any).rule_definition }}</div>
-            <div v-if="(concept as any).mastery_hint" class="muted">{{ t('chapterEditor.masteryHint') }}: {{ (concept as any).mastery_hint }}</div>
-            <div v-if="(concept as any).cost" class="muted">{{ t('chapterEditor.cost') }}: {{ (concept as any).cost }}</div>
-            <div v-if="Array.isArray((concept as any)?.known_by) && ((concept as any).known_by?.length > 0)" class="muted">{{ t('chapterEditor.knownBy') }}: {{ ((concept as any).known_by as string[]).join(', ') }}</div>
-            <div v-if="Array.isArray((concept as any)?.counter_relations) && ((concept as any).counter_relations?.length > 0)" class="muted">{{ t('chapterEditor.counterRelations') }}: {{ ((concept as any).counter_relations as string[]).join(', ') }}</div>
-          </li>
-        </ul>
-        
+      <div v-if="authorPreview.sections.length" class="author-preview">
+        <section v-for="section in authorPreview.sections" :key="section.title" class="author-preview-section">
+          <h4>{{ section.title }}</h4>
+          <ul class="list">
+            <li v-for="(entry, index) in section.entries" :key="index">{{ entry }}</li>
+          </ul>
+        </section>
       </div>
-      <div v-if="!assembled.facts_structured">{{ t('contextPanel.noFacts') }}</div>
+      <div v-else class="no-facts">{{ t('contextPanel.noFacts') }}</div>
       <el-collapse v-if="assembled.facts_subgraph" class="technical-preview">
         <el-collapse-item :title="t('contextPanel.technicalView')" name="technical">
           <p class="technical-hint">{{ t('contextPanel.technicalHint') }}</p>
@@ -113,7 +42,6 @@ import { useI18n } from 'vue-i18n'
 import { assembleContext, type AssembleContextResponse } from '@renderer/api/ai'
 import { ElMessage } from 'element-plus'
 import { getCardsForProject, type CardRead } from '@renderer/api/cards'
-import { getRelationKindDisplayName, getRelationStanceDisplayName } from '@renderer/i18n'
 import { buildAuthorContextPreview } from '@renderer/services/contextPreview'
 
 const { t } = useI18n()
@@ -273,7 +201,10 @@ async function assemble() {
 .actions { display: flex; gap: 8px; }
 .assembled { padding: 16px; overflow: auto; color: var(--el-text-color-primary); font-size: 14px; line-height: 1.8; }
 .preview-intro { margin: 0 0 12px; color: var(--el-text-color-regular); }
-.preview-summary { margin: 0 0 12px; color: var(--el-text-color-secondary); font-size: 13px; }
+.author-preview { margin-bottom: 8px; max-height: min(52vh, 560px); overflow-y: auto; padding-right: 4px; }
+.author-preview-section + .author-preview-section { margin-top: 14px; }
+.author-preview-section h4 { margin: 0 0 5px; font-size: 14px; color: var(--el-text-color-primary); }
+.no-facts { color: var(--el-text-color-regular); }
 .pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; max-width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 13px; color: var(--el-text-color-primary); }
 .facts-structured { margin-bottom: 8px; }
 .facts-title { font-weight: 600; margin: 6px 0; color: var(--el-text-color-primary); }

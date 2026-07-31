@@ -73,9 +73,9 @@ class ErrorHandler:
                 stmt.variable,
             )
         else:
-            error_message = str(error)
+            error_message = "Workflow node execution failed"
             error_code = None
-            logger.error(f"[ErrorHandler] 节点执行失败: {stmt.variable}, 错误: {error}")
+            logger.error("[ErrorHandler] workflow node failed")
         
         # 更新节点状态
         execution_state.update_node_state(

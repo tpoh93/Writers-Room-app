@@ -93,15 +93,14 @@ app.whenReady().then(() => {
   })
 
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.on('ping', () => undefined)
 
   // Securely handle API keys
   ipcMain.handle('secure:set-api-key', async (_, { id, apiKey }) => {
     try {
       await keytar.setPassword(KEYTAR_SERVICE_NAME, String(id), apiKey)
       return { success: true }
-    } catch (error) {
-      console.error('Failed to set API key:', error)
+    } catch {
       return { success: false, error: (error as Error).message }
     }
   })
@@ -110,8 +109,7 @@ app.whenReady().then(() => {
     try {
       const apiKey = await keytar.getPassword(KEYTAR_SERVICE_NAME, String(id))
       return { success: true, apiKey }
-    } catch (error) {
-      console.error('Failed to get API key:', error)
+    } catch {
       return { success: false, error: (error as Error).message }
     }
   })

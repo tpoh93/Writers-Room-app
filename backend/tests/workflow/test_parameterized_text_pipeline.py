@@ -568,10 +568,11 @@ async def test_grok_timeout_preserves_kimi_and_marks_run_timeout(
     )
     assert timeout_event == {
         "type": "error",
-        "error": "synthetic provider timeout",
+        "error": "Provider timeout",
         "code": "provider_timeout",
         "message": "Provider timeout",
     }
+    assert "synthetic provider timeout" not in "".join(messages)
 
 
 @pytest.mark.asyncio
@@ -639,11 +640,12 @@ async def test_empty_grok_response_never_runs_aion(
     }
     assert states_by_id["kimi"].status == "success"
     assert states_by_id["grok"].status == "error"
-    assert states_by_id["grok"].error_message == "LLM返回了空响应"
+    assert states_by_id["grok"].error_message == "Workflow node execution failed"
+    assert "LLM返回了空响应" not in "".join(messages)
     assert "aion" not in states_by_id
     assert any(
         event.get("type") == "error"
         and event.get("statement", {}).get("variable") == "grok"
-        and event.get("error") == "LLM返回了空响应"
+        and event.get("error") == "Workflow node execution failed"
         for event in events
     )

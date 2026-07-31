@@ -19,6 +19,7 @@ import i18n, {
   getRelationStanceDisplayName,
   getSchemaDisplayText,
   getWorkflowNodeDisplay,
+  getWorkflowDisplayName,
 } from '@renderer/i18n'
 import {
   getAssistantSessionDisplayTitle,
@@ -165,6 +166,9 @@ describe('Polish interface localization', () => {
     expect(getPromptDisplayName('金手指生成')).toBe('Zaproponuj specjalny atut bohatera')
     expect(getPromptDisplayName('一段话大纲')).toBe('Utwórz zarys fabuły')
     expect(getPromptDisplayName('Prompt autora')).toBe('Prompt autora')
+    expect(getWorkflowDisplayName('辩论测试', true)).toBe('Test debaty')
+    expect(getWorkflowDisplayName('拆书工作流', true)).toBe('Analiza struktury książki')
+    expect(getWorkflowDisplayName('Tytuł autora', false)).toBe('Tytuł autora')
   })
 
   it('does not emit a localized card title when only the raw prop changes', async () => {

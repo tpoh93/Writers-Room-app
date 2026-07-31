@@ -14,10 +14,10 @@
           <el-option
             v-for="wf in workflowList"
             :key="wf.id"
-            :label="wf.name"
+            :label="getWorkflowDisplayName(wf.name, !!wf.is_built_in)"
             :value="wf.id"
           >
-            <span style="float: left">{{ wf.name }}</span>
+            <span style="float: left">{{ getWorkflowDisplayName(wf.name, !!wf.is_built_in) }}</span>
             <span style="float: right; color: #8492a6; font-size: 13px">
               {{ formatDate(wf.updated_at) }}
             </span>
@@ -121,7 +121,7 @@
         <div class="section-header">
           <span class="section-title">{{ t('workflow.nodesTitle') }}</span>
           <span class="section-subtitle" v-if="currentWorkflowName">
-            {{ currentWorkflowName }}
+            {{ getWorkflowDisplayName(currentWorkflowName, currentWorkflowIsBuiltIn) }}
           </span>
           <div class="view-mode-toggle" style="margin-left: auto">
              <el-radio-group v-model="viewMode" size="small">
@@ -273,6 +273,7 @@ import {
   validateWorkflow
 } from '@/api/workflows'
 import request from '@/api/request'
+import { getWorkflowDisplayName } from '@renderer/i18n'
 
 const { t } = useI18n()
 
@@ -306,6 +307,7 @@ const viewMode = ref('visual') // 'visual' | 'code'
 const notebookCells = reactive([])
 let currentWorkflowId = ref(null) // 当前工作流ID
 let currentWorkflowName = ref(t('workflow.unnamed')) // 当前工作流名称
+const currentWorkflowIsBuiltIn = ref(false)
 const currentWorkflowRevision = ref('')
 const keepRunHistory = ref(false) // 是否持久化保存运行记录
 const workflowList = ref([]) // 工作流列表
@@ -378,6 +380,7 @@ const onWorkflowChange = async (workflowId) => {
     // 清空选择
     currentWorkflowId.value = null
     currentWorkflowName.value = t('workflow.unnamed')
+    currentWorkflowIsBuiltIn.value = false
     code.value = `# Przykładowy workflow
 #@node(description="Wybierz projekt")
 project = Logic.SelectProject(project_id=1)
@@ -402,6 +405,7 @@ cards = Card.BatchUpsert(
     const workflow = await getCodeWorkflow(workflowId)
     currentWorkflowId.value = workflow.id
     currentWorkflowName.value = workflow.name
+    currentWorkflowIsBuiltIn.value = !!workflow.is_built_in
     code.value = workflow.code || ''
     currentWorkflowRevision.value = workflow.revision || ''
     keepRunHistory.value = workflow.keep_run_history || false // 加载持久化设置
@@ -441,6 +445,7 @@ project = Logic.SelectProject(project_id=1)
     const workflow = await saveCodeWorkflow(name, initialCode)
     currentWorkflowId.value = workflow.id
     currentWorkflowName.value = workflow.name
+    currentWorkflowIsBuiltIn.value = !!workflow.is_built_in
     code.value = initialCode  // 更新代码
     currentWorkflowRevision.value = ''
 
@@ -479,6 +484,7 @@ const deleteWorkflow = async () => {
     // 清空当前选择
     currentWorkflowId.value = null
     currentWorkflowName.value = t('workflow.unnamed')
+    currentWorkflowIsBuiltIn.value = false
     currentWorkflowRevision.value = ''
     code.value = `# Przykładowy workflow
 #@node(description="Wybierz projekt")
@@ -843,6 +849,7 @@ const saveWorkflow = async () => {
       const workflow = await saveCodeWorkflow(name, code.value)
       currentWorkflowId.value = workflow.id
       currentWorkflowName.value = workflow.name
+      currentWorkflowIsBuiltIn.value = !!workflow.is_built_in
       currentWorkflowRevision.value = ''
       ElMessage.success(t('workflow.saveSuccess', { name: workflow.name }))
     }
@@ -1027,6 +1034,7 @@ const onResumeRun = async (run) => {
     workflowData = await getCodeWorkflow(run.workflow_id)
     code.value = workflowData.code || ''
     currentWorkflowName.value = workflowData.name
+    currentWorkflowIsBuiltIn.value = !!workflowData.is_built_in
     currentWorkflowId.value = run.workflow_id
     currentWorkflowRevision.value = workflowData.revision || ''
   } catch (error) {

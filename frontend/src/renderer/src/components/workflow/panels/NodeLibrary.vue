@@ -24,7 +24,7 @@
                 <el-icon>
                   <component :is="getCategoryIcon(category)" />
                 </el-icon>
-                <span>{{ getCategoryLabel(category) }}</span>
+                <span class="category-label">{{ getCategoryLabel(category) }}</span>
                 <el-tag size="small" type="info">{{ nodes.length }}</el-tag>
               </div>
             </template>
@@ -245,19 +245,16 @@ onMounted(() => {
   font-size: 13px;
 }
 
-.category-title > span {
+.category-title > .category-label {
+  flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.35;
 }
 
 .category-title .el-icon {
   font-size: 16px;
-}
-
-.category-title span {
-  flex: 1;
 }
 
 .category-title .el-tag {

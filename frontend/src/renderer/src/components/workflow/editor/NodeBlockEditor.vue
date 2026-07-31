@@ -18,7 +18,7 @@
         <div class="node-block-header">
           <div class="node-info">
             <el-tag :type="getNodeCategoryColor(node.category)" size="small">
-              {{ node.category }}
+              {{ getWorkflowCategoryDisplayName(node.category) }}
             </el-tag>
             <!-- 异步标识 -->
             <el-tag v-if="node.isAsync" type="warning" size="small" effect="dark">
@@ -43,7 +43,7 @@
             >
               {{ node.variable }}
             </span>
-            <span class="node-type">{{ node.nodeType }}</span>
+            <span class="node-type">{{ getNodeLabel(node) }}</span>
           </div>
           <div class="node-actions">
             <el-tooltip :content="node.isAsync ? t('workflow.switchToSync') : t('workflow.switchToAsync')" placement="top">
@@ -99,7 +99,7 @@
             />
           </div>
           <div v-if="!node.collapsed" v-for="(field, fieldIndex) in node.fields" :key="field.name" class="param-item">
-            <span class="param-key">{{ field.label }}:</span>
+            <span class="param-key">{{ getSchemaDisplayText(field.label) }}:</span>
             <div class="param-value-wrapper">
               <!-- 编辑模式 -->
               <div
@@ -157,7 +157,7 @@
                   <el-option
                     v-for="prompt in promptList"
                     :key="prompt.id"
-                    :label="prompt.name"
+                    :label="prompt.built_in ? getPromptDisplayName(prompt.name) : prompt.name"
                     :value="prompt.id"
                   />
                 </el-select>
@@ -176,7 +176,7 @@
                   <el-option
                     v-for="ct in cardTypeList"
                     :key="ct.id"
-                    :label="ct.name"
+                    :label="ct.is_built_in ? getCardTypeDisplayName(ct.name) : ct.name"
                     :value="ct.name"
                   />
                 </el-select>
@@ -202,7 +202,7 @@
                     <el-option
                       v-for="ct in cardTypeList"
                       :key="ct.id"
-                      :label="ct.name"
+                      :label="ct.is_built_in ? getCardTypeDisplayName(ct.name) : ct.name"
                       :value="ct.name"
                     />
                   </el-option-group>
@@ -438,7 +438,7 @@ import { usePromptStore } from '@/stores/usePromptStore'
 import { useCardStore } from '@/stores/useCardStore'
 import { ParameterFormatter } from '@/utils/parameterFormatter'
 import { applyWorkflowPatch } from '@/api/workflowAgent'
-import { getSchemaDisplayText, getWorkflowNodeDisplay } from '@renderer/i18n'
+import { getCardTypeDisplayName, getPromptDisplayName, getSchemaDisplayText, getWorkflowCategoryDisplayName, getWorkflowNodeDisplay } from '@renderer/i18n'
 
 const { t } = useI18n()
 
@@ -523,6 +523,17 @@ function getNodeDescription(node) {
     },
     t,
   ).description
+}
+
+function getNodeLabel(node) {
+  return getWorkflowNodeDisplay(
+    {
+      type: node.nodeType,
+      label: node.nodeType,
+      description: node.description,
+    },
+    t,
+  ).label
 }
 
 // 解析代码为节点块
@@ -1548,7 +1559,7 @@ function formatDisplayValue(field) {
     const promptId = parseInt(displayValue)
     const prompt = promptList.value.find(p => p.id === promptId)
     if (prompt) {
-      displayValue = prompt.name
+      displayValue = prompt.built_in ? getPromptDisplayName(prompt.name) : prompt.name
     }
   }
   

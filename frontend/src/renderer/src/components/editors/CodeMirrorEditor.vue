@@ -72,7 +72,7 @@
 									:command="prompt"
 								>
 									<div class="prompt-item">
-										<span>{{ prompt }}</span>
+									<span>{{ getPromptDisplayName(prompt) }}</span>
 										<el-icon v-if="prompt === currentReviewPrompt" class="check-icon"><Select /></el-icon>
 									</div>
 								</el-dropdown-item>
@@ -88,10 +88,10 @@
 						<template #dropdown>
 							<el-dropdown-menu>
 								<el-dropdown-item command="polish" :disabled="aiLoading || reviewLoading">
-									{{ t('chapterEditor.polish') }} ({{ currentPolishPrompt }})
+									{{ t('chapterEditor.polish') }} ({{ getPromptDisplayName(currentPolishPrompt) }})
 								</el-dropdown-item>
 							<el-dropdown-item command="expand" :disabled="aiLoading || reviewLoading">
-								{{ t('chapterEditor.expand') }} ({{ currentExpandPrompt }})
+								{{ t('chapterEditor.expand') }} ({{ getPromptDisplayName(currentExpandPrompt) }})
 							</el-dropdown-item>
 						</el-dropdown-menu>
 					</template>
@@ -106,13 +106,13 @@
 							<div class="prompt-settings-item">
 								<label>{{ t('chapterEditor.polish') }}</label>
 								<el-select v-model="currentPolishPrompt" size="small" @change="handlePolishPromptChange">
-									<el-option v-for="p in polishPrompts" :key="p" :label="p" :value="p" />
+									<el-option v-for="p in polishPrompts" :key="p" :label="getPromptDisplayName(p)" :value="p" />
 								</el-select>
 							</div>
 							<div class="prompt-settings-item">
 								<label>{{ t('chapterEditor.expand') }}</label>
 								<el-select v-model="currentExpandPrompt" size="small" @change="handleExpandPromptChange">
-									<el-option v-for="p in expandPrompts" :key="p" :label="p" :value="p" />
+									<el-option v-for="p in expandPrompts" :key="p" :label="getPromptDisplayName(p)" :value="p" />
 								</el-select>
 							</div>
 						</div>
@@ -2290,7 +2290,6 @@ async function loadPrompts() {
 			currentReviewPrompt.value = allPromptNames[0]
 		}
 	} catch (e) {
-		console.error('Failed to load prompts:', e)
 		reviewPrompts.value = ['章节审核']
 		polishPrompts.value = ['润色']
 		expandPrompts.value = ['扩写']
@@ -2503,7 +2502,6 @@ async function executeReview() {
 		try {
 			resolvedContextTemplate = getResolvedContext(reviewContextKindValue.value, 'review')
 		} catch (e) {
-			console.error('Failed to resolve context template for review:', e)
 		}
 		const volumeNumber = (props.contextParams as any)?.volume_number ?? (localCard.content as any)?.volume_number
 		const chapterNumber = (props.contextParams as any)?.chapter_number ?? (localCard.content as any)?.chapter_number
@@ -2555,7 +2553,6 @@ async function executeReview() {
 		notifyEditorTaskDone('review')
 		ElMessage.success(t('chapterEditor.chapterReviewComplete'))
 	} catch (e) {
-		console.error('章节审核失败:', e)
 		ElMessage.error(t('chapterEditor.chapterReviewError'))
 	} finally {
 		if (reviewAbortController.value === abortController) {
@@ -2588,7 +2585,6 @@ async function handleCreateOrUpdateReviewCard() {
 		window.dispatchEvent(new CustomEvent('nf:review-history-refresh'))
 		ElMessage.success(t('chapterEditor.reviewCardUpdated'))
 	} catch (error) {
-		console.error('Failed to upsert review result card:', error)
 		ElMessage.error(t('chapterEditor.reviewCardCreateError'))
 	} finally {
 		reviewCardSaving.value = false
@@ -2639,7 +2635,6 @@ async function runContinuationWithConfig(payload: {
 	try {
 		resolvedContextTemplate = getResolvedContext(generationContextKindValue.value, 'generation')
 	} catch (e) {
-		console.error('Failed to resolve context template:', e)
 	}
 
 	// 2. 格式化事实子图（参与实体）
@@ -2968,7 +2963,6 @@ async function executeAIEdit(
 	try {
 		resolvedContextTemplate = getResolvedContext(generationContextKindValue.value, 'generation')
 	} catch (e) {
-		console.error('Failed to resolve context template:', e)
 	}
 
 	// 2. 格式化事实子图（参与实体）
@@ -3190,7 +3184,6 @@ function executeAIGeneration(
 				pendingAiEdit.value = null
 			}
 			clearHighlight()
-			console.error(`${taskName}失败:`, error)
 			ElMessage.error(t('chapterEditor.taskFailed', { task: taskName }))
 		}
 	)
@@ -3263,7 +3256,6 @@ function extractParticipantsWithTypeForCurrentChapter(): { name: string, type: s
 			result.push({ name, type })
 		}
 	} catch (e) {
-		console.error("Failed to extract participants with type:", e)
 	}
 	return result.slice(0, 10) // 适当放宽数量限制
 }
@@ -3591,7 +3583,6 @@ async function extractDynamicInfoWithLlm(llmConfigId: number, opts?: ChapterExtr
 		await ensureEditorMainTabVisible()
 		previewDialogVisible.value = true
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.dynamicExtractionError'))
 	}
 }
@@ -3634,7 +3625,6 @@ async function confirmApplyUpdates() {
 			try {
 				appendedCount = await appendParticipantsToCurrentChapter(collectConfirmedDynamicParticipantNames())
 			} catch (syncError) {
-				console.error(syncError)
 				ElMessage.warning(t('chapterEditor.participantSyncWarning'))
 			}
 			ElMessage.success(t('chapterEditor.dynamicUpdateSuccess', { cards: resp.updated_card_count, participants: appendedCount }))
@@ -3643,7 +3633,6 @@ async function confirmApplyUpdates() {
 			ElMessage.warning(t('chapterEditor.noDynamicUpdates'))
 		}
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.dynamicUpdateError'))
 	} finally {
 		dynamicPreviewApplying.value = false
@@ -3674,7 +3663,6 @@ async function confirmIngestRelationsFromPreview() {
 		const resp = await ingestRelationsFromPreview({ project_id: projectId, data: sanitizedRelationsPreview, volume_number: vol, chapter_number: ch })
 		ElMessage.success(t('chapterEditor.relationsWritten', { count: resp.written }))
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.relationWriteError'))
 	} finally {
 		relationsPreviewApplying.value = false
@@ -3730,7 +3718,6 @@ async function extractRelationsWithLlm(llmConfigId: number, opts?: ChapterExtrac
 		await ensureEditorMainTabVisible()
 		relationsPreviewVisible.value = true
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.relationExtractionError'))
 	}
 }
@@ -3770,7 +3757,6 @@ async function extractMemoryByCode(extractorCode: MemoryExtractorCode, llmConfig
 		await ensureEditorMainTabVisible()
 		memoryPreviewVisible.value = true
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.memoryExtractionError', { type: getMemoryExtractorDisplayLabel(extractorCode) }))
 	}
 }
@@ -3915,7 +3901,6 @@ async function removeParticipantFromCurrentChapter(item: ParticipantReviewNotice
 		;(localCard.content as any).entity_list = nextList
 		ElMessage.success(t('chapterEditor.participantRemoved', { name: item.title }))
 	} catch (error) {
-		console.error(error)
 		ElMessage.error(t('chapterEditor.participantUpdateError'))
 	}
 }
@@ -3981,7 +3966,6 @@ async function applyMemoryPreviewConfirm() {
 			try {
 				appendedCount = await appendParticipantsToCurrentChapter(collectConfirmedMemoryParticipantNames())
 			} catch (syncError) {
-				console.error(syncError)
 				ElMessage.warning(t('chapterEditor.participantSyncWarning'))
 			}
 			ElMessage.success(t('chapterEditor.memoryWriteSuccess', { type: label, cards: resp.updated_card_count, participants: appendedCount }))
@@ -3990,7 +3974,6 @@ async function applyMemoryPreviewConfirm() {
 			ElMessage.warning(t('chapterEditor.noMemoryUpdates'))
 		}
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.memoryWriteError'))
 	} finally {
 		memoryPreviewApplying.value = false
@@ -4089,7 +4072,6 @@ async function restoreContent(versionContent: any) {
 		wordCount.value = computeWordCount(textContent)
 
 	} catch (e) {
-		console.error('Failed to restore content:', e)
 		throw e
 	}
 }
@@ -4396,7 +4378,6 @@ function nfAssistantHandlePatchBatchEvent(event: Event) {
   const currentId = nfAssistantCurrentCardId()
   const targetId = Number(detail.card_id)
   if (currentId && targetId && currentId !== targetId) {
-    console.warn(`Patch proposals target card #${targetId}, current card #${currentId}`)
     return
   }
   if (pendingAiEdit.value && (pendingAiEdit.value as any).source !== 'assistant_batch_patch') {
@@ -4471,10 +4452,8 @@ onBeforeUnmount(() => {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	flex-wrap: nowrap;
-	overflow-x: auto;
-	overflow-y: hidden;
-	scrollbar-width: thin;
+	flex-wrap: wrap;
+	overflow: visible;
 }
 
 .toolbar-status-row {
@@ -4507,8 +4486,10 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-group-ai {
+	display: flex;
+	flex-wrap: wrap;
 	gap: 8px;
-	flex: 0 0 auto;
+	flex: 1 1 420px;
 	min-width: 0;
 	padding: 8px 12px;
 }
@@ -4528,29 +4509,29 @@ onBeforeUnmount(() => {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	flex-wrap: nowrap;
-	flex: 0 0 auto;
+	flex-wrap: wrap;
+	flex: 1 1 300px;
 }
 
 .ai-config-entry {
-	max-width: none;
-	width: auto;
+	max-width: 100%;
+	width: min(100%, 560px);
 	margin-right: 0;
+}
+
+@media (max-width: 1024px) {
+	.toolbar-row { align-items: stretch; }
+	.toolbar-group-ai, .ai-action-bar { flex-basis: 100%; }
+	.ai-config-entry { width: 100%; }
 }
 
 .ai-status-strip {
 	display: flex;
-	flex-wrap: nowrap;
+	flex-wrap: wrap;
 	gap: 8px;
-	flex: 0 0 auto;
+	flex: 1 1 100%;
 	max-width: 100%;
-	overflow-x: auto;
-	overflow-y: hidden;
-	scrollbar-width: none;
-}
-
-.ai-status-strip::-webkit-scrollbar {
-	display: none;
+	overflow: visible;
 }
 
 .status-pill {

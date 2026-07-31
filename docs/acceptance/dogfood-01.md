@@ -1,6 +1,6 @@
 # DOGFOOD-01 — redaction-safe acceptance evidence
 
-Status: completed against the isolated synthetic fixture; normal-stack health was checked without reading user content.
+Status: remediation verified against the isolated synthetic fixture; no user content was opened.
 
 ## Safety gate
 
@@ -12,23 +12,28 @@ Status: completed against the isolated synthetic fixture; normal-stack health wa
 
 | Severity | Finding | Resolution | Evidence |
 | --- | --- | --- | --- |
-| BLOCKER privacy | Workflow/editor diagnostic logs could emit workflow code, node values, SSE payloads, assistant structures, IPC arguments, and raw errors. | Removed content-bearing browser logging; workflow failure UI now uses safe generic messages. Stream handling retains only application callbacks and no diagnostic payloads. | Synthetic success/error marker regression; fixture console review reports no console messages. |
-| MAJOR | Built-in card types, template labels, schema titles/descriptions, relation kinds, and stances could expose canonical Chinese values. | Added explicit display-only mappings in their respective UI surfaces; raw values, schema keys, IDs, and author content remain unchanged. | Localization regression tests and fixture workflow/project dialog review. |
-| MAJOR | Prompt collection calls followed a slash redirect that could lose the local development port and surface a network error. | Use canonical trailing-slash collection endpoints. | API regression test and fixture request to `/api/prompts/` returned 200. |
-| MAJOR | `__free__` and workflow header/category layout exposed technical labels or collided visually. | Added contextual display name and responsive truncation/spacing. | Fixture accessibility snapshot confirmed separate workflow header texts and Polish display copy. |
+| BLOCKER privacy | Workflow/editor diagnostic logs could emit workflow code, node values, SSE payloads, prompts, responses, IPC arguments, and raw errors. | Removed content-bearing browser logging and made workflow state/SSE error messages generic; log redaction now covers execution, retry, resume, triggers, generation and IPC paths. | Frontend source regression, backend source regression, and 55 backend tests with synthetic privacy markers. |
+| MAJOR | Context preview was not rendering the author-facing projection and could make empty facts ambiguous. | Render `authorPreview.sections`, show the Polish no-facts state when empty, and leave the technical disclosure collapsed. | Component regression and fixture DOM snapshot. |
+| MAJOR | Built-in workflow, prompt and node labels could expose canonical CJK/technical values. | Added display-only maps for built-ins while preserving persisted names, IDs, schema keys and author-entered values. | Localization regression and fixture workflow snapshot. |
+| MAJOR | Knowledge collection calls followed a slash redirect that could lose the local development port and surface a network error. | Use canonical trailing-slash collection endpoints. | API regression test. |
+| MAJOR | AI controls and right-panel tabs could clip on narrow desktop widths. | Toolbar/status controls wrap; right tabs expose horizontal scrolling instead of hidden overflow. | Real screenshots and DOM measurements at 1440×900, 1280×800, 1024×768 and 768×900. |
+| MAJOR | The default parallel Vitest invocation relied on Node process `localStorage`, which is unavailable or shared across workers. | Each jsdom test environment installs an isolated in-memory `Storage` implementation. | Default parallel `npm test`: 22 files, 107 tests pass. |
 
 ## Verification
 
-- `npm --prefix frontend run typecheck` — pass.
-- `npm --prefix frontend test` — 18 files, 99 tests pass.
-- Isolated fixture rebuild and `verify-writer-ready` — pass.
-- Browser runtime review at the fixture URL: Polish workflow labels rendered, `/api/prompts/` returned 200, and no browser console messages were present after reload.
+- `npm --prefix frontend run typecheck:web` — pass.
+- `npm --prefix frontend test` — 22 files, 107 tests pass in the default parallel configuration.
+- `python3 -m py_compile` for touched backend modules — pass.
+- Backend suite in a one-shot read-only container with a temporary database — 55 passed.
+- Isolated fixture rebuild, synthetic seed and `verify-writer-ready` — pass.
+- Browser runtime review: Polish workflow labels rendered; the no-facts context state is visible and `Widok techniczny` is collapsed by default; the missing-model alert was traced to the deliberately unconfigured synthetic fixture.
+- Layout DOM results: document `scrollWidth === clientWidth` for all four required viewports; the 768 px AI status strip has equal `scrollWidth`/`clientWidth`; right tabs have explicit usable `overflow-x: auto`.
 
 ## Limits
 
 - No private prose, payload, screenshot, or marker value is included in this record.
-- Pixel-level screenshot export was unavailable in the browser tooling, so this evidence relies on runtime accessibility snapshots and test/runtime results.
-- The visible sample-node category remains a minor product-content follow-up; it was not expanded within DOGFOOD-01.
+- Screenshots are stored outside the repository evidence tree and contain only the synthetic fixture.
+- The `npm` configuration warnings and backend dependency deprecation warnings are non-blocking environment follow-ups.
 
 ## Context preview contract
 

@@ -101,6 +101,7 @@ const pl = {
     name: 'Nazwa',
     description: 'Opis',
     builtIn: 'Wbudowany',
+    builtInPromptDescription: 'Wbudowany prompt: {name}',
     custom: 'Własny',
     actions: 'Działania',
     deleteKnowledgeConfirm: 'Usunąć ten wpis z bazy wiedzy?',

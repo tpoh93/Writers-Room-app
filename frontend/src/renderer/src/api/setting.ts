@@ -7,12 +7,12 @@ export type KnowledgeUpdate = components['schemas']['KnowledgeUpdate']
 
 // 知识库 API（request 已解包 ApiResponse<T>，此处直接返回 T）
 export async function listKnowledge(): Promise<Knowledge[]> {
-  const resp = await request.get<Knowledge[]>('/knowledge')
+  const resp = await request.get<Knowledge[]>('/knowledge/')
   return resp
 }
 
 export async function createKnowledge(body: KnowledgeCreate): Promise<Knowledge> {
-  const resp = await request.post<Knowledge>('/knowledge', body)
+  const resp = await request.post<Knowledge>('/knowledge/', body)
   return resp
 }
 

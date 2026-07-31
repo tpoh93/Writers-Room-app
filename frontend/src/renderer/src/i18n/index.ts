@@ -96,6 +96,23 @@ const BUILTIN_PROMPT_DISPLAY_NAMES: Record<string, string> = {
   '写作指南': 'Utwórz założenia pisarskie',
   '章节审核': 'Oceń rozdział',
   '灵感对话': 'Rozmowa o pomysłach',
+  '拆书_全案拆解_人物脉络': 'Analiza książki: postacie i ich wątki',
+  '拆书_阶段划分': 'Analiza książki: podział na etapy',
+  '拆书_章节大纲摘要': 'Analiza książki: streszczenie rozdziałów',
+  '扩写': 'Rozwiń fragment',
+  '工作流智能体-React': 'Asystent workflowu (ReAct)',
+  '概念掌握提取': 'Wydobądź stan wiedzy o pojęciach',
+  '组织状态提取': 'Wydobądź stan organizacji',
+  '关系提取': 'Wydobądź relacje',
+  '通用审核': 'Ogólna ocena',
+  '场景状态提取': 'Wydobądź stan sceny',
+  '指令流生成规范': 'Specyfikacja generowania instrukcji',
+  '润色': 'Redakcja stylu',
+}
+
+const BUILTIN_WORKFLOW_DISPLAY_NAMES: Record<string, string> = {
+  '辩论测试': 'Test debaty',
+  '拆书工作流': 'Analiza struktury książki',
 }
 
 export function getCardDisplayTitle(title: string): string {
@@ -151,6 +168,21 @@ export function getSchemaDisplayText(text: string | undefined): string | undefin
 
 export function getPromptDisplayName(name: string | undefined): string | undefined {
   return name === undefined ? undefined : BUILTIN_PROMPT_DISPLAY_NAMES[name] || name
+}
+
+export function getWorkflowDisplayName(name: string, isBuiltIn: boolean): string {
+  return isBuiltIn ? BUILTIN_WORKFLOW_DISPLAY_NAMES[name] || name : name
+}
+
+export function getWorkflowCategoryDisplayName(category: string): string {
+  return ({
+    Logic: 'Logika',
+    Novel: 'Powieść',
+    Card: 'Karty',
+    AI: 'Sztuczna inteligencja',
+    Prompt: 'Prompty',
+    Raw: 'Kod',
+  } as Record<string, string>)[category] || category
 }
 
 type WorkflowNodeForDisplay = {

@@ -2179,6 +2179,16 @@ function onSwitchRightTab(e: CustomEvent) {
 }
 .right-tabs :deep(.el-tabs__nav-wrap) {
   padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: auto;
+  scrollbar-gutter: stable;
+}
+.right-tabs :deep(.el-tabs__nav-scroll) {
+  overflow: visible;
+}
+.right-tabs :deep(.el-tabs__nav) {
+  white-space: nowrap;
 }
 .right-tabs :deep(.el-tabs__item) {
   font-size: 13px;
