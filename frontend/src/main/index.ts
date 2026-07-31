@@ -101,7 +101,7 @@ app.whenReady().then(() => {
       await keytar.setPassword(KEYTAR_SERVICE_NAME, String(id), apiKey)
       return { success: true }
     } catch {
-      return { success: false, error: (error as Error).message }
+      return { success: false, error: 'Operacja nie powiodła się.' }
     }
   })
 
@@ -110,7 +110,7 @@ app.whenReady().then(() => {
       const apiKey = await keytar.getPassword(KEYTAR_SERVICE_NAME, String(id))
       return { success: true, apiKey }
     } catch {
-      return { success: false, error: (error as Error).message }
+      return { success: false, error: 'Operacja nie powiodła się.' }
     }
   })
 
