@@ -119,7 +119,6 @@ class HttpClient {
           const errorMessage = error.response?.data?.message || error.response?.data?.detail || error.message || i18n.global.t('errors.requestFailed')
           ElMessage.error(errorMessage)
         }
-        console.error('请求错误:', error.response?.data || error)
         return Promise.reject(error)
       }
     )

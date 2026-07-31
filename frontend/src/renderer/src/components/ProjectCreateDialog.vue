@@ -1,7 +1,7 @@
 
 <template>
-  <el-dialog v-model="visible" :title="dialogTitle" width="500" >
-    <el-form :model="form" ref="formRef" :rules="rules" label-width="80px" @submit.prevent="handleConfirm">
+  <el-dialog v-model="visible" :title="dialogTitle" width="min(560px, calc(100vw - 32px))" >
+    <el-form :model="form" ref="formRef" :rules="rules" label-position="top" @submit.prevent="handleConfirm">
       <el-form-item :label="t('project.nameLabel')" prop="name">
         <el-input v-model="form.name" />
       </el-form-item>
@@ -11,7 +11,7 @@
       <el-form-item v-if="!isEditMode" :label="t('project.templateLabel')">
         <el-select v-model="selectedTemplate" :placeholder="t('project.templatePlaceholder')" filterable clearable :loading="loadingTemplates" style="width:100%">
           <el-option :label="t('project.blankTemplate')" :value="null" />
-          <el-option v-for="tpl in projectTemplates" :key="tpl.template" :label="tpl.workflow_name" :value="tpl.template" />
+          <el-option v-for="tpl in projectTemplates" :key="tpl.template" :label="getProjectTemplateDisplayName(tpl.workflow_name)" :value="tpl.template" />
         </el-select>
       </el-form-item>
       <!-- 隐藏的提交按钮，确保在输入框按回车会触发表单提交 -->
@@ -20,7 +20,7 @@
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="visible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="handleConfirm">{{ t('common.confirm') }}</el-button>
+        <el-button type="primary" @click="handleConfirm">{{ isEditMode ? t('common.save') : t('common.create') }}</el-button>
       </div>
     </template>
   </el-dialog>
@@ -33,6 +33,7 @@ import { useI18n } from 'vue-i18n'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { components } from '@renderer/types/generated'
 import { getProjectTemplates } from '@renderer/api/workflows'
+import { getProjectTemplateDisplayName } from '@renderer/i18n'
 
 type Project = components['schemas']['ProjectRead']
 type ProjectCreate = components['schemas']['ProjectCreate']

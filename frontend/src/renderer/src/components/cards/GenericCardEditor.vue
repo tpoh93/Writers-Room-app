@@ -67,7 +67,7 @@
                   :command="prompt"
                 >
                   <div class="prompt-item">
-                    <span>{{ prompt }}</span>
+                    <span>{{ getPromptDisplayName(prompt) }}</span>
                     <el-icon v-if="prompt === currentReviewPrompt" class="check-icon"><Select /></el-icon>
                   </div>
                 </el-dropdown-item>
@@ -198,7 +198,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getCardDisplayTitle, getCardTypeDisplayName } from '@renderer/i18n'
+import { getCardDisplayTitle, getCardTypeDisplayName, getPromptDisplayName } from '@renderer/i18n'
 import { storeToRefs } from 'pinia'
 import { useCardStore } from '@renderer/stores/useCardStore'
 import { useAIStore } from '@renderer/stores/useAIStore'
@@ -554,7 +554,7 @@ const selectedModelName = computed(() => {
 const paramSummary = computed(() => {
   const p = perCardParams.value || editingParams.value
   const model = t('chapterEditor.modelSummary', { value: selectedModelName.value || t('editor.notSet') })
-  const prompt = t('genericCard.promptSummary', { value: p?.prompt_name || t('editor.notSet') })
+  const prompt = t('genericCard.promptSummary', { value: getPromptDisplayName(p?.prompt_name) || t('editor.notSet') })
   const temperature = p?.temperature != null ? t('chapterEditor.temperatureSummary', { value: p.temperature }) : ''
   const m = p?.max_tokens != null ? `max_tokens:${p.max_tokens}` : ''
   return [model, prompt, temperature, m].filter(Boolean).join(' · ')
@@ -967,7 +967,6 @@ async function handleSave() {
           })
         }
       } catch (e) {
-        console.error('Failed to add version:', e)
       }
 
       contentEditorDirty.value = false
@@ -1077,7 +1076,6 @@ async function executeReview() {
     stageReviewDialogVisible.value = true
     ElMessage.success(t('genericCard.reviewComplete'))
   } catch (e) {
-    console.error('审核失败:', e)
     ElMessage.error(t('genericCard.reviewError'))
   } finally {
     if (stageReviewAbortController.value === abortController) {
@@ -1111,7 +1109,6 @@ async function handleCreateOrUpdateReviewCard() {
     window.dispatchEvent(new CustomEvent('nf:review-history-refresh'))
     ElMessage.success(t('chapterEditor.reviewCardUpdated'))
   } catch (error) {
-    console.error('Failed to upsert review result card:', error)
     ElMessage.error(t('chapterEditor.reviewCardCreateError'))
   } finally {
     reviewCardSaving.value = false
@@ -1186,7 +1183,6 @@ async function handleStartGeneration(userPrompt: string, useExistingContent: boo
     // 6. 显示用户要求（如果有）
     // 必须要要在 reset 之后添加，否则会被 reset 清空
     if (userPrompt && generationPanelRef.value) {
-      console.log('Adding user prompt to panel:', userPrompt)
       // 使用 setTimeout 确保在 reset 的 DOM 更新后执行
       setTimeout(() => {
         generationPanelRef.value?.addMessage('user', userPrompt)
@@ -1201,7 +1197,6 @@ async function handleStartGeneration(userPrompt: string, useExistingContent: boo
     // 8. 调用生成 API
     await performGeneration(userPrompt, effective, resolvedContext, p, useExistingContent)
   } catch (e) {
-    console.error('启动生成失败:', e)
     ElMessage.error(t('genericCard.generationStartError'))
   }
 }
@@ -1271,7 +1266,6 @@ async function performGeneration(
           if (success) {
             // 如果后端回传了最终完整数据（包含默认值注入），则合并更新
             if (finalData) {
-              console.log('Received final data from backend:', finalData)
               const { mergeWith, isArray } = await import('lodash-es')
               const arrayOverwrite = (objValue: any, srcValue: any) => {
                 if (isArray(objValue) || isArray(srcValue)) {
@@ -1298,7 +1292,6 @@ async function performGeneration(
     )
   } catch (error: any) {
     if (error.name !== 'AbortError') {
-      console.error('生成失败:', error)
       generationPanelRef.value?.addMessage('error', error.message || t('generation.failed'))
       generationPanelRef.value?.finishGeneration(false)
     }
@@ -1378,7 +1371,6 @@ async function handleContinueGeneration(userMessage: string) {
     // 继续生成（总是基于现有内容）
     await performGeneration(userMessage, effective, resolvedContext, p, true)
   } catch (e) {
-    console.error('继续生成失败:', e)
     ElMessage.error(t('genericCard.generationContinueError'))
   }
 }
@@ -1437,7 +1429,7 @@ async function handleGenerate() {
       }
       ElMessage.success(t('genericCard.contentGenerationSuccess'))
     }
-  } catch (e) { console.error('AI generation failed:', e) }
+  } catch (e) { /* UI feedback is handled by the surrounding workflow state. */ }
 }
 
 async function handleRestoreVersion(v: any) {
@@ -1467,7 +1459,6 @@ async function handleRestoreVersion(v: any) {
       await cardStore.fetchCards(projectStore.currentProject?.id ?? props.card.project_id)
       ElMessage.success(t('genericCard.versionRestored'))
     } catch (e) {
-      console.error('Failed to restore writer version:', e)
       ElMessage.error(t('genericCard.versionRestoreError'))
     }
     return
@@ -1497,7 +1488,6 @@ async function handleRestoreVersion(v: any) {
 
       ElMessage.success(t('genericCard.versionRestored'))
     } catch (e) {
-      console.error('Failed to restore content editor version:', e)
       ElMessage.error(t('genericCard.versionRestoreError'))
     }
     return
@@ -1551,7 +1541,7 @@ async function handleAssistantFinalize(summary: string) {
       assistantVisible.value = false
       ElMessage.success(t('genericCard.finalGenerationComplete'))
     }
-  } catch (e) { console.error('Finalize generate failed:', e) }
+  } catch (e) { /* UI feedback is handled by the surrounding workflow state. */ }
 }
 </script>
 

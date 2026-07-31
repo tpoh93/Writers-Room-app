@@ -85,22 +85,22 @@ async def generate_instruction_stream(
             max_tokens=max_tokens,
             timeout=timeout
         )
-    except Exception as e:
-        logger.error(f"构建 ChatModel 失败: {e}")
+    except Exception:
+        logger.error("Unable to construct the chat model")
         yield {
             "type": "error",
-            "text": f"初始化 LLM 失败: {str(e)}"
+            "text": "Nie udało się zainicjować modelu językowego."
         }
         return
     
     # 创建 Pydantic 动态模型（用于最终验证）
     try:
         DynamicModel = build_model_from_json_schema('DynamicResponseModel', schema)
-    except Exception as e:
-        logger.error(f"创建动态模型失败: {e}")
+    except Exception:
+        logger.error("Unable to construct the dynamic response model")
         yield {
             "type": "error",
-            "text": f"Schema 解析失败: {str(e)}"
+            "text": "Nie udało się przetworzyć schematu odpowiedzi."
         }
         return
     
@@ -257,7 +257,7 @@ async def generate_instruction_stream(
                                     instruction = try_parse_instruction(json_buffer)
                                     if not instruction:
                                         # 解析失败，可能是无效 JSON
-                                        logger.warning(f"JSON 解析失败: {json_buffer}")
+                                        logger.warning("Instruction stream contained invalid JSON")
                                         # 尝试修复常见错误 (如末尾逗号)
                                         try:
                                             # 简单的清理逻辑，可以根据需要增强
@@ -362,10 +362,10 @@ async def generate_instruction_stream(
                                     }
                                     return
 
-                        except ValueError as e:
-                            logger.warning(f"指令校验失败: {e}")
-                            failed_instructions.append({"instruction": instruction, "error": str(e)})
-                            yield {"type": "warning", "text": f"指令校验失败: {str(e)}"}
+                        except ValueError:
+                            logger.warning("Instruction validation failed")
+                            failed_instructions.append({"instruction": instruction, "error": "validation_failed"})
+                            yield {"type": "warning", "text": "Nie udało się sprawdzić instrukcji."}
                             # 指令校验失败，累积错误但不中断，继续
                             # should_break_stream = True
 
@@ -393,8 +393,8 @@ async def generate_instruction_stream(
                             "type": "instruction",
                             "instruction": instruction
                         }
-                    except ValueError as e:
-                        logger.warning(f"残留 JSON 指令校验失败: {e}")
+                    except ValueError:
+                        logger.warning("Remaining JSON instruction validation failed")
             
             # 处理最后一行（如果有）
             if buffer.strip():
@@ -421,7 +421,7 @@ async def generate_instruction_stream(
                                 return
                             except ValidationError as e:
                                 error_msg = format_validation_errors(e.errors())
-                                logger.warning(f"完整性校验失败: {error_msg}")
+                                logger.warning("Instruction result completeness validation failed")
                                 # 设置修复标志，准备反馈给 LLM
                                 need_fix = True
                                 fix_prompt = f"""生成的数据不完整或有误，请修正以下问题：
@@ -436,8 +436,8 @@ async def generate_instruction_stream(
 请继续生成缺失或错误的字段，完成后再次输出 {{"op":"done"}}
 """
                                 should_break_stream = True
-                    except ValueError as e:
-                        logger.warning(f"指令校验失败: {e}")
+                    except ValueError:
+                        logger.warning("Instruction validation failed")
                 else:
                     yield {
                         "type": "thinking",
@@ -510,7 +510,7 @@ async def generate_instruction_stream(
             
             # 如果流结束但没有 done 指令，可能是 max_tokens 限制或其他原因
             logger.warning("⚠️ LLM 流结束但未收到 done 指令")
-            logger.info(f"当前已收集数据字段: {list(collected_data.keys())}")
+            logger.info(f"Collected instruction fields: count={len(collected_data)}")
 
             # 尝试隐式完成（尝试校验）
             try:
@@ -525,11 +525,11 @@ async def generate_instruction_stream(
                 }
                 generation_completed = True
                 break
-            except Exception as e:
-                 logger.warning(f"流结束后的隐式校验失败: {e}")
+            except Exception:
+                 logger.warning("Implicit post-stream validation failed")
                  # 如果真的校验失败，可能确实是截断了，需要用户反馈或者重试（这里暂不自动重试，因为已经是最后了）
                  pass
-            logger.info(f"当前数据: {json.dumps(collected_data, ensure_ascii=False, indent=2)[:500]}...")
+            logger.info(f"Instruction stream collected fields: count={len(collected_data)}")
             
             # 尝试验证当前数据的完整性
             try:
@@ -549,7 +549,7 @@ async def generate_instruction_stream(
                 
                 # 如果有 Optional 字段缺失，很可能是 max_tokens 截断
                 if missing_optional_fields:
-                    logger.warning(f"⚠️ 虽然必填字段完整，但以下 Optional 字段缺失: {missing_optional_fields}")
+                    logger.warning(f"Optional instruction fields missing: count={len(missing_optional_fields)}")
                     logger.warning("结合 LLM 未发送 done 指令，怀疑是 max_tokens 截断")
                     yield {
                         "type": "warning",
@@ -600,7 +600,7 @@ async def generate_instruction_stream(
             except ValidationError as e:
                 # 数据不完整，可能是 max_tokens 限制导致输出被截断
                 error_msg = format_validation_errors(e.errors())
-                logger.warning(f"❌ 数据不完整: {error_msg}")
+                logger.warning("Instruction result is incomplete")
                 
                 # 检查是否是第一轮就失败（可能是 max_tokens 太小）
                 if attempt == 0:
@@ -640,11 +640,11 @@ async def generate_instruction_stream(
         except asyncio.CancelledError:
             attempt_aborted = True
             raise
-        except Exception as e:
-            logger.error(f"生成过程出错: {e}")
+        except Exception:
+            logger.error("Instruction generation failed")
             yield {
                 "type": "error",
-                "text": f"生成失败: {str(e)}"
+                "text": "Nie udało się wygenerować instrukcji."
             }
             break
         finally:
@@ -658,8 +658,8 @@ async def generate_instruction_stream(
                         calls=1,
                         aborted=attempt_aborted,
                     )
-                except Exception as usage_error:
-                    logger.warning(f"记录指令流 token 统计失败: {usage_error}")
+                except Exception:
+                    logger.warning("Unable to record instruction-stream token usage")
     
     # 只有在未正常完成时才报告失败
     if not generation_completed:

@@ -48,12 +48,10 @@ function resolveRef(refPath: string, allSchemas: Map<string, JSONSchema>): JSONS
   // 假设格式为 '#/$defs/MyModel' or 'MyModel'
   const refName = refPath.split('/').pop()
   if (!refName) {
-    console.error('无效的 $ref 路径:', refPath)
     return null
   }
   const resolved = allSchemas.get(refName)
   if (!resolved) {
-    console.error(`无法在 allSchemas 中解析 $ref: ${refName}`)
         return null
       }
   return resolved
@@ -77,7 +75,6 @@ function dereferenceSchema(
 
   if (schema.$ref) {
     if (visited.has(schema.$ref)) {
-      console.warn('检测到循环引用:', schema.$ref)
       return { type: 'object', title: i18n.global.t('dynamicForm.circularReference') }
     }
     visited.add(schema.$ref)
@@ -153,13 +150,11 @@ async function loadSchemas() {
       }
 
       // DEBUG: Log all the schema keys that were loaded
-      console.log('[SchemaService] All schema keys loaded from /ai/schemas:', Array.from(dereferencedSchemaMap.keys()));
 
       schemas.value = dereferencedSchemaMap
     }
-  } catch (e) {
-    console.error('Failed to load schemas from /ai/schemas:', e)
-    error.value = e
+  } catch {
+    error.value = new Error('schema_load_failed')
   } finally {
     isLoading.value = false
   }
@@ -171,8 +166,7 @@ async function refreshSchemas() {
     schemas.value = new Map()
     isLoading.value = false
     await loadSchemas()
-  } catch (e) {
-    console.error('Failed to refresh schemas:', e)
+  } catch {
   }
 }
 

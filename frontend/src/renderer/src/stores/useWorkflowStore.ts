@@ -64,8 +64,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
             isLoadingNodeTypes.value = true
             const res = await getNodeTypes()
             nodeTypes.value = res.node_types
-        } catch (error) {
-            console.error('Failed to fetch node types:', error)
+        } catch {
         } finally {
             isLoadingNodeTypes.value = false
         }
@@ -76,8 +75,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
         try {
             const { getCardTypes } = await import('../api/cards')
             cardTypes.value = await getCardTypes()
-        } catch (error) {
-            console.error('Failed to fetch card types:', error)
+        } catch {
         }
     }
 
@@ -169,8 +167,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
                     progress: existingRun?.progress // 保留进度信息
                 })
             }
-        } catch (e) {
-            console.error(`Failed to fetch run ${id}`, e)
+        } catch {
         }
     }
 
@@ -266,11 +263,9 @@ export const useWorkflowStore = defineStore('workflow', () => {
             if (existingRun) {
                 // 更新状态为运行中
                 updateRunStatus(runId, 'running')
-                console.log('[WorkflowStore] 恢复执行，更新状态为 running:', runId)
             } else {
                 // 如果不存在，添加到状态栏
                 addRun(runId, workflowName)
-                console.log('[WorkflowStore] 恢复执行，添加运行记录:', runId)
             }
         }
 
@@ -368,7 +363,6 @@ export const useWorkflowStore = defineStore('workflow', () => {
             if (resume && runId) {
                 const oldConn = sseConnections.value.get(runId)
                 if (oldConn) {
-                    console.log('[WorkflowStore] 清理旧的 SSE 连接:', runId)
                     oldConn.eventSource.close()
                     sseConnections.value.delete(runId)
                 }
@@ -384,7 +378,6 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
             // 保存连接信息
             if (currentRunId) {
-                console.log('[WorkflowStore] 保存 SSE 连接:', currentRunId)
                 sseConnections.value.set(currentRunId, {
                     runId: currentRunId,
                     workflowId,
@@ -396,7 +389,6 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
             return { runId: actualRunId, eventSource }
         } catch (error) {
-            console.error('[WorkflowStore] 启动工作流失败:', error)
             throw error
         }
     }
@@ -405,15 +397,11 @@ export const useWorkflowStore = defineStore('workflow', () => {
      * 暂停工作流执行
      */
     function pauseWorkflowExecution(runId: number) {
-        console.log('[WorkflowStore] 暂停工作流执行:', runId)
         const conn = sseConnections.value.get(runId)
         if (conn) {
-            console.log('[WorkflowStore] 关闭 SSE 连接:', runId)
             conn.eventSource.close()
             sseConnections.value.delete(runId)
             updateRunStatus(runId, 'paused')
-        } else {
-            console.warn('[WorkflowStore] 未找到 SSE 连接:', runId)
         }
     }
 

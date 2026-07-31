@@ -239,14 +239,14 @@ def _async_execute_workflow(run_id: int):
                 state_manager.update_run_status(run_id, "cancelled")
                 logger.info(f"[Trigger] 后台执行已取消: run_id={run_id}")
                 return
-            except Exception as e:
+            except Exception:
                 # 执行失败更新状态
                 state_manager.update_run_status(run_id, "failed")
-                state_manager.save_error(run_id, str(e))
+                state_manager.save_error(run_id, "Workflow execution failed")
                 raise
                 
-        except Exception as e:
-            logger.exception(f"[Trigger] 后台执行失败: run_id={run_id}")
+        except Exception:
+            logger.error(f"[Trigger] background execution failed: run_id={run_id}")
         finally:
             workflow_runtime.finish_run(
                 run_id,
@@ -273,8 +273,8 @@ def _async_execute_workflow(run_id: int):
             )
             thread.start()
             
-    except Exception as e:
-        logger.error(f"[Trigger] 无法调度后台任务: {e}")
+    except Exception:
+        logger.error("[Trigger] unable to schedule background task")
 
 
 async def _execute_code_workflow(
@@ -331,7 +331,7 @@ async def _execute_code_workflow(
         async for event in executor.execute_stream(plan, initial_context):
             # 记录关键事件
             if event.type == "error":
-                logger.error(f"[Trigger] 节点执行失败: {event.statement.variable if event.statement else 'unknown'}, error={event.error}")
+                logger.error("[Trigger] workflow node execution failed")
             elif event.type == "complete":
                 logger.debug(f"[Trigger] 节点执行完成: {event.statement.variable if event.statement else 'unknown'}")
 
@@ -428,8 +428,8 @@ def _execute_triggers(session: Session, event_name: str, triggers: List[Dict[str
             else:
                  logger.error(f"[Trigger] Run creation returned no ID for wf {workflow_id}")
                 
-        except Exception as e:
-            logger.exception(f"[Trigger] 创建/触发运行失败: wf={workflow_id}, err={e}")
+        except Exception:
+            logger.error("[Trigger] run creation or scheduling failed")
 
     return run_ids
 
@@ -512,6 +512,5 @@ def handle_project_created(event: Event):
 
         if run_ids:
             logger.info(f"[工作流触发] project.created - 触发了 {len(run_ids)} 个工作流 (template={template})")
-    except Exception as e:
-        logger.exception(f"[工作流] handle_project_created failed: {e}")
-
+    except Exception:
+        logger.error("[Workflow] project-created trigger handling failed")

@@ -7,12 +7,12 @@ export type KnowledgeUpdate = components['schemas']['KnowledgeUpdate']
 
 // 知识库 API（request 已解包 ApiResponse<T>，此处直接返回 T）
 export async function listKnowledge(): Promise<Knowledge[]> {
-  const resp = await request.get<Knowledge[]>('/knowledge')
+  const resp = await request.get<Knowledge[]>('/knowledge/')
   return resp
 }
 
 export async function createKnowledge(body: KnowledgeCreate): Promise<Knowledge> {
-  const resp = await request.post<Knowledge>('/knowledge', body)
+  const resp = await request.post<Knowledge>('/knowledge/', body)
   return resp
 }
 
@@ -122,8 +122,8 @@ export async function copyLLMConfig(id: number): Promise<LLMConfigRead> {
 
 // --- 提示词 API ---
 export interface Prompt { id: number; name: string; description: string; template: string; built_in?: boolean }
-export async function listPrompts(): Promise<Prompt[]> { return await request.get<Prompt[]>('/prompts') }
-export async function createPrompt(body: Partial<Prompt>): Promise<void> { await request.post('/prompts', body) }
+export async function listPrompts(): Promise<Prompt[]> { return await request.get<Prompt[]>('/prompts/') }
+export async function createPrompt(body: Partial<Prompt>): Promise<void> { await request.post('/prompts/', body) }
 export async function updatePrompt(id: number, body: Partial<Prompt>): Promise<void> { await request.put(`/prompts/${id}`, body) }
 export async function deletePrompt(id: number): Promise<void> { await request.delete(`/prompts/${id}`) }
 

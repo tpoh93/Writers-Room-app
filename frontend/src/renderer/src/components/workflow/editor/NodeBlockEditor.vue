@@ -18,7 +18,7 @@
         <div class="node-block-header">
           <div class="node-info">
             <el-tag :type="getNodeCategoryColor(node.category)" size="small">
-              {{ node.category }}
+              {{ getWorkflowCategoryDisplayName(node.category) }}
             </el-tag>
             <!-- 异步标识 -->
             <el-tag v-if="node.isAsync" type="warning" size="small" effect="dark">
@@ -43,7 +43,7 @@
             >
               {{ node.variable }}
             </span>
-            <span class="node-type">{{ node.nodeType }}</span>
+            <span class="node-type">{{ getNodeLabel(node) }}</span>
           </div>
           <div class="node-actions">
             <el-tooltip :content="node.isAsync ? t('workflow.switchToSync') : t('workflow.switchToAsync')" placement="top">
@@ -99,7 +99,7 @@
             />
           </div>
           <div v-if="!node.collapsed" v-for="(field, fieldIndex) in node.fields" :key="field.name" class="param-item">
-            <span class="param-key">{{ field.label }}:</span>
+            <span class="param-key">{{ getSchemaDisplayText(field.label) }}:</span>
             <div class="param-value-wrapper">
               <!-- 编辑模式 -->
               <div
@@ -157,7 +157,7 @@
                   <el-option
                     v-for="prompt in promptList"
                     :key="prompt.id"
-                    :label="prompt.name"
+                    :label="prompt.built_in ? getPromptDisplayName(prompt.name) : prompt.name"
                     :value="prompt.id"
                   />
                 </el-select>
@@ -176,7 +176,7 @@
                   <el-option
                     v-for="ct in cardTypeList"
                     :key="ct.id"
-                    :label="ct.name"
+                    :label="ct.is_built_in ? getCardTypeDisplayName(ct.name) : ct.name"
                     :value="ct.name"
                   />
                 </el-select>
@@ -202,7 +202,7 @@
                     <el-option
                       v-for="ct in cardTypeList"
                       :key="ct.id"
-                      :label="ct.name"
+                      :label="ct.is_built_in ? getCardTypeDisplayName(ct.name) : ct.name"
                       :value="ct.name"
                     />
                   </el-option-group>
@@ -438,7 +438,7 @@ import { usePromptStore } from '@/stores/usePromptStore'
 import { useCardStore } from '@/stores/useCardStore'
 import { ParameterFormatter } from '@/utils/parameterFormatter'
 import { applyWorkflowPatch } from '@/api/workflowAgent'
-import { getWorkflowNodeDisplay } from '@renderer/i18n'
+import { getCardTypeDisplayName, getPromptDisplayName, getSchemaDisplayText, getWorkflowCategoryDisplayName, getWorkflowNodeDisplay } from '@renderer/i18n'
 
 const { t } = useI18n()
 
@@ -525,6 +525,17 @@ function getNodeDescription(node) {
   ).description
 }
 
+function getNodeLabel(node) {
+  return getWorkflowNodeDisplay(
+    {
+      type: node.nodeType,
+      label: node.nodeType,
+      description: node.description,
+    },
+    t,
+  ).label
+}
+
 // 解析代码为节点块
 async function parseCodeToNodes(code) {
   if (!code || !code.trim()) return []
@@ -535,11 +546,8 @@ async function parseCodeToNodes(code) {
     
     if (!response.success || !response.statements) {
       const errorMsg = response.errors?.join('; ') || t('errors.unknown')
-      console.error('代码解析失败:', response.errors)
       throw new Error(errorMsg)
     }
-    
-    console.log(`[parseCodeToNodes] 解析了 ${response.statements.length} 个语句`)
     
     const parsedNodes = []
     
@@ -547,8 +555,6 @@ async function parseCodeToNodes(code) {
     for (let i = 0; i < response.statements.length; i++) {
       const stmt = response.statements[i]
       
-      console.log(`[parseCodeToNodes] 语句 ${i}: ${stmt.variable} (行${stmt.line}), disabled=${stmt.disabled}, async=${stmt.is_async}`)
-        
       // 处理节点调用
       if (stmt.node_type && stmt.node_type !== 'expression' && stmt.node_type !== '_wait') {
         const parts = stmt.node_type.split('.')
@@ -590,7 +596,6 @@ async function parseCodeToNodes(code) {
     }
     return parsedNodes
   } catch (error) {
-    console.error('解析请求失败:', error)
     // 重新抛出异常，让调用者处理
     throw error
   }
@@ -621,14 +626,6 @@ async function fetchNodeOutputs(node) {
         if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
           const fieldType = resolveFieldType(fieldDef)
           
-          console.log(`[fetchNodeOutputs] 处理字段 ${fieldName}:`, {
-            fieldType,
-            rawValue,
-            rawValueType: typeof rawValue,
-            isObject: typeof rawValue === 'object',
-            isArray: Array.isArray(rawValue)
-          })
-          
           // 始终使用 ParameterFormatter 格式化
           try {
             formattedValue = ParameterFormatter.format({
@@ -636,31 +633,23 @@ async function fetchNodeOutputs(node) {
               value: rawValue
             })
             
-            console.log(`[fetchNodeOutputs] 格式化成功 ${fieldName}:`, {
-              formattedValue,
-              formattedType: typeof formattedValue
-            })
-            
             // 确保返回的是字符串
             if (typeof formattedValue !== 'string') {
-              console.warn(`[fetchNodeOutputs] 格式化结果不是字符串，强制转换: ${fieldName}`)
               formattedValue = JSON.stringify(formattedValue)
             }
-          } catch (e) {
-            console.error(`[fetchNodeOutputs] 格式化字段 ${fieldName} 失败:`, e, 'rawValue:', rawValue)
+          } catch {
             // 降级处理：确保返回字符串
             if (typeof rawValue === 'object' && rawValue !== null) {
               formattedValue = JSON.stringify(rawValue)
             } else {
               formattedValue = String(rawValue)
             }
-            console.log(`[fetchNodeOutputs] 降级处理后 ${fieldName}:`, formattedValue)
           }
         }
         
         return {
           name: fieldName,
-          label: fieldDef.description || fieldName,
+          label: getSchemaDisplayText(fieldDef.description) || fieldName,
           type: resolveFieldType(fieldDef),
           required: fieldDef.required || false,
           default: fieldDef.default,
@@ -686,12 +675,6 @@ async function fetchNodeOutputs(node) {
           fieldType = 'object'
         }
         
-        console.log(`[fetchNodeOutputs] 处理额外字段 ${fieldName}:`, {
-          fieldType,
-          rawValue,
-          rawValueType: typeof rawValue
-        })
-        
         // 格式化值（确保返回字符串）
         let formattedValue = ''
         try {
@@ -700,25 +683,17 @@ async function fetchNodeOutputs(node) {
             value: rawValue
           })
           
-          console.log(`[fetchNodeOutputs] 额外字段格式化成功 ${fieldName}:`, {
-            formattedValue,
-            formattedType: typeof formattedValue
-          })
-          
           // 确保返回的是字符串
           if (typeof formattedValue !== 'string') {
-            console.warn(`[fetchNodeOutputs] 额外字段格式化结果不是字符串，强制转换: ${fieldName}`)
             formattedValue = JSON.stringify(formattedValue)
           }
-        } catch (e) {
-          console.error(`[fetchNodeOutputs] 格式化额外字段 ${fieldName} 失败:`, e, 'rawValue:', rawValue)
+        } catch {
           // 降级处理：确保返回字符串
           if (typeof rawValue === 'object' && rawValue !== null) {
             formattedValue = JSON.stringify(rawValue)
           } else {
             formattedValue = String(rawValue)
           }
-          console.log(`[fetchNodeOutputs] 额外字段降级处理后 ${fieldName}:`, formattedValue)
         }
         
         return {
@@ -735,9 +710,7 @@ async function fetchNodeOutputs(node) {
     // 合并字段列表
     node.fields = [...schemaFields, ...extraFields]
 
-    console.log('[fetchNodeOutputs] 节点字段:', node.nodeType, node.fields)
-  } catch (error) {
-    console.error('获取节点元数据失败:', error)
+  } catch {
     node.outputs = []
     node.fields = []
   }
@@ -761,9 +734,8 @@ function parseParams(paramsStr) {
 }
 
 // 将节点块转换为注释标记 DSL 代码
-function buildNodeBlockCode(node, idx = -1) {
+function buildNodeBlockCode(node) {
   if (!node?.variable || !node?.nodeType) {
-    console.warn(`[buildNodeBlockCode] 节点 ${idx} 缺少必要信息`)
     return ''
   }
 
@@ -878,7 +850,6 @@ function updateSingleNodeCode(node) {
   const { lines, blocks } = parseNodeBlocksFromCode(currentCode)
   const target = blocks.find(block => block.variable === node.variable)
   if (!target) {
-    console.warn(`[updateSingleNodeCode] 未找到节点块，跳过整文件重排: ${node.variable}`)
     return currentCode
   }
 
@@ -905,7 +876,6 @@ function removeSingleNodeCode(nodeVariable) {
   const { lines, blocks } = parseNodeBlocksFromCode(currentCode)
   const target = blocks.find(block => block.variable === nodeVariable)
   if (!target) {
-    console.warn(`[removeSingleNodeCode] 未找到节点块，跳过整文件重排: ${nodeVariable}`)
     return currentCode
   }
 
@@ -931,11 +901,9 @@ function appendSingleNodeCode(node) {
 }
 
 function nodesToCode() {
-  const nodeBlocks = nodes.value.map((node, idx) => buildNodeBlockCode(node, idx)).filter(code => code.trim() !== '')
+  const nodeBlocks = nodes.value.map(node => buildNodeBlockCode(node)).filter(code => code.trim() !== '')
   
   const result = nodeBlocks.join('\n\n')
-  console.log('[nodesToCode] 生成节点代码，节点数:', nodes.value.length)
-  console.log('[nodesToCode] 最终代码:\n', result)
   return result
 }
 
@@ -1008,10 +976,9 @@ async function applyCodeUpdateSafely(newCode, options = {}) {
     nodes.value = parsedNodes
     emitCodeUpdate(normalized)
     return true
-  } catch (error) {
-    console.error('[applyCodeUpdateSafely] 校验失败，拒绝写回:', error)
+  } catch {
     if (!options.silent) {
-      ElMessage.error(t('workflow.codeUpdateError', { error: error?.message || error }))
+      ElMessage.error(t('workflow.codeUpdateError'))
     }
     return false
   }
@@ -1043,8 +1010,6 @@ async function toggleNodeDisabled(index) {
   const node = nodes.value[index]
   const targetDisabledState = node.disabled
   const previousDisabledState = !targetDisabledState
-  console.log(`[toggleNodeDisabled] 节点 ${node.variable} 禁用状态: ${targetDisabledState}`)
-
   // 仅更新当前节点代码块，避免重排整个工作流代码格式
   const applied = await applyCodeUpdateSafely(updateSingleNodeCode(node), { silent: true })
   if (!applied) {
@@ -1101,18 +1066,12 @@ async function addNode() {
 ${newNodeVariable.value} = ${selectedNodeType.value}()
 #</node>`
     
-    console.log('[addNode] 生成的节点代码:\n', code)
-    
     const parsed = await parseCodeToNodes(code)
 
     if (parsed && parsed.length > 0) {
-      console.log('[addNode] 解析后的节点:', parsed[0])
-      
       nodes.value.push(parsed[0])
       
       const finalCode = appendSingleNodeCode(parsed[0])
-      console.log('[addNode] 最终生成的代码:\n', finalCode)
-      
       emitCodeUpdate(finalCode)
       selectedIndex.value = nodes.value.length - 1
       emit('node-selected', nodes.value[selectedIndex.value])
@@ -1120,9 +1079,8 @@ ${newNodeVariable.value} = ${selectedNodeType.value}()
     } else {
       ElMessage.error(t('workflow.nodeAddParseError'))
     }
-  } catch (error) {
-    console.error('[addNode] 添加节点失败:', error)
-    ElMessage.error(t('workflow.nodeAddError', { error: error.message || error }))
+  } catch {
+    ElMessage.error(t('workflow.nodeAddError'))
   }
 
   addNodeDialogVisible.value = false
@@ -1133,21 +1091,11 @@ function startParamEdit(nodeIndex, fieldIndex) {
   const node = nodes.value[nodeIndex]
   const field = node.fields[fieldIndex]
   
-  console.log('[startParamEdit] 开始编辑:', { nodeIndex, fieldIndex, field })
-  
   // 获取当前值，去掉引号和 $ 前缀
   let editValue = field.value
   if (editValue === undefined || editValue === null) {
     editValue = field.default || (field.type === 'boolean' ? false : '')
   }
-  
-  console.log('[startParamEdit] 原始值:', { 
-    fieldName: field.name, 
-    fieldType: field.type, 
-    editValue, 
-    isArray: Array.isArray(editValue),
-    valueType: typeof editValue
-  })
   
   // 处理布尔值
   if (field.type === 'boolean') {
@@ -1163,7 +1111,6 @@ function startParamEdit(nodeIndex, fieldIndex) {
       if ((editValue.startsWith('"') && editValue.endsWith('"')) || 
           (editValue.startsWith("'") && editValue.endsWith("'"))) {
         editValue = editValue.substring(1, editValue.length - 1)
-        console.log('[startParamEdit] 去掉外层引号后:', editValue)
       }
     }
     
@@ -1214,8 +1161,6 @@ function startParamEdit(nodeIndex, fieldIndex) {
       arrayItems = [String(editValue)]
     }
     
-    console.log('[startParamEdit] 数组解析结果:', arrayItems)
-    
     // 保存到 editingParam
     editValue = arrayItems
   }
@@ -1236,7 +1181,6 @@ function startParamEdit(nodeIndex, fieldIndex) {
     arrayItems: field.type === 'array' ? editValue : []  // 数组类型使用 arrayItems
   }
   
-  console.log('[startParamEdit] 编辑状态:', editingParam.value)
 }
 
 // 添加数组项
@@ -1259,7 +1203,6 @@ async function saveParamEdit() {
   const node = nodes.value[nodeIndex]
   
   if (!node || !node.fields || !node.fields[fieldIndex]) {
-    console.error('[saveParamEdit] 节点或字段不存在:', { nodeIndex, fieldIndex })
     ElMessage.error(t('workflow.nodeDataError'))
     editingParam.value = null
     return
@@ -1269,19 +1212,6 @@ async function saveParamEdit() {
   const fieldType = field.type || editingParam.value.fieldType || 'string'
   const previousFieldValue = field.value
   
-  console.log('[saveParamEdit] 保存参数:', { 
-    nodeIndex, 
-    fieldIndex, 
-    fieldName, 
-    fieldType, 
-    value,
-    node: {
-      variable: node.variable,
-      nodeType: node.nodeType,
-      fieldsCount: node.fields.length
-    }
-  })
-  
   try {
     // 处理数组类型
     let finalValue = value
@@ -1289,17 +1219,14 @@ async function saveParamEdit() {
       // 过滤掉空项
       const filteredItems = arrayItems.filter(item => item && item.trim())
       finalValue = filteredItems
-      console.log('[saveParamEdit] 数组项:', filteredItems)
     }
     
     // 使用 ParameterFormatter 处理空值
     if (ParameterFormatter.isEmpty(finalValue)) {
-      console.log('[saveParamEdit] 值为空，清除字段值')
       field.value = undefined
       
       // 重新生成节点代码（不包含该字段）
       const allCode = updateSingleNodeCode(node)
-      console.log('[saveParamEdit] 完整代码:\n', allCode)
       const applied = await applyCodeUpdateSafely(allCode, { silent: true })
       if (!applied) {
         field.value = previousFieldValue
@@ -1319,8 +1246,6 @@ async function saveParamEdit() {
       value: finalValue
     })
 
-    console.log('[saveParamEdit] 格式化后的值:', formattedValue)
-
     if (String(formattedValue) === String(field.value ?? '')) {
       editingParam.value = null
       return
@@ -1329,15 +1254,8 @@ async function saveParamEdit() {
     // 更新字段值
     field.value = formattedValue
     
-    console.log('[saveParamEdit] 当前所有节点:')
-    nodes.value.forEach((n, idx) => {
-      console.log(`  [${idx}] ${n.variable}: fields=`, n.fields?.map(f => `${f.name}=${f.value}`))
-    })
-    
     // 重新生成节点代码
     const allCode = updateSingleNodeCode(node)
-    console.log('[saveParamEdit] 完整节点代码:\n', allCode)
-    
     // 验证生成的代码是否有效
     if (!allCode || allCode.trim() === '') {
       throw new Error(t('workflow.generatedCodeEmpty'))
@@ -1353,9 +1271,8 @@ async function saveParamEdit() {
     ElMessage.success(t('workflow.parameterUpdated'))
     
     editingParam.value = null
-  } catch (error) {
-    console.error('[saveParamEdit] 保存参数失败:', error)
-    ElMessage.error(t('settings.saveError') + ` ${error.message}`)
+  } catch {
+    ElMessage.error(t('settings.saveError'))
     editingParam.value = null
   }
 }
@@ -1374,8 +1291,7 @@ async function openFolderDialog() {
         saveParamEdit()
       }
     }
-  } catch (e) {
-    console.error('Failed to open directory dialog:', e)
+  } catch {
   }
 }
 
@@ -1443,8 +1359,7 @@ async function loadNodeTypes() {
   try {
     const response = await request.get('/nodes/types', undefined, '/api', { showLoading: false })
     nodeTypes.value = response.node_types || []
-  } catch (error) {
-    console.error('加载节点类型失败:', error)
+  } catch {
   }
 }
 
@@ -1456,15 +1371,10 @@ watch(() => props.modelValue, async (newCode, oldCode) => {
 
   // 如果是内部更新（saveParamEdit/saveVariableEdit 触发），跳过重新解析
   if (isInternalUpdate.value) {
-    console.log('[watch] 内部更新，跳过重新解析')
     isInternalUpdate.value = false
     return
   }
   
-  console.log('[watch] 外部代码变化，重新解析')
-  console.log('[watch] 新代码长度:', newCode?.length, '旧代码长度:', oldCode?.length)
-  console.log('[watch] 新代码:\n', newCode)
-
   const requestSeq = ++parseWatchSeq.value
   
   try {
@@ -1472,18 +1382,15 @@ watch(() => props.modelValue, async (newCode, oldCode) => {
     if (requestSeq !== parseWatchSeq.value) {
       return
     }
-    console.log('[watch] 解析成功，节点数:', parsedNodes.length)
     nodes.value = parsedNodes
-  } catch (error) {
+  } catch {
     if (requestSeq !== parseWatchSeq.value) {
       return
     }
-    console.error('[watch] 代码解析失败:', error)
-    console.error('[watch] 失败的代码:\n', newCode)
     // 解析失败时保持当前节点列表不变
     // 只有在非初始化时才显示错误提示（避免组件挂载时的错误提示）
     if (oldCode !== undefined) {
-      ElMessage.error(t('workflow.codeParseErrorWithDetail', { error: error.message || error }))
+      ElMessage.error(t('workflow.codeParseErrorWithDetail'))
     }
   }
 }, { immediate: true })
@@ -1534,8 +1441,6 @@ function toggleNodeCollapse(index) {
 
 // 开始编辑变量名
 function startVariableEdit(nodeIndex, currentVariable) {
-  console.log('[startVariableEdit] 开始编辑变量名:', { nodeIndex, currentVariable })
-  
   editingVariable.value = {
     nodeIndex,
     value: currentVariable,
@@ -1552,18 +1457,12 @@ function startVariableEdit(nodeIndex, currentVariable) {
 
 // 保存变量名编辑
 async function saveVariableEdit() {
-  console.log('[saveVariableEdit] 函数被调用')
-  console.log('[saveVariableEdit] editingVariable:', editingVariable.value)
-  
   if (!editingVariable.value) {
-    console.log('[saveVariableEdit] editingVariable 为空，退出')
     return
   }
   
   const { nodeIndex, value, originalValue } = editingVariable.value
   const newVariable = value.trim()
-  
-  console.log('[saveVariableEdit] 保存变量名:', { nodeIndex, newVariable, originalValue })
   
   // 验证变量名
   if (!newVariable) {
@@ -1593,50 +1492,32 @@ async function saveVariableEdit() {
     return
   }
   
-  console.log('[saveVariableEdit] 开始更新变量名和引用...')
-  
   const allCode = props.modelValue || nodesToCode()
-  console.log('[saveVariableEdit] 原始代码:\n', allCode)
   
   try {
     // 调用后端 API 进行变量重命名
-    console.log('[saveVariableEdit] 准备调用后端 API...')
-    console.log('[saveVariableEdit] 请求参数:', {
-      code: allCode,
-      old_name: originalValue,
-      new_name: newVariable
-    })
-    
     const response = await request.post('/workflows/rename-variable', {
       code: allCode,
       old_name: originalValue,
       new_name: newVariable
     }, '/api')
     
-    console.log('[saveVariableEdit] 收到响应:', response)
-    
     if (response.success && response.new_code) {
-      console.log('[saveVariableEdit] 新代码:\n', response.new_code)
-      
       // 发送更新事件
       emitCodeUpdate(response.new_code)
       
       // 强制重新解析代码以更新显示
       try {
         nodes.value = await parseCodeToNodes(response.new_code)
-        console.log('[saveVariableEdit] 节点已重新解析')
-      } catch (error) {
-        console.error('[saveVariableEdit] 重新解析失败:', error)
+      } catch {
       }
       
       ElMessage.success(t('workflow.variableUpdated', { from: originalValue, to: newVariable }))
     } else {
-      console.error('[saveVariableEdit] 重命名失败:', response.error)
-      ElMessage.error(t('workflow.renameError', { error: response.error || t('errors.unknown') }))
+      ElMessage.error(t('workflow.renameError'))
     }
-  } catch (error) {
-    console.error('[saveVariableEdit] 重命名请求失败:', error)
-    ElMessage.error(t('workflow.renameError', { error: error.message || error }))
+  } catch {
+    ElMessage.error(t('workflow.renameError'))
   }
   
   editingVariable.value = null
@@ -1678,7 +1559,7 @@ function formatDisplayValue(field) {
     const promptId = parseInt(displayValue)
     const prompt = promptList.value.find(p => p.id === promptId)
     if (prompt) {
-      displayValue = prompt.name
+      displayValue = prompt.built_in ? getPromptDisplayName(prompt.name) : prompt.name
     }
   }
   
@@ -1737,8 +1618,7 @@ onMounted(async () => {
 
     try {
       builtinResponseModels.value = await getContentModels()
-    } catch (e) {
-      console.warn('[NodeBlockEditor] 加载内置响应模型失败，使用回退列表', e)
+    } catch {
       builtinResponseModels.value = [
         'OneSentence',
         'ChapterOutline',
@@ -1751,15 +1631,7 @@ onMounted(async () => {
       ]
     }
 
-    // 调试日志
-    console.log('[NodeBlockEditor] 数据加载完成:')
-    console.log('  - 项目列表:', projectList.value.length, '个')
-    console.log('  - LLM配置:', llmConfigList.value.length, '个')
-    console.log('  - 提示词:', promptList.value.length, '个')
-    console.log('  - 卡片类型:', cardTypeList.value.length, '个')
-    console.log('  - 内置响应模型:', builtinResponseModels.value.length, '个')
-  } catch (error) {
-    console.error('加载数据失败:', error)
+  } catch {
   }
 })
 </script>

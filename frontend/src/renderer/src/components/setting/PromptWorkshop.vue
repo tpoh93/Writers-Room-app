@@ -5,8 +5,12 @@
       <el-button type="primary" @click="handleCreate">{{ t('settings.newPrompt') }}</el-button>
     </div>
     <el-table :data="prompts" style="width: 100%" v-loading="loading">
-      <el-table-column prop="name" :label="t('settings.name')" width="180" />
-      <el-table-column prop="description" :label="t('settings.description')" />
+      <el-table-column :label="t('settings.name')" width="180">
+        <template #default="{ row }">{{ row.built_in ? getPromptDisplayName(row.name) : row.name }}</template>
+      </el-table-column>
+      <el-table-column :label="t('settings.description')">
+        <template #default="{ row }">{{ row.built_in ? t('settings.builtInPromptDescription', { name: getPromptDisplayName(row.name) }) : row.description }}</template>
+      </el-table-column>
       <el-table-column :label="t('settings.actions')" width="220">
         <template #default="{ row }">
           <el-button size="small" @click="handleEdit(row)">{{ t('common.edit') }}</el-button>
@@ -91,6 +95,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import type { FormInstance } from 'element-plus'
 import { listKnowledge, type Knowledge, listPrompts, createPrompt, updatePrompt, deletePrompt } from '@renderer/api/setting'
+import { getPromptDisplayName } from '@renderer/i18n'
 
 interface Prompt {
   id: number

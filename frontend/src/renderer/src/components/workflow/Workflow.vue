@@ -14,10 +14,10 @@
           <el-option
             v-for="wf in workflowList"
             :key="wf.id"
-            :label="wf.name"
+            :label="getWorkflowDisplayName(wf.name, !!wf.is_built_in)"
             :value="wf.id"
           >
-            <span style="float: left">{{ wf.name }}</span>
+            <span style="float: left">{{ getWorkflowDisplayName(wf.name, !!wf.is_built_in) }}</span>
             <span style="float: right; color: #8492a6; font-size: 13px">
               {{ formatDate(wf.updated_at) }}
             </span>
@@ -121,7 +121,7 @@
         <div class="section-header">
           <span class="section-title">{{ t('workflow.nodesTitle') }}</span>
           <span class="section-subtitle" v-if="currentWorkflowName">
-            {{ currentWorkflowName }}
+            {{ getWorkflowDisplayName(currentWorkflowName, currentWorkflowIsBuiltIn) }}
           </span>
           <div class="view-mode-toggle" style="margin-left: auto">
              <el-radio-group v-model="viewMode" size="small">
@@ -273,6 +273,7 @@ import {
   validateWorkflow
 } from '@/api/workflows'
 import request from '@/api/request'
+import { getWorkflowDisplayName } from '@renderer/i18n'
 
 const { t } = useI18n()
 
@@ -306,6 +307,7 @@ const viewMode = ref('visual') // 'visual' | 'code'
 const notebookCells = reactive([])
 let currentWorkflowId = ref(null) // 当前工作流ID
 let currentWorkflowName = ref(t('workflow.unnamed')) // 当前工作流名称
+const currentWorkflowIsBuiltIn = ref(false)
 const currentWorkflowRevision = ref('')
 const keepRunHistory = ref(false) // 是否持久化保存运行记录
 const workflowList = ref([]) // 工作流列表
@@ -362,7 +364,6 @@ const loadWorkflowList = async () => {
       return wf.dsl_version === 2
     })
   } catch (error) {
-    console.error('[Workflow] 加载工作流列表失败:', error)
     ElMessage.error(t('workflow.listLoadError'))
   }
 }
@@ -379,16 +380,17 @@ const onWorkflowChange = async (workflowId) => {
     // 清空选择
     currentWorkflowId.value = null
     currentWorkflowName.value = t('workflow.unnamed')
-    code.value = `# 示例工作流
-#@node(description="选择项目")
+    currentWorkflowIsBuiltIn.value = false
+    code.value = `# Przykładowy workflow
+#@node(description="Wybierz projekt")
 project = Logic.SelectProject(project_id=1)
 #</node>
 
-#@node(description="加载小说目录")
+#@node(description="Wczytaj katalog powieści")
 novel = Novel.Load(root_path="E:\\\\Novels\\\\book")
 #</node>
 
-#@node(description="批量创建分卷卡片")
+#@node(description="Utwórz karty tomów zbiorczo")
 cards = Card.BatchUpsert(
     items=novel.volume_list,
     card_type="volume",
@@ -403,12 +405,12 @@ cards = Card.BatchUpsert(
     const workflow = await getCodeWorkflow(workflowId)
     currentWorkflowId.value = workflow.id
     currentWorkflowName.value = workflow.name
+    currentWorkflowIsBuiltIn.value = !!workflow.is_built_in
     code.value = workflow.code || ''
     currentWorkflowRevision.value = workflow.revision || ''
     keepRunHistory.value = workflow.keep_run_history || false // 加载持久化设置
     notebookCells.length = 0 // 清空输出
   } catch (error) {
-    console.error('[Workflow] 加载工作流失败:', error)
     ElMessage.error(t('workflow.loadError'))
   }
 }
@@ -436,13 +438,14 @@ const createNewWorkflow = async () => {
     })
 
     // 创建新工作流，使用 marker DSL 模板
-    const initialCode = `# 新工作流
-#@node(description="选择项目")
+    const initialCode = `# Nowy workflow
+#@node(description="Wybierz projekt")
 project = Logic.SelectProject(project_id=1)
 #</node>`
     const workflow = await saveCodeWorkflow(name, initialCode)
     currentWorkflowId.value = workflow.id
     currentWorkflowName.value = workflow.name
+    currentWorkflowIsBuiltIn.value = !!workflow.is_built_in
     code.value = initialCode  // 更新代码
     currentWorkflowRevision.value = ''
 
@@ -452,7 +455,6 @@ project = Logic.SelectProject(project_id=1)
     ElMessage.success(t('workflow.createSuccess', { name: workflow.name }))
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('[Workflow] 创建工作流失败:', error)
       ElMessage.error(t('workflow.createError'))
     }
   }
@@ -482,17 +484,18 @@ const deleteWorkflow = async () => {
     // 清空当前选择
     currentWorkflowId.value = null
     currentWorkflowName.value = t('workflow.unnamed')
+    currentWorkflowIsBuiltIn.value = false
     currentWorkflowRevision.value = ''
-    code.value = `# 示例工作流
-#@node(description="选择项目")
+    code.value = `# Przykładowy workflow
+#@node(description="Wybierz projekt")
 project = Logic.SelectProject(project_id=1)
 #</node>
 
-#@node(description="加载小说目录")
+#@node(description="Wczytaj katalog powieści")
 novel = Novel.Load(root_path="E:\\\\Novels\\\\book")
 #</node>
 
-#@node(description="批量创建分卷卡片")
+#@node(description="Utwórz karty tomów zbiorczo")
 cards = Card.BatchUpsert(
     items=novel.volume_list,
     card_type="volume",
@@ -507,7 +510,6 @@ cards = Card.BatchUpsert(
     ElMessage.success(t('workflow.deleteSuccess'))
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('[Workflow] 删除工作流失败:', error)
       ElMessage.error(t('workflow.deleteError'))
     }
   }
@@ -543,7 +545,6 @@ const onKeepRunHistoryChange = async (value) => {
     })
     ElMessage.success(value ? t('workflow.persistenceEnabled') : t('workflow.persistenceDisabled'))
   } catch (error) {
-    console.error('[Workflow] 更新持久化设置失败:', error)
     ElMessage.error(t('workflow.persistenceError'))
     // 恢复原值
     keepRunHistory.value = !value
@@ -628,7 +629,7 @@ const runWorkflow = async () => {
           const cell = notebookCells.find(c => c.id === event.statement?.variable)
           if (cell) {
             cell.status = 'error'
-            cell.error = event.error
+            cell.error = t('workflow.executionFailed')
           } else {
             // 没有对应的 cell（比如解析失败），创建一个错误 cell
             notebookCells.push({
@@ -636,13 +637,13 @@ const runWorkflow = async () => {
               type: 'execution',
               content: event.statement?.code || t('workflow.codeParseError'),
               status: 'error',
-              error: event.error || t('errors.unknown'),
+              error: t('workflow.executionFailed'),
               outputs: []
             })
           }
           // 标记为失败状态
-          failExecution(event.error || t('workflow.executionFailed'))
-          ElMessage.error(event.error || t('workflow.executionFailed'))
+          failExecution(t('workflow.executionFailed'))
+          ElMessage.error(t('workflow.executionFailed'))
         },
         onEnd: () => {
           // 如果不是失败状态，标记为完成
@@ -658,9 +659,8 @@ const runWorkflow = async () => {
     // 真实的 runId 会在 onRunStarted 回调中更新
     startExecution(currentWorkflowId.value, 0)
   } catch (error) {
-    console.error('[Workflow] 工作流执行失败:', error)
-    failExecution(error.message || t('workflow.executionFailed'))
-    ElMessage.error(error.message || t('workflow.executionFailed'))
+    failExecution(t('workflow.executionFailed'))
+    ElMessage.error(t('workflow.executionFailed'))
   }
 }
 
@@ -678,13 +678,10 @@ const pauseCurrentRun = async () => {
   if (!canPause.value) return
   
   if (execution.runId === null || execution.runId === undefined) {
-    console.error('[Workflow] 无法暂停：缺少 runId')
     return
   }
   
   try {
-    console.log('[Workflow] 开始暂停工作流:', execution.runId)
-    
     // 1. 先通过 store 关闭 SSE 连接（停止接收事件）
     pauseWorkflow(execution.runId)
     
@@ -694,11 +691,9 @@ const pauseCurrentRun = async () => {
     // 3. 状态机转换到暂停状态
     pauseExecution()
     
-    console.log('[Workflow] 工作流已暂停')
     ElMessage.success(t('workflow.pauseSuccess'))
   } catch (error) {
-    console.error('[Workflow] 暂停失败:', error)
-    ElMessage.error(t('workflow.pauseError', { error: error.message || error }))
+    ElMessage.error(t('workflow.pauseError'))
   }
 }
 
@@ -707,7 +702,6 @@ const resumeCurrentRun = async () => {
   if (!canResume.value) return
   
   if (execution.runId === null || execution.runId === undefined || execution.workflowId === null || execution.workflowId === undefined) {
-    console.error('[Workflow] 无法恢复：缺少 runId 或 workflowId')
     return
   }
   
@@ -767,7 +761,7 @@ const resumeCurrentRun = async () => {
           const cell = notebookCells.find(c => c.id === event.statement?.variable)
           if (cell) {
             cell.status = 'error'
-            cell.error = event.error
+            cell.error = t('workflow.executionFailed')
           } else {
             notebookCells.push({
               id: 'error-' + Date.now(),
@@ -775,13 +769,13 @@ const resumeCurrentRun = async () => {
               content: event.statement?.code || t('workflow.codeParseError'),
               description: event.statement?.description || '',
               status: 'error',
-              error: event.error || t('errors.unknown'),
+              error: t('workflow.executionFailed'),
               outputs: []
             })
           }
           // 标记为失败状态
-          failExecution(event.error || t('workflow.executionFailed'))
-          ElMessage.error(event.error || t('workflow.executionFailed'))
+          failExecution(t('workflow.executionFailed'))
+          ElMessage.error(t('workflow.executionFailed'))
         },
         onEnd: () => {
           // 如果不是失败状态，标记为完成
@@ -799,9 +793,8 @@ const resumeCurrentRun = async () => {
     
     ElMessage.success(t('workflow.resumeSuccess'))
   } catch (error) {
-    console.error('[Workflow] 恢复执行失败:', error)
-    failExecution(error.message || t('workflow.resumeExecutionError'))
-    ElMessage.error(error.message || t('workflow.resumeExecutionError'))
+    failExecution(t('workflow.resumeExecutionError'))
+    ElMessage.error(t('workflow.resumeExecutionError'))
   }
 }
 
@@ -822,7 +815,7 @@ const cancelCurrentRun = async () => {
     currentRunId.value = null
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(t('workflow.cancelError', { error: error.message || error }))
+      ElMessage.error(t('workflow.cancelError'))
     }
   }
 }
@@ -856,13 +849,13 @@ const saveWorkflow = async () => {
       const workflow = await saveCodeWorkflow(name, code.value)
       currentWorkflowId.value = workflow.id
       currentWorkflowName.value = workflow.name
+      currentWorkflowIsBuiltIn.value = !!workflow.is_built_in
       currentWorkflowRevision.value = ''
       ElMessage.success(t('workflow.saveSuccess', { name: workflow.name }))
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('[Workflow] 保存工作流失败:', error)
-      ElMessage.error(error.message || t('workflow.saveError'))
+      ElMessage.error(t('workflow.saveError'))
     }
   }
 }
@@ -926,7 +919,6 @@ const validateWorkflowCode = async () => {
       ElMessage.error(t('workflow.validationErrorCount', { count: validationResult.value.errors.length }))
     }
   } catch (error) {
-    console.error('校验工作流失败:', error)
     ElMessage.error(t('workflow.validationRequestError'))
   }
 }
@@ -1042,10 +1034,10 @@ const onResumeRun = async (run) => {
     workflowData = await getCodeWorkflow(run.workflow_id)
     code.value = workflowData.code || ''
     currentWorkflowName.value = workflowData.name
+    currentWorkflowIsBuiltIn.value = !!workflowData.is_built_in
     currentWorkflowId.value = run.workflow_id
     currentWorkflowRevision.value = workflowData.revision || ''
   } catch (error) {
-    console.error('[Workflow] 加载工作流失败:', error)
     ElMessage.error(t('workflow.loadError'))
     return
   }
@@ -1103,7 +1095,7 @@ const onResumeRun = async (run) => {
           const cell = notebookCells.find(c => c.id === event.statement?.variable)
           if (cell) {
             cell.status = 'error'
-            cell.error = event.error
+            cell.error = t('workflow.executionFailed')
           } else {
             notebookCells.push({
               id: 'error-' + Date.now(),
@@ -1111,13 +1103,13 @@ const onResumeRun = async (run) => {
               content: event.statement?.code || t('workflow.codeParseError'),
               description: event.statement?.description || '',
               status: 'error',
-              error: event.error || t('errors.unknown'),
+              error: t('workflow.executionFailed'),
               outputs: []
             })
           }
           // 标记为失败状态
-          failExecution(event.error || t('workflow.executionFailed'))
-          ElMessage.error(event.error || t('workflow.executionFailed'))
+          failExecution(t('workflow.executionFailed'))
+          ElMessage.error(t('workflow.executionFailed'))
         },
         onEnd: () => {
           // 如果不是失败状态，标记为完成
@@ -1133,9 +1125,8 @@ const onResumeRun = async (run) => {
     // 状态机转换到运行状态
     startExecution(run.workflow_id, run.id)
   } catch (error) {
-    console.error('[Workflow] 恢复执行失败:', error)
-    failExecution(error.message || t('workflow.resumeExecutionError'))
-    ElMessage.error(error.message || t('workflow.resumeExecutionError'))
+    failExecution(t('workflow.resumeExecutionError'))
+    ElMessage.error(t('workflow.resumeExecutionError'))
   }
 }
 
@@ -1281,8 +1272,8 @@ const handleVisualRevisionChanged = (revision) => {
 
 .section-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 10px;
   padding: 12px 16px;
   background: var(--el-fill-color-light);
   border-bottom: 1px solid var(--el-border-color);
@@ -1292,11 +1283,16 @@ const handleVisualRevisionChanged = (revision) => {
   font-size: 14px;
   font-weight: 600;
   color: var(--el-text-color-primary);
+  flex: 0 0 auto;
 }
 
 .section-subtitle {
   font-size: 13px;
   color: var(--el-text-color-secondary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 校验结果样式 */

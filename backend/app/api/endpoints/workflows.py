@@ -677,9 +677,9 @@ async def execute_code_workflow_stream(
                 # 推送事件
                 try:
                     yield f"data: {json.dumps(event_data, ensure_ascii=False, default=str)}\n\n"
-                except Exception as e:
+                except Exception:
                     # 如果推送失败（客户端断开），停止执行
-                    logger.warning(f"[CodeWorkflow] 推送事件失败（客户端可能断开）: {e}")
+                    logger.warning("[CodeWorkflow] SSE delivery failed; pausing run")
                     executor.pause()  # 标记为暂停
                     return
 
@@ -744,7 +744,7 @@ async def execute_code_workflow_stream(
             }
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
 
-        except asyncio.TimeoutError as exc:
+        except asyncio.TimeoutError:
             logger.error(
                 f"[CodeWorkflow] Provider timeout: run_id={run_id}"
             )
@@ -753,13 +753,13 @@ async def execute_code_workflow_stream(
 
             error_data = {
                 "type": "error",
-                "error": str(exc),
+                "error": "Provider timeout",
                 "code": "provider_timeout",
                 "message": "Provider timeout",
             }
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
 
-        except Exception as e:
+        except Exception:
             logger.error(f"[CodeWorkflow] 流式执行失败: run_id={run_id}")
             
             # 更新 run 状态为失败
@@ -771,7 +771,7 @@ async def execute_code_workflow_stream(
             
             error_data = {
                 "type": "error",
-                "error": str(e),
+                "error": "Workflow execution failed",
                 "message": "工作流执行失败"
             }
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
@@ -892,11 +892,10 @@ def parse_workflow_code(payload: Dict[str, Any]):
 
     parsed = parse_workflow_code_to_result(code)
     if not parsed.get("ok"):
-        error = str(parsed.get("error") or "parse_failed")
-        logger.error(f"代码解析失败: {error}")
+        logger.error("Workflow code parsing failed")
         return {
             "success": False,
-            "errors": [error],
+            "errors": ["Nie udało się przeanalizować workflowu."],
         }
 
     statements = []
@@ -936,7 +935,7 @@ def rename_variable(payload: Dict[str, Any]):
     old_name = payload.get("old_name", "")
     new_name = payload.get("new_name", "")
     
-    logger.info(f"[重命名] 开始重命名变量: {old_name} -> {new_name}")
+    logger.info("[Workflow rename] variable rename started")
     
     if not code or not old_name or not new_name:
         return {"success": False, "error": "缺少必要参数"}
@@ -945,19 +944,17 @@ def rename_variable(payload: Dict[str, Any]):
         # 使用注释标记 DSL 重命名器
         new_code = marker_rename(code, old_name, new_name)
         
-        logger.info(f"[重命名] 新代码:\n{new_code}")
+        logger.info("[Workflow rename] variable rename completed")
         
         return {
             "success": True,
             "new_code": new_code
         }
-    except Exception as e:
-        logger.error(f"变量重命名失败: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
+    except Exception:
+        logger.error("[Workflow rename] variable rename failed")
         return {
             "success": False,
-            "error": str(e)
+            "error": "Nie udało się zmienić nazwy zmiennej."
         }
 
 

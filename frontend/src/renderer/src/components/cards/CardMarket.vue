@@ -9,7 +9,7 @@
               <div class="card-header">
                 <div class="header-left">
                   <el-tag size="small" effect="plain">{{ getCardTypeDisplayName(card.card_type.name) }}</el-tag>
-                  <span class="title">{{ getCardDisplayTitle(card.title) }}</span>
+                  <span class="title">{{ getBuiltInCardDefaultTitle(card.title, card.card_type?.name) }}</span>
                 </div>
                 <div class="header-right">
                   <el-tooltip :content="t('common.edit')">
@@ -39,7 +39,7 @@
       <div v-else>
         <el-table :data="filteredCards" size="small" border stripe>
           <el-table-column :label="t('cardLibrary.title')">
-            <template #default="{ row }">{{ getCardDisplayTitle(row.title) }}</template>
+            <template #default="{ row }">{{ getBuiltInCardDefaultTitle(row.title, row.card_type?.name) }}</template>
           </el-table-column>
           <el-table-column :label="t('cardLibrary.type')" width="140">
             <template #default="{ row }">
@@ -71,7 +71,7 @@ import { useCardStore } from '@renderer/stores/useCardStore'
 import { storeToRefs } from 'pinia'
 import CardFilterBar from './CardFilterBar.vue'
 import { useI18n } from 'vue-i18n'
-import { getCardDisplayTitle, getCardTypeDisplayName } from '@renderer/i18n'
+import { getBuiltInCardDefaultTitle, getCardTypeDisplayName } from '@renderer/i18n'
 
 const emit = defineEmits<{ (e: 'edit-card', id: number): void }>()
 const { t } = useI18n()
@@ -90,7 +90,7 @@ const filteredCards = computed(() => {
   if (keyword.value.trim()) {
     const keywords = keyword.value.trim().toLowerCase().split(/\s+/)
     list = list.filter(c => {
-      const displayTitle = getCardDisplayTitle(c.title || '').toLowerCase()
+      const displayTitle = getBuiltInCardDefaultTitle(c.title || '', c.card_type?.name).toLowerCase()
       return keywords.every(k => displayTitle.includes(k))
     })
   }
@@ -101,7 +101,7 @@ const filteredCards = computed(() => {
   switch (sortKey.value) {
     case 'title':
       list.sort((a, b) => (
-        getCardDisplayTitle(a.title).localeCompare(getCardDisplayTitle(b.title))
+        getBuiltInCardDefaultTitle(a.title, a.card_type?.name).localeCompare(getBuiltInCardDefaultTitle(b.title, b.card_type?.name))
       )); break
     case 'type':
       list.sort((a, b) => (

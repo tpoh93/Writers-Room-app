@@ -19,7 +19,7 @@
 					</el-form-item>
 					<el-form-item :label="t('settings.prompt')">
 						<el-select v-model="editing.prompt_name" :placeholder="t('settings.selectPrompt')" filterable style="width: 240px;" :teleported="false">
-							<el-option v-for="p in (aiOptions?.prompts || [])" :key="p.id" :label="p.name" :value="p.name" />
+							<el-option v-for="p in (aiOptions?.prompts || [])" :key="p.id" :label="getPromptDisplayName(p.name)" :value="p.name" />
 						</el-select>
 					</el-form-item>
 					<el-form-item :label="t('settings.temperature')">
@@ -57,6 +57,7 @@ import { usePerCardAISettingsStore, type PerCardAIParams } from '@renderer/store
 import { getAIConfigOptions, type AIConfigOptions } from '@renderer/api/ai'
 import { getCardAIParams, updateCardAIParams, applyCardAIParamsToType } from '@renderer/api/setting'
 import { ElMessage } from 'element-plus'
+import { getPromptDisplayName } from '@renderer/i18n'
 
 const { t } = useI18n()
 

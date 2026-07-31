@@ -27,7 +27,7 @@
                 :class="{ selected: selectedKard?.id === card.id }"
                 @click="handleCardSelect(card)"
               >
-                {{ getCardDisplayTitle(card.title) }}
+                {{ getBuiltInCardDefaultTitle(card.title, card.card_type?.name) }}
               </li>
             </ul>
           </el-scrollbar>
@@ -148,7 +148,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getCardDisplayTitle, getCardTypeDisplayName } from '@renderer/i18n'
+import { getBuiltInCardDefaultTitle, getCardTypeDisplayName } from '@renderer/i18n'
 import type { CardRead } from '@renderer/api/cards'
 import { schemaService, type JSONSchema } from '@renderer/api/schema'
 import { getCardSchema } from '@renderer/api/setting'
@@ -226,7 +226,7 @@ const flatFieldList = computed(() => {
 
 // 过滤卡片（按标题）
 const filteredCards = computed(() => props.cards.filter(card => (
-  getCardDisplayTitle(card.title).toLowerCase().includes(cardSearch.value.toLowerCase())
+  getBuiltInCardDefaultTitle(card.title, card.card_type?.name).toLowerCase().includes(cardSearch.value.toLowerCase())
 )))
 
 // 所有类型名

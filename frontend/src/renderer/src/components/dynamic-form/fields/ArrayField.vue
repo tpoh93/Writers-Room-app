@@ -52,7 +52,7 @@
       </div>
     </div>
     <el-button type="primary" :icon="Plus" plain @click="addItem" class="add-button">
-      {{ t('dynamicForm.addItem', { item: (displayNameMap && displayNameMap[itemSchema.title || '']) || itemSchema.title || t('dynamicForm.newItem') }) }}
+      {{ t('dynamicForm.addItem', { item: (displayNameMap && displayNameMap[itemSchema.title || '']) || getSchemaDisplayText(itemSchema.title) || t('dynamicForm.newItem') }) }}
     </el-button>
   </el-card>
 </template>
@@ -63,6 +63,7 @@ import { useI18n } from 'vue-i18n'
 import type { JSONSchema } from '@renderer/api/schema'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import { resolveActualSchema } from '@renderer/services/schemaFieldParser'
+import { getSchemaDisplayText } from '@renderer/i18n'
 
 const { t } = useI18n()
 

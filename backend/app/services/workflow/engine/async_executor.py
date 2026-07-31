@@ -189,7 +189,7 @@ class AsyncExecutor:
                 if is_provider_domain_error(e):
                     logger.error("[AsyncExecutor] Provider statement processing failed")
                 else:
-                    logger.error(f"[AsyncExecutor] 语句处理失败: {e}")
+                    logger.error("[AsyncExecutor] statement processing failed")
                 raise
     
     async def _process_statements(self, plan: ExecutionPlan):
@@ -331,7 +331,7 @@ class AsyncExecutor:
                             stmt.variable,
                         )
                     else:
-                        logger.error(f"[AsyncExecutor] 语句执行失败: {stmt.variable}, 错误: {e}")
+                        logger.error("[AsyncExecutor] workflow statement failed")
                     # 使用错误处理器
                     error_event = await ErrorHandler.handle_node_error(
                         e, stmt, self.execution_state, self.session
@@ -379,7 +379,7 @@ class AsyncExecutor:
                     stmt.variable,
                 )
             else:
-                logger.error(f"[AsyncNode] 异步节点执行失败: {stmt.variable}, 错误: {e}")
+                logger.error("[AsyncNode] asynchronous workflow node failed")
             error_event = await ErrorHandler.handle_node_error(
                 e, stmt, self.execution_state, self.session
             )
@@ -583,7 +583,7 @@ class AsyncExecutor:
     def _execute_expression(self, stmt: Statement) -> Any:
         """执行纯表达式"""
         expression = stmt.config.get("expression", "")
-        logger.info(f"[Expression] 执行表达式: {expression}")
+        logger.info("[Expression] evaluating workflow expression")
         
         # 使用表达式求值器求值
         context = self._resolve_context(stmt.depends_on)
@@ -673,7 +673,7 @@ class AsyncExecutor:
                     # 创建清理任务但不等待（后台清理）
                     asyncio.create_task(node.cleanup())
                 except Exception as e:
-                    logger.error(f"[AsyncExecutor] 创建清理任务失败: {var}, 错误: {e}")
+                    logger.error("[AsyncExecutor] cleanup task creation failed")
         
         # 取消所有异步任务（不等待完成）
         if self.async_tasks:

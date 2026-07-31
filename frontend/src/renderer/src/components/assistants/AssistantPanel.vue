@@ -465,8 +465,7 @@ async function startStreaming(targetIdx: number) {
         isStreaming.value = false
         return
       }
-    } catch (error) {
-      console.error('Failed to persist active chapter draft before assistant run:', error)
+    } catch {
       ElMessage.error(t('assistantPanel.chapterSaveError'))
       isStreaming.value = false
       return
@@ -938,7 +937,6 @@ function nfMaybeDispatchTextPatchBatchFromMessage(targetIdx: number): boolean {
 
 
 function handleToolsExecuted(targetIdx: number, tools: Array<{tool_name: string, result: any}>) {
-  console.log('🔧 工具已执行:', targetIdx, tools)
 
   const msg = messages.value[targetIdx]
   if (!msg || msg.role !== 'assistant') return
@@ -959,13 +957,11 @@ function handleToolsExecuted(targetIdx: number, tools: Array<{tool_name: string,
     const refreshTools = ['create_card', 'modify_card_field', 'batch_create_cards', 'replace_field_text', 'replace_card_text_by_lines']
 
     if (refreshTools.includes(toolName)) {
-      console.log(`🔄 检测到 ${toolName} 调用，准备刷新卡片列表`)
       return true
     }
 
     // 或者有 card_id 字段的结果
     if (result?.card_id) {
-      console.log(`🔄 检测到 card_id: ${result.card_id}，准备刷新卡片列表`)
       return true
     }
 
@@ -974,13 +970,9 @@ function handleToolsExecuted(targetIdx: number, tools: Array<{tool_name: string,
 
   if (needsRefresh && projectStore.currentProject?.id) {
     const cardStore = useCardStore()
-    console.log('🔄 开始刷新卡片列表...')
     // 刷新整个卡片列表
     cardStore.fetchCards(projectStore.currentProject.id).then(() => {
-      console.log('✅ 卡片列表刷新完成')
-    }).catch((err) => {
-      console.error('❌ 卡片列表刷新失败:', err)
-    })
+    }).catch(() => {})
   }
 
   // 显示通知

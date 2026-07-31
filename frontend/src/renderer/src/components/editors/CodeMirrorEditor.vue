@@ -72,7 +72,7 @@
 									:command="prompt"
 								>
 									<div class="prompt-item">
-										<span>{{ prompt }}</span>
+									<span>{{ getPromptDisplayName(prompt) }}</span>
 										<el-icon v-if="prompt === currentReviewPrompt" class="check-icon"><Select /></el-icon>
 									</div>
 								</el-dropdown-item>
@@ -88,10 +88,10 @@
 						<template #dropdown>
 							<el-dropdown-menu>
 								<el-dropdown-item command="polish" :disabled="aiLoading || reviewLoading">
-									{{ t('chapterEditor.polish') }} ({{ currentPolishPrompt }})
+									{{ t('chapterEditor.polish') }} ({{ getPromptDisplayName(currentPolishPrompt) }})
 								</el-dropdown-item>
 							<el-dropdown-item command="expand" :disabled="aiLoading || reviewLoading">
-								{{ t('chapterEditor.expand') }} ({{ currentExpandPrompt }})
+								{{ t('chapterEditor.expand') }} ({{ getPromptDisplayName(currentExpandPrompt) }})
 							</el-dropdown-item>
 						</el-dropdown-menu>
 					</template>
@@ -106,13 +106,13 @@
 							<div class="prompt-settings-item">
 								<label>{{ t('chapterEditor.polish') }}</label>
 								<el-select v-model="currentPolishPrompt" size="small" @change="handlePolishPromptChange">
-									<el-option v-for="p in polishPrompts" :key="p" :label="p" :value="p" />
+									<el-option v-for="p in polishPrompts" :key="p" :label="getPromptDisplayName(p)" :value="p" />
 								</el-select>
 							</div>
 							<div class="prompt-settings-item">
 								<label>{{ t('chapterEditor.expand') }}</label>
 								<el-select v-model="currentExpandPrompt" size="small" @change="handleExpandPromptChange">
-									<el-option v-for="p in expandPrompts" :key="p" :label="p" :value="p" />
+									<el-option v-for="p in expandPrompts" :key="p" :label="getPromptDisplayName(p)" :value="p" />
 								</el-select>
 							</div>
 						</div>
@@ -1168,6 +1168,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getPromptDisplayName } from '@renderer/i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import SimpleMarkdown from '../common/SimpleMarkdown.vue'
@@ -1352,7 +1353,7 @@ const selectedModelName = computed(() => {
 const paramSummary = computed(() => {
 	const p = perCardParams.value || editingParams.value
 	const model = t('chapterEditor.modelSummary', { value: selectedModelName.value || t('editor.notSet') })
-	const prompt = t('chapterEditor.taskSummary', { value: p?.prompt_name || t('editor.notSet') })
+	const prompt = t('chapterEditor.taskSummary', { value: getPromptDisplayName(p?.prompt_name) || t('editor.notSet') })
 	const temperature = p?.temperature != null ? t('chapterEditor.temperatureSummary', { value: p.temperature }) : ''
 	const m = p?.max_tokens != null ? `max_tokens:${p.max_tokens}` : ''
 	return [model, prompt, temperature, m].filter(Boolean).join(' · ')
@@ -1404,7 +1405,6 @@ watch(() => props.card?.content, (newContent) => {
 		// 只有当内容真的不同，且不是由当前编辑器触发的保存时，才更新
 		// （通过比较 originalContent 判断：如果相同说明是外部修改）
 		if (newText !== currentText && newText !== originalContent.value) {
-			console.log('🔄 [CodeMirror] 检测到外部内容更新，同步到编辑器')
 
 			// 更新编辑器内容
 			setText(newText)
@@ -1424,14 +1424,12 @@ watch(() => props.card?.content, (newContent) => {
 			// 更新字数
 			wordCount.value = computeWordCount(newText)
 
-			console.log('✅ [CodeMirror] 编辑器内容已同步')
 			return
 		}
 
 		// 即使正文文本未变化，也要同步 entity_list 等字段，保证预览始终读取最新章节挂载实体。
 		localCard.content = syncedContent
-	} catch (e) {
-		console.error('❌ [CodeMirror] 同步内容失败:', e)
+	} catch {
 	}
 }, { deep: true })
 
@@ -1569,14 +1567,12 @@ function setHighlight(from: number, to: number) {
 	if (!view) return
 	// CodeMirror 不允许空范围的 decoration
 	if (from >= to) {
-		console.log('⚠️ [Highlight] 跳过空范围高亮:', { from, to })
 		return
 	}
 	currentHighlight.value = { from, to }
 	view.dispatch({
 		effects: setHighlightEffect.of({ mode: 'single', from, to })
 	})
-	console.log('✨ [Highlight] 设置高亮:', { from, to })
 }
 
 // 清除高亮
@@ -1586,7 +1582,6 @@ function clearHighlight() {
 	view.dispatch({
 		effects: setHighlightEffect.of(null)
 	})
-	console.log('🧹 [Highlight] 清除高亮')
 }
 
 // 更新高亮范围（用于 AI 输出时）
@@ -2257,9 +2252,6 @@ function initEditor() {
 		const editorDom = cmRoot.value.querySelector('.cm-editor') as HTMLElement
 		if (editorDom) {
 			editorDom.addEventListener('contextmenu', handleEditorContextMenu)
-			console.log('✅ [ContextMenu] 右键菜单监听器已添加')
-		} else {
-			console.warn('⚠️ [ContextMenu] 未找到 .cm-editor 元素')
 		}
 	}
 }
@@ -2298,7 +2290,6 @@ async function loadPrompts() {
 			currentReviewPrompt.value = allPromptNames[0]
 		}
 	} catch (e) {
-		console.error('Failed to load prompts:', e)
 		reviewPrompts.value = ['章节审核']
 		polishPrompts.value = ['润色']
 		expandPrompts.value = ['扩写']
@@ -2511,7 +2502,6 @@ async function executeReview() {
 		try {
 			resolvedContextTemplate = getResolvedContext(reviewContextKindValue.value, 'review')
 		} catch (e) {
-			console.error('Failed to resolve context template for review:', e)
 		}
 		const volumeNumber = (props.contextParams as any)?.volume_number ?? (localCard.content as any)?.volume_number
 		const chapterNumber = (props.contextParams as any)?.chapter_number ?? (localCard.content as any)?.chapter_number
@@ -2563,7 +2553,6 @@ async function executeReview() {
 		notifyEditorTaskDone('review')
 		ElMessage.success(t('chapterEditor.chapterReviewComplete'))
 	} catch (e) {
-		console.error('章节审核失败:', e)
 		ElMessage.error(t('chapterEditor.chapterReviewError'))
 	} finally {
 		if (reviewAbortController.value === abortController) {
@@ -2596,7 +2585,6 @@ async function handleCreateOrUpdateReviewCard() {
 		window.dispatchEvent(new CustomEvent('nf:review-history-refresh'))
 		ElMessage.success(t('chapterEditor.reviewCardUpdated'))
 	} catch (error) {
-		console.error('Failed to upsert review result card:', error)
 		ElMessage.error(t('chapterEditor.reviewCardCreateError'))
 	} finally {
 		reviewCardSaving.value = false
@@ -2647,7 +2635,6 @@ async function runContinuationWithConfig(payload: {
 	try {
 		resolvedContextTemplate = getResolvedContext(generationContextKindValue.value, 'generation')
 	} catch (e) {
-		console.error('Failed to resolve context template:', e)
 	}
 
 	// 2. 格式化事实子图（参与实体）
@@ -2738,12 +2725,9 @@ async function executeExpand() {
 
 // 右键菜单处理函数
 function handleEditorContextMenu(e: MouseEvent) {
-	console.log(' [ContextMenu] 右键事件触发')
-
 	// 检查是否有选中文本
 	const selection = getSelectionWithLineInfo()
 	if (!selection || !selection.text.trim()) {
-		console.log('⚠️ [ContextMenu] 没有选中文本，使用默认菜单')
 		return // 没有选中文本，使用默认右键菜单
 	}
 
@@ -2796,7 +2780,6 @@ function expandContextMenu() {
 		if (input) {
 			input.focus()
 		} else {
-			console.warn('⚠️ [ContextMenu] 未找到输入框')
 		}
 	})
 }
@@ -2980,7 +2963,6 @@ async function executeAIEdit(
 	try {
 		resolvedContextTemplate = getResolvedContext(generationContextKindValue.value, 'generation')
 	} catch (e) {
-		console.error('Failed to resolve context template:', e)
 	}
 
 	// 2. 格式化事实子图（参与实体）
@@ -3175,7 +3157,6 @@ function executeAIGeneration(
 					setText(text)
 				}
 			} catch {}
-			console.log('✅ [AI] 生成完成，高亮已保留（点击编辑器任意位置可清除）')
 			if (replaceMode) {
 				ElMessage.success(t('chapterEditor.taskSuggestionReady', { task: taskName }))
 			} else {
@@ -3203,7 +3184,6 @@ function executeAIGeneration(
 				pendingAiEdit.value = null
 			}
 			clearHighlight()
-			console.error(`${taskName}失败:`, error)
 			ElMessage.error(t('chapterEditor.taskFailed', { task: taskName }))
 		}
 	)
@@ -3276,7 +3256,6 @@ function extractParticipantsWithTypeForCurrentChapter(): { name: string, type: s
 			result.push({ name, type })
 		}
 	} catch (e) {
-		console.error("Failed to extract participants with type:", e)
 	}
 	return result.slice(0, 10) // 适当放宽数量限制
 }
@@ -3604,7 +3583,6 @@ async function extractDynamicInfoWithLlm(llmConfigId: number, opts?: ChapterExtr
 		await ensureEditorMainTabVisible()
 		previewDialogVisible.value = true
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.dynamicExtractionError'))
 	}
 }
@@ -3647,7 +3625,6 @@ async function confirmApplyUpdates() {
 			try {
 				appendedCount = await appendParticipantsToCurrentChapter(collectConfirmedDynamicParticipantNames())
 			} catch (syncError) {
-				console.error(syncError)
 				ElMessage.warning(t('chapterEditor.participantSyncWarning'))
 			}
 			ElMessage.success(t('chapterEditor.dynamicUpdateSuccess', { cards: resp.updated_card_count, participants: appendedCount }))
@@ -3656,7 +3633,6 @@ async function confirmApplyUpdates() {
 			ElMessage.warning(t('chapterEditor.noDynamicUpdates'))
 		}
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.dynamicUpdateError'))
 	} finally {
 		dynamicPreviewApplying.value = false
@@ -3687,7 +3663,6 @@ async function confirmIngestRelationsFromPreview() {
 		const resp = await ingestRelationsFromPreview({ project_id: projectId, data: sanitizedRelationsPreview, volume_number: vol, chapter_number: ch })
 		ElMessage.success(t('chapterEditor.relationsWritten', { count: resp.written }))
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.relationWriteError'))
 	} finally {
 		relationsPreviewApplying.value = false
@@ -3743,7 +3718,6 @@ async function extractRelationsWithLlm(llmConfigId: number, opts?: ChapterExtrac
 		await ensureEditorMainTabVisible()
 		relationsPreviewVisible.value = true
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.relationExtractionError'))
 	}
 }
@@ -3783,7 +3757,6 @@ async function extractMemoryByCode(extractorCode: MemoryExtractorCode, llmConfig
 		await ensureEditorMainTabVisible()
 		memoryPreviewVisible.value = true
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.memoryExtractionError', { type: getMemoryExtractorDisplayLabel(extractorCode) }))
 	}
 }
@@ -3928,7 +3901,6 @@ async function removeParticipantFromCurrentChapter(item: ParticipantReviewNotice
 		;(localCard.content as any).entity_list = nextList
 		ElMessage.success(t('chapterEditor.participantRemoved', { name: item.title }))
 	} catch (error) {
-		console.error(error)
 		ElMessage.error(t('chapterEditor.participantUpdateError'))
 	}
 }
@@ -3994,7 +3966,6 @@ async function applyMemoryPreviewConfirm() {
 			try {
 				appendedCount = await appendParticipantsToCurrentChapter(collectConfirmedMemoryParticipantNames())
 			} catch (syncError) {
-				console.error(syncError)
 				ElMessage.warning(t('chapterEditor.participantSyncWarning'))
 			}
 			ElMessage.success(t('chapterEditor.memoryWriteSuccess', { type: label, cards: resp.updated_card_count, participants: appendedCount }))
@@ -4003,7 +3974,6 @@ async function applyMemoryPreviewConfirm() {
 			ElMessage.warning(t('chapterEditor.noMemoryUpdates'))
 		}
 	} catch (e) {
-		console.error(e)
 		ElMessage.error(t('chapterEditor.memoryWriteError'))
 	} finally {
 		memoryPreviewApplying.value = false
@@ -4102,7 +4072,6 @@ async function restoreContent(versionContent: any) {
 		wordCount.value = computeWordCount(textContent)
 
 	} catch (e) {
-		console.error('Failed to restore content:', e)
 		throw e
 	}
 }
@@ -4409,7 +4378,6 @@ function nfAssistantHandlePatchBatchEvent(event: Event) {
   const currentId = nfAssistantCurrentCardId()
   const targetId = Number(detail.card_id)
   if (currentId && targetId && currentId !== targetId) {
-    console.warn(`Patch proposals target card #${targetId}, current card #${currentId}`)
     return
   }
   if (pendingAiEdit.value && (pendingAiEdit.value as any).source !== 'assistant_batch_patch') {
@@ -4484,10 +4452,8 @@ onBeforeUnmount(() => {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	flex-wrap: nowrap;
-	overflow-x: auto;
-	overflow-y: hidden;
-	scrollbar-width: thin;
+	flex-wrap: wrap;
+	overflow: visible;
 }
 
 .toolbar-status-row {
@@ -4520,8 +4486,10 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-group-ai {
+	display: flex;
+	flex-wrap: wrap;
 	gap: 8px;
-	flex: 0 0 auto;
+	flex: 1 1 420px;
 	min-width: 0;
 	padding: 8px 12px;
 }
@@ -4541,29 +4509,29 @@ onBeforeUnmount(() => {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	flex-wrap: nowrap;
-	flex: 0 0 auto;
+	flex-wrap: wrap;
+	flex: 1 1 300px;
 }
 
 .ai-config-entry {
-	max-width: none;
-	width: auto;
+	max-width: 100%;
+	width: min(100%, 560px);
 	margin-right: 0;
+}
+
+@media (max-width: 1024px) {
+	.toolbar-row { align-items: stretch; }
+	.toolbar-group-ai, .ai-action-bar { flex-basis: 100%; }
+	.ai-config-entry { width: 100%; }
 }
 
 .ai-status-strip {
 	display: flex;
-	flex-wrap: nowrap;
+	flex-wrap: wrap;
 	gap: 8px;
-	flex: 0 0 auto;
+	flex: 1 1 100%;
 	max-width: 100%;
-	overflow-x: auto;
-	overflow-y: hidden;
-	scrollbar-width: none;
-}
-
-.ai-status-strip::-webkit-scrollbar {
-	display: none;
+	overflow: visible;
 }
 
 .status-pill {

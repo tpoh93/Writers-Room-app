@@ -113,8 +113,8 @@ def extract_triggers_from_code(code: str) -> List[Dict[str, Any]]:
         logger.debug(f"[TriggerExtractor] 从代码中提取了 {len(triggers)} 个触发器")
         return triggers
     
-    except Exception as e:
-        logger.error(f"[TriggerExtractor] 提取触发器失败: {e}")
+    except Exception:
+        logger.error("[TriggerExtractor] trigger extraction failed")
         return []
 
 
@@ -136,7 +136,7 @@ def sync_triggers_cache(workflow, session) -> None:
     workflow.triggers_cache = triggers
     session.add(workflow)
     
-    logger.info(f"[TriggerExtractor] 工作流 {workflow.id} ({workflow.name}) 的触发器缓存已更新: {len(triggers)} 个触发器")
+    logger.info(f"[TriggerExtractor] trigger cache updated: count={len(triggers)}")
 
 
 def match_event(event_name: str, event_data: Dict[str, Any], trigger: Dict[str, Any]) -> bool:
@@ -213,5 +213,5 @@ def get_active_triggers_by_event(session, event_name: str, event_data: Dict[str,
                     **trigger
                 })
     
-    logger.debug(f"[TriggerExtractor] 找到 {len(matched_triggers)} 个匹配的触发器: event={event_name}, data={event_data}")
+    logger.debug(f"[TriggerExtractor] matched triggers: count={len(matched_triggers)}")
     return matched_triggers

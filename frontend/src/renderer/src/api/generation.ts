@@ -103,7 +103,6 @@ export async function generateWithInstructionStream(
       return
     }
 
-    console.error('生成失败:', error)
     callbacks.onError?.(error.message || i18n.global.t('generation.failed'))
   }
 }
@@ -136,8 +135,7 @@ function parseSSELine(line: string): { event: string; data: any } | null {
   try {
     const data = JSON.parse(dataStr)
     return { event: eventType, data }
-  } catch (e) {
-    console.warn('解析 SSE 数据失败:', dataStr)
+  } catch {
     return null
   }
 }
@@ -173,7 +171,7 @@ function handleEvent(event: { event: string; data: any }, callbacks: GenerateCal
       break
 
     default:
-      console.warn('未知的事件类型:', type, data)
+      console.warn('Unknown generation event type:', type)
   }
 }
 import i18n from '@renderer/i18n'

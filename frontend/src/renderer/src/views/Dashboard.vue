@@ -215,7 +215,7 @@ function getCoverClass(name: string) {
 
 .card-content { padding: 10px 12px 12px; position: relative; }
 .title-row { display: flex; align-items: center; gap: 8px; }
-.title { margin: 0; font-size: 16px; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.title { margin: 0; font-size: 16px; font-weight: 600; flex: 1; min-width: 0; min-height: 40px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .desc { margin: 6px 0 0; color: var(--el-text-color-regular); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 42px; }
 
 /* 悬浮操作：默认透明，悬浮时显现 */

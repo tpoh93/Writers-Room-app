@@ -24,6 +24,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { JSONSchema } from '@renderer/api/schema'
 import { resolveKnowledgeOptions } from '@renderer/services/knowledgeOptionResolver'
+import { getSchemaDisplayText } from '@renderer/i18n'
 
 const { t } = useI18n()
 
@@ -79,7 +80,8 @@ const resolvedOptions = computed(() => {
 })
 
 const placeholder = computed(() => {
-  return props.schema.description || t('dynamicForm.selectPlaceholder', { label: props.label })
+  return getSchemaDisplayText(props.schema.description)
+    || t('dynamicForm.selectPlaceholder', { label: props.label })
 })
 
 const noDataText = computed(() => {
